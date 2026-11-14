@@ -194,12 +194,32 @@ def choose_execution_strategy(
         if estimated_parallel_seconds is not None else None
     )
 
-    if read_only_exploration_needed and context_pressure_high and workstreams >= 2:
+    # Every delegation path needs a measured total-cost or hard-deadline benefit.
+    # Context pressure alone does not justify parallel work when its cost/benefit
+    # is unknown; fall back to the main session and collect measurements first.
+    cost_ok = (
+        single_cost is not None
+        and parallel_cost is not None
+        and parallel_cost <= single_cost
+    )
+    deadline_ok = (
+        hard_deadline_requires_parallelism
+        and single_seconds is not None
+        and parallel_seconds is not None
+        and parallel_seconds < single_seconds
+    )
+
+    if (
+        read_only_exploration_needed
+        and context_pressure_high
+        and workstreams >= 2
+        and (cost_ok or deadline_ok)
+    ):
         return {
             "strategy": "read_only_exploration",
             "max_parallel_agents": min(max_workers, workstreams, 3),
             "read_only": True,
-            "reason": "Large-scope read-only exploration benefits from isolated context.",
+            "reason": "Large-scope read-only exploration has a measured cost or hard-deadline benefit.",
         }
 
     if (
@@ -209,17 +229,6 @@ def choose_execution_strategy(
         and file_write_sets_disjoint
         and max_workers >= 2
     ):
-        cost_ok = (
-            single_cost is not None
-            and parallel_cost is not None
-            and parallel_cost <= single_cost
-        )
-        deadline_ok = (
-            hard_deadline_requires_parallelism
-            and single_seconds is not None
-            and parallel_seconds is not None
-            and parallel_seconds < single_seconds
-        )
         if cost_ok or deadline_ok:
             return {
                 "strategy": "parallel_independent",
