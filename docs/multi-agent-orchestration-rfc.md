@@ -341,7 +341,7 @@ The currently described 63 regression cases do not establish the >99% accuracy /
 ## Lease, retry, and idempotency rules
 
 - A task claim creates a random lease token and expiry. Only that agent/token pair may heartbeat, submit, or fail the task.
-- A lease expiry re-queues the task only while attempts and budget remain; the old lease token becomes invalid. When a failed generation or verification attempt is re-queued, its reservation is reduced by the actual cost already recorded for that attempt; the run budget counts actual spend plus only the unspent reservation.
+- A lease expiry re-queues the task only while attempts and budget remain; the old lease token becomes invalid. When a failed result or review includes validated usage telemetry, its attempt estimate is released and the recorded actual cost is charged. When `fail_task` or lease expiry provides no usage telemetry, move the attempt estimate to durable `unreported_cost_reserved`; retain it across subsequent claims and include it in both task-level and run-level budget checks, rather than overwriting it with the next attempt's estimate.
 - Result submission is idempotent by task/attempt/result ID. Replaying a completed submission must not duplicate state transitions or costs.
 - A worker cannot claim a task whose dependencies are incomplete, whose capability set does not match, or whose task budget/deadline has expired.
 - Every automatic retry is bounded by `max_attempts`, task cost budget, and run cost budget. No unbounded self-spawning or recursive delegation.

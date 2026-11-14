@@ -364,10 +364,15 @@ class TaskStore:
                 failed_agents = set(task["input"].get("failed_agent_ids", []))
                 failed_agents.add(str(row["lease_owner"]))
                 task["input"]["failed_agent_ids"] = sorted(failed_agents)
-            if status == "failed":
-                task.pop("estimated_cost_reserved", None)
-            # An expired worker reports no billable usage. Keep the reservation
-            # intact for the retry rather than releasing budget speculatively.
+            # No usage telemetry is available for an expired lease. Move the
+            # old attempt's estimate into a durable uncertainty reserve so a
+            # later claim cannot overwrite it with the next attempt's estimate.
+            unreported_reserve = float(task.pop("estimated_cost_reserved", 0.0))
+            if unreported_reserve > 0:
+                task["unreported_cost_reserved"] = (
+                    float(task.get("unreported_cost_reserved", 0.0))
+                    + unreported_reserve
+                )
             self._set_task(con, row, task, status)
             if status == "failed" and task.get("task_type") == "verification":
                 self._mark_verification_parent_needs_review(
@@ -572,15 +577,18 @@ class TaskStore:
         return cost
 
     def _get_reserved_cost(self, con: sqlite3.Connection, run_id: str) -> float:
-        """Sum expected costs held by active leases to prevent concurrent overspending."""
+        """Sum active estimates and durable reserves for attempts without usage telemetry."""
         total = 0.0
         rows = con.execute(
-            "SELECT task_json FROM tasks WHERE run_id=? AND status IN ('leased', 'submitted', 'needs_review', 'queued')",
+            "SELECT status, task_json FROM tasks WHERE run_id=?",
             (run_id,),
         ).fetchall()
+        active_statuses = {"leased", "submitted", "needs_review", "queued"}
         for row in rows:
             task = _decode(row["task_json"])
-            total += float(task.get("estimated_cost_reserved", 0.0))
+            total += float(task.get("unreported_cost_reserved", 0.0))
+            if row["status"] in active_statuses:
+                total += float(task.get("estimated_cost_reserved", 0.0))
         return total
 
     def _get_actual_cost(self, con: sqlite3.Connection, run_id: str) -> float:
@@ -771,28 +779,35 @@ class TaskStore:
 
                 spent = self._get_actual_cost(con, row["run_id"])
                 reserved = self._get_reserved_cost(con, row["run_id"])
-                own_reserve = float(task.get("estimated_cost_reserved", 0.0))
-                reserved_other = max(0.0, reserved - own_reserve)
+                own_estimate = float(task.get("estimated_cost_reserved", 0.0))
+                own_unreported = float(task.get("unreported_cost_reserved", 0.0))
+                reserved_other = max(0.0, reserved - own_estimate - own_unreported)
                 max_total = float(run["cost_policy"]["max_total"])
                 expected = float(ranked[0]["estimated_total_cost"])
-                if spent + expected > max_total:
+                if spent + own_unreported + expected > max_total:
                     task["last_failure"] = "run_cost_budget_exceeded"
+                    task.pop("estimated_cost_reserved", None)
                     self._set_task(con, row, task, "failed")
                     self._event(
                         con, run_id=row["run_id"], task_id=row["task_id"],
                         event_type="task_budget_exceeded",
-                        payload={"reason": task["last_failure"], "expected_cost": expected, "spent": spent},
+                        payload={
+                            "reason": task["last_failure"],
+                            "expected_cost": expected,
+                            "spent": spent,
+                            "unreported_cost_reserved": own_unreported,
+                        },
                     )
                     self._refresh_run_status(con, row["run_id"])
                     continue
-                if spent + reserved_other + expected > max_total:
-                    # Another active lease may release its reserve; keep this task queued.
+                if spent + own_unreported + reserved_other + expected > max_total:
+                    # Another task's active estimate may be released; keep this task queued.
                     continue
                 if task.get("cost_budget"):
                     task_budget = task["cost_budget"]
                     if task_budget["currency"] != run["cost_policy"]["currency"]:
                         task["last_failure"] = "task_cost_budget_currency_mismatch"
-                    elif expected > float(task_budget["max_total"]):
+                    elif own_unreported + expected > float(task_budget["max_total"]):
                         task["last_failure"] = "task_cost_budget_exceeded"
                     else:
                         task.pop("last_failure", None)
@@ -1079,17 +1094,11 @@ class TaskStore:
             if result["status"] == "failed":
                 new_status = "queued" if int(row["attempt"]) < int(row["max_attempts"]) else "failed"
                 task["last_failed_result_id"] = result_id
+                task.pop("estimated_cost_reserved", None)
                 if new_status == "queued":
                     failed_agents = set(task["input"].get("failed_agent_ids", []))
                     failed_agents.add(agent_id)
                     task["input"]["failed_agent_ids"] = sorted(failed_agents)
-                    task["estimated_cost_reserved"] = max(
-                        0.0,
-                        float(task.get("estimated_cost_reserved", 0.0))
-                        - float(result["usage"]["direct_cost"]),
-                    )
-                else:
-                    task.pop("estimated_cost_reserved", None)
                 task.pop("result_id", None)
             else:
                 material_claims = [
@@ -1170,9 +1179,14 @@ class TaskStore:
                 failed_agents = set(task["input"].get("failed_agent_ids", []))
                 failed_agents.add(agent_id)
                 task["input"]["failed_agent_ids"] = sorted(failed_agents)
-            if new_status == "failed":
-                task.pop("estimated_cost_reserved", None)
-            # fail_task has no usage payload; a retry keeps its reserved budget.
+            # fail_task has no usage payload. Preserve the current attempt's
+            # estimate separately; a subsequent claim writes a fresh estimate.
+            unreported_reserve = float(task.pop("estimated_cost_reserved", 0.0))
+            if unreported_reserve > 0:
+                task["unreported_cost_reserved"] = (
+                    float(task.get("unreported_cost_reserved", 0.0))
+                    + unreported_reserve
+                )
             self._set_task(con, row, task, new_status)
             if new_status == "failed" and task.get("task_type") == "verification":
                 self._mark_verification_parent_needs_review(con, task, reason)
@@ -1404,11 +1418,9 @@ class TaskStore:
                     source_task["review_id"] = review_id
                     self._set_task(con, task_row, source_task, "rejected")
                 elif attempts_left and ranked_verifiers:
-                    review_task["estimated_cost_reserved"] = max(
-                        0.0,
-                        float(review_task.get("estimated_cost_reserved", 0.0))
-                        - float(review["usage"]["direct_cost"]),
-                    )
+                    # This review's actual cost is already recorded. The next
+                    # verifier claim will calculate a fresh attempt reservation.
+                    review_task.pop("estimated_cost_reserved", None)
                     self._set_task(con, review_task_row, review_task, "queued")
                     source_task["review_id"] = review_id
                     self._set_task(con, task_row, source_task, "needs_review")

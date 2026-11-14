@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 import json
-
-from datetime import datetime, timezone
 import math
+from datetime import datetime, timezone
+
 import pytest
 
 from graphify.task_store import (
@@ -690,7 +690,6 @@ def test_failed_result_retry_reserves_only_unspent_cost(tmp_path):
 
     claimed = store.claim_task("budget-agent")
     assert claimed is not None
-    original_reserve = claimed["estimated_cost_reserved"]
     failed_result = _result("task-1", agent)
     failed_result["status"] = "failed"
     failed_result["usage"].update({
@@ -704,7 +703,9 @@ def test_failed_result_retry_reserves_only_unspent_cost(tmp_path):
     reserved = status["reserved_cost"]
     assert status["tasks"][0]["status"] == "queued"
     assert status["run"]["status"] == "queued"
-    assert reserved == pytest.approx(max(0.0, original_reserve - actual))
+    # This attempt has an exact usage record, so its old estimate is released;
+    # the next lease will receive a fresh estimate.
+    assert reserved == pytest.approx(0.0)
     assert actual + reserved <= 205.0
 
 
@@ -731,13 +732,11 @@ def test_insufficient_review_retry_reserves_only_unspent_verification_cost(tmp_p
 
     verification = store.claim_task("verifier-1")
     assert verification is not None
-    original_reserve = verification["estimated_cost_reserved"]
     review = _review(result, verifier1, review_task_id=verification["task_id"])
     review["status"] = "needs_review"
     review["claims"][0]["verdict"] = "insufficient"
-    actual_review_cost = TaskStore._generation_cost(verifier1["cost_profile"], review["usage"])
 
-    store.submit_review(review, verification["lease_token"])
+    status = store.submit_review(review, verification["lease_token"])
     with store._connect() as con:
         row = con.execute(
             "SELECT task_json FROM tasks WHERE task_id=?",
@@ -745,9 +744,14 @@ def test_insufficient_review_retry_reserves_only_unspent_verification_cost(tmp_p
         ).fetchone()
     retry_task = json.loads(row["task_json"])
     assert retry_task["status"] == "queued"
-    assert retry_task["estimated_cost_reserved"] == pytest.approx(
-        max(0.0, original_reserve - actual_review_cost)
-    )
+    assert "estimated_cost_reserved" not in retry_task
+    assert status["reserved_cost"] == pytest.approx(0.0)
+
+    # The next verifier lease gets a fresh reservation based on its own model.
+    second_attempt = store.claim_task("verifier-2")
+    assert second_attempt is not None
+    assert second_attempt["task_id"] == verification["task_id"]
+    assert second_attempt["estimated_cost_reserved"] > 0
 
 
 @pytest.mark.parametrize("final_source_status", ["submitted", "needs_review"])
@@ -900,12 +904,11 @@ def test_needs_review_dependency_stays_dormant_and_run_becomes_provisional(tmp_p
 
 
 
-def test_retryable_fail_task_keeps_cost_reservation(tmp_path):
+def test_retryable_fail_task_keeps_unreported_reserve_across_reclaim(tmp_path):
     store = TaskStore(tmp_path / "orchestrator.sqlite3")
-    agent = _agent("agent-1", "provider", "model")
-    _register(store, agent)
-    task = _task("task-1")
-    store.create_run(_run(strategy="single_agent"), [task])
+    agent1 = _agent("agent-1", "provider-1", "model-1")
+    _register(store, agent1)
+    store.create_run(_run(strategy="single_agent"), [_task("task-1")])
     claimed = store.claim_task("agent-1")
     assert claimed is not None
     original_reserve = claimed["estimated_cost_reserved"]
@@ -916,13 +919,30 @@ def test_retryable_fail_task_keeps_cost_reservation(tmp_path):
     )
     assert status["tasks"][0]["status"] == "queued"
     assert status["reserved_cost"] == pytest.approx(original_reserve)
-    assert status["run"]["status"] == "queued"
+    with store._connect() as con:
+        row = con.execute(
+            "SELECT task_json FROM tasks WHERE task_id='task-1'"
+        ).fetchone()
+    persisted = json.loads(row["task_json"])
+    assert persisted["unreported_cost_reserved"] == pytest.approx(original_reserve)
+    assert "estimated_cost_reserved" not in persisted
+
+    # Reclaiming overwrites the per-attempt estimate, but not the prior unknown spend reserve.
+    second = store.claim_task("agent-1")
+    assert second is not None
+    assert second["task_id"] == "task-1"
+    assert second["estimated_cost_reserved"] > 0
+    status = store.get_run_status("run-1")
+    assert status["reserved_cost"] == pytest.approx(
+        original_reserve + second["estimated_cost_reserved"]
+    )
+    assert status["run"]["status"] == "running"
 
 
-def test_expired_retryable_lease_keeps_cost_reservation(tmp_path):
+def test_expired_retryable_lease_keeps_unreported_reserve_across_reclaim(tmp_path):
     store = TaskStore(tmp_path / "orchestrator.sqlite3")
-    agent = _agent("agent-1", "provider", "model")
-    _register(store, agent)
+    agent1 = _agent("agent-1", "provider-1", "model-1")
+    _register(store, agent1)
     store.create_run(_run(strategy="single_agent"), [_task("task-1")])
     claimed = store.claim_task("agent-1")
     assert claimed is not None
@@ -939,4 +959,54 @@ def test_expired_retryable_lease_keeps_cost_reservation(tmp_path):
     status = store.get_run_status("run-1")
     assert status["tasks"][0]["status"] == "queued"
     assert status["reserved_cost"] == pytest.approx(original_reserve)
-    assert status["run"]["status"] == "queued"
+    with store._connect() as con:
+        row = con.execute(
+            "SELECT task_json FROM tasks WHERE task_id='task-1'"
+        ).fetchone()
+    persisted = json.loads(row["task_json"])
+    assert persisted["unreported_cost_reserved"] == pytest.approx(original_reserve)
+    assert "estimated_cost_reserved" not in persisted
+
+    second = store.claim_task("agent-1")
+    assert second is not None
+    assert second["task_id"] == "task-1"
+    assert second["estimated_cost_reserved"] > 0
+    status = store.get_run_status("run-1")
+    assert status["reserved_cost"] == pytest.approx(
+        original_reserve + second["estimated_cost_reserved"]
+    )
+
+
+
+def test_unreported_retry_spend_counts_against_task_budget(tmp_path):
+    store = TaskStore(tmp_path / "orchestrator.sqlite3")
+    agent = _agent(
+        "agent-1", "provider", "model",
+        input_cost=100.0, cached_cost=0.0, output_cost=0.0,
+    )
+    _register(store, agent)
+    task = _task("task-1", estimate=1_000_000)
+    task["input"]["estimated_output_tokens"] = 0
+    task["input"]["estimated_cached_input_tokens"] = 0
+    task["cost_budget"]["max_total"] = 150.0
+    store.create_run(_run(max_total=300.0, strategy="single_agent"), [task])
+
+    first = store.claim_task("agent-1")
+    assert first is not None
+    assert first["estimated_cost_reserved"] == pytest.approx(100.0)
+    failed = store.fail_task(
+        "task-1", "agent-1", first["lease_token"],
+        "worker terminated without usage telemetry", retryable=True,
+    )
+    assert failed["tasks"][0]["status"] == "queued"
+
+    # A second $100 estimate plus the first attempt's unreported $100 reserve
+    # would exceed the task-level $150 ceiling even though the run cap is $300.
+    assert store.claim_task("agent-1") is None
+    status = store.get_run_status("run-1")
+    assert status["tasks"][0]["status"] == "failed"
+    with store._connect() as con:
+        row = con.execute(
+            "SELECT task_json FROM tasks WHERE task_id='task-1'"
+        ).fetchone()
+    assert json.loads(row["task_json"])["last_failure"] == "task_cost_budget_exceeded"
