@@ -322,6 +322,7 @@ def validate_result_envelope(value: Any) -> Mapping[str, Any]:
 
 def validate_review_envelope(value: Any, result: Mapping[str, Any]) -> Mapping[str, Any]:
     """Validate an independent review and require a verdict for every material claim."""
+    validate_result_envelope(result)
     review = _object(value, "review")
     _schema_version(review, "review")
     for key in ("review_id", "run_id", "task_id", "result_id"):
@@ -337,9 +338,9 @@ def validate_review_envelope(value: Any, result: Mapping[str, Any]) -> Mapping[s
         _string(reviewer.get(key), f"review.reviewer.{key}")
     producer = result["agent"]
     same_agent = reviewer["agent_id"] == producer["agent_id"]
-    same_model = all(
-        reviewer[key] == producer[key]
-        for key in ("provider", "model", "model_version")
+    same_model = (
+        reviewer["model"] == producer["model"]
+        and reviewer["model_version"] == producer["model_version"]
     )
     if same_agent or same_model:
         raise OrchestrationValidationError(
