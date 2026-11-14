@@ -196,6 +196,36 @@ A result may be labelled `certified` only when both the producing model's and th
 - use `needs_review` when evidence is missing, sources conflict, or the independent verifier disagrees;
 - use `rejected` when the result contains unsupported/contradicted material claims or fails its output contract.
 
+The review submission uses a separate reviewer identity and records claim-level verdicts:
+
+```json
+{
+  "schema_version": 1,
+  "review_id": "uuid",
+  "run_id": "uuid",
+  "task_id": "uuid",
+  "result_id": "uuid",
+  "reviewer": {
+    "agent_id": "independent-agent-uuid",
+    "provider": "different-provider",
+    "model": "independent-verifier-model",
+    "model_version": "version"
+  },
+  "status": "accepted|provisional|needs_review|rejected",
+  "claims": [
+    {
+      "claim_id": "claim-uuid",
+      "verdict": "supported|contradicted|insufficient",
+      "evidence": [],
+      "notes": "short verification note"
+    }
+  ],
+  "created_at": "ISO-8601 UTC"
+}
+```
+
+The quality gate binds the producer and reviewer evaluation profiles to the actual producer/reviewer identities. Both profiles must qualify for the task domain; a high-quality generator cannot compensate for an unqualified verifier, or vice versa. Quality profiles are maintained by the evaluator/operator, not self-asserted by the agent being measured.
+
 The primary agent must not verify itself. The verifier must use a different agent identity and model/provider version from the producer and, where feasible, be blind to the producer's provider/model identity and self-reported confidence. A disputed material claim goes to an independent adjudicator or human review; do not average contradictory claims into a false consensus.
 
 If no available model or agent meets the quality target for a task domain, report that limitation and withhold a certified answer. Do not lower the threshold to make the pipeline appear successful.
