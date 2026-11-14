@@ -412,19 +412,22 @@ class TaskStore:
                 "SELECT COUNT(*) FROM tasks WHERE lease_owner=? AND status='leased'",
                 (agent_id,),
             ).fetchone()[0]
+            pending_results = con.execute(
+                """
+                SELECT t.task_json, r.result_id
+                FROM tasks t JOIN results r ON r.task_id=t.task_id
+                WHERE r.agent_id=? AND t.status IN ('submitted', 'needs_review')
+                """,
+                (agent_id,),
+            ).fetchall()
+            awaiting_review = any(
+                _decode(row["task_json"]).get("result_id") == row["result_id"]
+                for row in pending_results
+            )
             existing = con.execute(
                 "SELECT profile_json FROM agents WHERE agent_id=?", (agent_id,)
             ).fetchone()
-            pending_reviews = con.execute(
-                """
-                SELECT COUNT(*)
-                FROM results AS result
-                JOIN tasks AS task ON task.task_id = result.task_id
-                WHERE result.agent_id = ? AND task.status IN ('submitted', 'needs_review')
-                """,
-                (agent_id,),
-            ).fetchone()[0]
-            if existing and (active or pending_reviews):
+            if existing and (active or awaiting_review):
                 previous = _decode(existing["profile_json"])
                 immutable_keys = (
                     "provider", "model", "model_version", "cost_profile",
@@ -432,7 +435,7 @@ class TaskStore:
                 )
                 if any(previous[key] != profile[key] for key in immutable_keys):
                     raise TaskStoreError(
-                        "cannot change model identity, pricing, or quality profile while this agent has active leases or pending verification results"
+                        "cannot change model identity, pricing, or quality profile while this agent owns leases or has pending verification results"
                     )
             registered_at = (
                 _decode(existing["profile_json"]).get("registered_at") if existing else None
@@ -1486,6 +1489,8 @@ class TaskStore:
         tasks = [
             {
                 "task_id": row["task_id"],
+                "task_type": _decode(row["task_json"])["task_type"],
+                "verification_task_id": _decode(row["task_json"]).get("verification_task_id"),
                 "status": row["status"],
                 "attempt": int(row["attempt"]),
                 "max_attempts": int(row["max_attempts"]),
@@ -1494,7 +1499,7 @@ class TaskStore:
             }
             for row in con.execute(
                 """
-                SELECT task_id, status, attempt, max_attempts, lease_owner, lease_expires_at
+                SELECT task_id, task_json, status, attempt, max_attempts, lease_owner, lease_expires_at
                 FROM tasks WHERE run_id=? ORDER BY created_at, task_id
                 """,
                 (run_id,),

@@ -360,6 +360,45 @@ def test_execution_plan_rejects_overlapping_parallel_write_sets():
         validate_execution_plan(run, [first, second])
 
 
+@pytest.mark.parametrize(
+    "left,right",
+    [("src/a.py", "./src/a.py"), ("src/", "src/a.py"), ("src//a.py", "src/a.py")],
+)
+def test_execution_plan_normalizes_and_checks_parent_write_paths(left, right):
+    from graphify.orchestration import validate_execution_plan
+
+    run = {
+        "execution_policy": {
+            "strategy": "parallel_independent",
+            "max_parallel_agents": 2,
+            "write_conflicts_checked": True,
+        }
+    }
+    first, second = _task("task-1"), _task("task-2")
+    first["input"]["write_set"] = [left]
+    second["input"]["write_set"] = [right]
+    with pytest.raises(OrchestrationValidationError, match="overlap after path normalization"):
+        validate_execution_plan(run, [first, second])
+
+
+@pytest.mark.parametrize("write_path", ["../secret.txt", "/etc/passwd", "src\\\\file.py"])
+def test_execution_plan_rejects_non_project_relative_write_paths(write_path):
+    from graphify.orchestration import validate_execution_plan
+
+    run = {
+        "execution_policy": {
+            "strategy": "parallel_independent",
+            "max_parallel_agents": 2,
+            "write_conflicts_checked": True,
+        }
+    }
+    first, second = _task("task-1"), _task("task-2")
+    first["input"]["write_set"] = [write_path]
+    second["input"]["write_set"] = ["other/file.py"]
+    with pytest.raises(OrchestrationValidationError, match="repository-relative|parent path"):
+        validate_execution_plan(run, [first, second])
+
+
 def test_task_graph_rejects_unknown_dependencies_and_cycles():
     first = _task("task-1")
     second = _task("task-2", ["task-1"])
@@ -549,7 +588,7 @@ def _ziwei_evidence(*, assertion: str = "definite", edition: str = "Mingjingge p
         "source_type": "classical_text",
         "uri": "library/ziwei/vol3.txt",
         "location": "L120-L124",
-        "excerpt": "Original classical text excerpt.",
+        "excerpt": "Original classical text excerpt on cautious temperament and impulsive temperament.",
         "content_hash": "sha256:" + "a" * 64,
         "edition": edition,
         "variant": "base-sihua-table",
@@ -688,7 +727,7 @@ def test_ziwei_saju_rejects_divergence_without_distinct_named_frames_or_reason()
 
     result = _ziwei_result()
     result["output"]["interpretations"][1]["direction"] = "inauspicious"
-    with pytest.raises(OrchestrationValidationError, match="disagree on question direction"):
+    with pytest.raises(OrchestrationValidationError, match="disagree on direction or source trait term"):
         validate_result_envelope(result)
 
 
@@ -700,6 +739,7 @@ def test_ziwei_unknown_claim_cannot_be_marked_supported():
         "statement": "The available source does not establish this interpretation.",
         "evidence": [],
     })
+    result["claims"][0].pop("derivation_steps", None)
     result["output"]["interpretations"][0]["finding"] = result["claims"][0]["statement"]
     result["output"]["interpretation_status"] = "indeterminate"
     result["output"]["interpretations"] = result["output"]["interpretations"][:1]
@@ -750,7 +790,7 @@ def test_ziwei_saju_supports_single_frame_and_requires_true_convergence():
     result = _ziwei_result()
     result["output"]["interpretation_status"] = "convergent"
     result["output"].pop("divergence_reason")
-    with pytest.raises(OrchestrationValidationError, match="same question direction"):
+    with pytest.raises(OrchestrationValidationError, match="same direction"):
         validate_result_envelope(result)
 
 
@@ -782,8 +822,8 @@ def test_ziwei_saju_convergence_uses_question_direction_not_finding_wording():
     result["output"]["interpretation_status"] = "convergent"
     result["output"]["interpretations"][0]["direction"] = "character"
     result["output"]["interpretations"][1]["direction"] = "character"
-    result["output"]["interpretations"][0]["trait_key"] = "cautious_temperament"
-    result["output"]["interpretations"][1]["trait_key"] = "cautious_temperament"
+    result["output"]["interpretations"][0]["trait_terms"] = ["cautious temperament"]
+    result["output"]["interpretations"][1]["trait_terms"] = ["cautious temperament"]
     result["output"].pop("divergence_reason")
     # The two findings intentionally retain different wording.
     assert result["output"]["interpretations"][0]["finding"] != result["output"]["interpretations"][1]["finding"]
@@ -860,6 +900,7 @@ def test_ziwei_unknown_indeterminate_claim_can_be_reviewed_as_insufficient():
         "statement": "The available source does not establish this interpretation.",
         "evidence": [],
     })
+    claim.pop("derivation_steps", None)
     result["claims"] = [claim]
     result["output"]["interpretation_status"] = "indeterminate"
     result["output"]["interpretations"] = [{
@@ -884,17 +925,28 @@ def test_ziwei_character_frames_require_matching_trait_for_convergence():
     result["output"]["interpretation_status"] = "convergent"
     for frame in result["output"]["interpretations"]:
         frame["direction"] = "character"
-        frame["trait_key"] = "cautious_temperament"
+        frame["trait_terms"] = ["cautious temperament"]
     result["output"].pop("divergence_reason")
     assert validate_result_envelope(result) is result
 
-    result["output"]["interpretations"][1]["trait_key"] = "impulsive_temperament"
-    with pytest.raises(OrchestrationValidationError, match="same direction and character trait"):
+    result["output"]["interpretations"][1]["trait_terms"] = ["impulsive temperament"]
+    with pytest.raises(OrchestrationValidationError, match="share a source trait term"):
         validate_result_envelope(result)
 
     result["output"]["interpretation_status"] = "divergent"
     result["output"]["divergence_reason"] = "The frames identify different character traits."
     assert validate_result_envelope(result) is result
+
+
+def test_ziwei_character_traits_must_be_grounded_in_cited_source_text():
+    result = _ziwei_result()
+    result["output"]["interpretation_status"] = "convergent"
+    for frame in result["output"]["interpretations"]:
+        frame["direction"] = "character"
+        frame["trait_terms"] = ["invented temperament"]
+    result["output"].pop("divergence_reason")
+    with pytest.raises(OrchestrationValidationError, match="occur verbatim in its cited source excerpt"):
+        validate_result_envelope(result)
 
 
 def test_ziwei_mixed_determinate_and_indeterminate_frames_are_representable():
@@ -907,6 +959,7 @@ def test_ziwei_mixed_determinate_and_indeterminate_frames_are_representable():
         "statement": "The second frame has no corresponding original passage.",
         "evidence": [],
     })
+    unknown.pop("derivation_steps", None)
     result["output"]["interpretations"][1].update({
         "direction": "indeterminate",
         "assertion_strength": "hedged",
@@ -946,6 +999,9 @@ def test_ziwei_verifier_can_use_independent_original_source():
     independent["uri"] = "library/ziwei/independent.txt"
     independent["location"] = "L700-L705"
     review["claims"][0]["evidence"] = [independent]
+    second_review = dict(review["claims"][0])
+    second_review["claim_id"] = "ziwei-decade-claim"
+    review["claims"].append(second_review)
     assert validate_review_envelope(review, result) is review
 
 

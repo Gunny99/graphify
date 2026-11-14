@@ -247,7 +247,8 @@ def validate_ziwei_saju_result(
     frames: set[str] = set()
     question_ids: set[str] = set()
     directions: set[str] = set()
-    determinate_signatures: set[tuple[str, str | None]] = set()
+    determinate_directions: set[str] = set()
+    character_term_sets: list[set[str]] = []
     for index, interpretation in enumerate(interpretations):
         path = f"result.output.interpretations[{index}]"
         frame = _string(interpretation.get("frame"), f"{path}.frame")
@@ -263,22 +264,32 @@ def validate_ziwei_saju_result(
                 f"{path}.direction must be one of {sorted(ZIWEI_DIRECTIONS)}"
             )
         directions.add(direction)
+        normalized_traits: set[str] = set()
         if direction == "character":
-            trait_key = _string(interpretation.get("trait_key"), f"{path}.trait_key")
-            normalized_trait = trait_key.strip().casefold()
-            if trait_key != normalized_trait:
+            trait_terms = _strings(interpretation.get("trait_terms"), f"{path}.trait_terms")
+            if not trait_terms:
                 raise OrchestrationValidationError(
-                    f"{path}.trait_key must be normalized (trimmed and case-folded)"
+                    f"{path}.trait_terms must contain at least one source term"
                 )
-            signature = (direction, normalized_trait)
+            for term_index, term in enumerate(trait_terms):
+                if term != term.strip():
+                    raise OrchestrationValidationError(
+                        f"{path}.trait_terms[{term_index}] must be trimmed"
+                    )
+                normalized = term.casefold()
+                if normalized in normalized_traits:
+                    raise OrchestrationValidationError(
+                        f"{path}.trait_terms must not contain case-insensitive duplicates"
+                    )
+                normalized_traits.add(normalized)
+            character_term_sets.append(normalized_traits)
         else:
-            if "trait_key" in interpretation:
+            if "trait_terms" in interpretation:
                 raise OrchestrationValidationError(
-                    f"{path}.trait_key is only valid when direction='character'"
+                    f"{path}.trait_terms is only valid when direction='character'"
                 )
-            signature = (direction, None)
         if direction != "indeterminate":
-            determinate_signatures.add(signature)
+            determinate_directions.add(direction)
         claim_id = _string(interpretation.get("claim_id"), f"{path}.claim_id")
         if claim_id not in claim_by_id:
             raise OrchestrationValidationError(
@@ -308,6 +319,13 @@ def validate_ziwei_saju_result(
             _validate_ziwei_evidence_ref(item, f"{path}.evidence[{evidence_index}]")
             for evidence_index, item in enumerate(evidence)
         ]
+        if direction == "character":
+            excerpts = [str(item["excerpt"]).casefold() for item in validated_evidence]
+            for term in trait_terms:
+                if not any(term.casefold() in excerpt for excerpt in excerpts):
+                    raise OrchestrationValidationError(
+                        f"{path}.trait_terms must occur verbatim in its cited source excerpt"
+                    )
         if (
             validated_evidence
             and all(item["source_assertion"] == "hedged" for item in validated_evidence)
@@ -348,15 +366,29 @@ def validate_ziwei_saju_result(
             raise OrchestrationValidationError(
                 f"{interpretation_status} requires at least two determinate interpretation frames"
             )
-        if interpretation_status == "convergent" and len(determinate_signatures) != 1:
-            raise OrchestrationValidationError(
-                "convergent interpretations must agree on the same direction and character trait"
-            )
+        if interpretation_status == "convergent":
+            if len(determinate_directions) != 1:
+                raise OrchestrationValidationError(
+                    "convergent interpretations must agree on the same direction"
+                )
+            if (
+                determinate_directions == {"character"}
+                and character_term_sets
+                and not set.intersection(*character_term_sets)
+            ):
+                raise OrchestrationValidationError(
+                    "convergent character interpretations must share a source trait term"
+                )
         if interpretation_status == "divergent":
             _string(output.get("divergence_reason"), "result.output.divergence_reason")
-            if len(determinate_signatures) < 2:
+            character_traits_diverge = (
+                determinate_directions == {"character"}
+                and character_term_sets
+                and not set.intersection(*character_term_sets)
+            )
+            if len(determinate_directions) < 2 and not character_traits_diverge:
                 raise OrchestrationValidationError(
-                    "divergent interpretations must disagree on direction or character trait"
+                    "divergent interpretations must disagree on direction or source trait term"
                 )
 
     for index, claim in enumerate(claims):

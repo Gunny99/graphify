@@ -304,6 +304,31 @@ def test_claim_uses_lowest_cost_qualified_agent_and_enforces_dependency(tmp_path
     assert math.isclose(cost, expected_result_cost + expected_review_cost)
 
 
+def test_agent_identity_cannot_change_while_submitted_result_is_awaiting_review(tmp_path):
+    store = TaskStore(tmp_path / "orchestrator.sqlite3")
+    producer = _agent("producer", "producer-provider", "producer-model")
+    verifier = _agent("verifier", "verifier-provider", "verifier-model", role="verifier")
+    _register(store, producer)
+    _register(store, verifier)
+    store.create_run(_run(), [_task("task-1")])
+    claimed = store.claim_task("producer")
+    assert claimed is not None
+    result = _result("task-1", producer)
+    store.submit_result(result, claimed["lease_token"])
+
+    changed = dict(producer)
+    changed["model_version"] = "producer-model-v2"
+    changed["auth_token"] = f"test-agent-token::{producer['agent_id']}::secret"
+    with pytest.raises(TaskStoreError, match="pending verification results"):
+        store.register_agent(changed, trusted_profile=True)
+
+    verification = store.claim_task("verifier")
+    assert verification is not None
+    review = _review(result, verifier, review_task_id=verification["task_id"])
+    status = store.submit_review(review, verification["lease_token"])
+    assert status["run"]["status"] == "accepted"
+
+
 def test_agent_authentication_token_is_required_and_not_returned_by_list(tmp_path):
     store = TaskStore(tmp_path / "orchestrator.sqlite3")
     agent = _agent("agent-1", "provider", "model")
