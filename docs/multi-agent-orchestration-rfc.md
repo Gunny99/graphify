@@ -269,7 +269,7 @@ If no available model or agent meets the quality target for a task domain, repor
 
 The default routing rule is: choose the lowest-total-cost model among candidates whose measured quality is the same or better for the task's role and domain.
 
-A model is eligible only when its current evaluation profile meets the applicable quality thresholds. Among eligible models, minimize expected end-to-end task cost:
+A model is eligible only when its current evaluation profile meets the applicable quality thresholds. Quality comparisons are made only within a common task-role/domain, benchmark, held-out evaluation-set hash, evaluator version, and confidence level. The cheapest model is selected only if its accuracy lower bound is within 0.1 percentage point of the cohort's best and its hallucination upper bound is within 0.1 percentage point of the cohort's best; otherwise a cheaper but measurably worse model is not considered equivalent. Models assessed on incompatible evaluation sets are not treated as interchangeable. Among quality-equivalent candidates, minimize expected end-to-end task cost:
 
 ```text
 total_cost =
