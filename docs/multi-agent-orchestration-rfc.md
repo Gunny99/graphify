@@ -213,6 +213,14 @@ The review submission uses a separate reviewer identity and records claim-level 
     "model_version": "version"
   },
   "status": "accepted|provisional|needs_review|rejected",
+  "usage": {
+    "input_tokens": 2500,
+    "output_tokens": 400,
+    "cached_input_tokens": 0,
+    "direct_cost": 0.01,
+    "currency": "USD",
+    "pricing_source": "provider price sheet/version"
+  },
   "claims": [
     {
       "claim_id": "claim-uuid",
