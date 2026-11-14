@@ -1460,6 +1460,8 @@ def _is_single_session_first_fix_line(line: str) -> bool:
         "#### Part B - Semantic extraction",
         "Before dispatching any subagents, check which files already have cached extraction results:",
         "Before processing any uncached files, check which files already have cached extraction results:",
+        "Before dispatching subagents, print a timing estimate:",
+        "Load `total_words` and file counts from `graphify-out/.graphify_detect.json`",
         "Only dispatch subagents for files listed in",
         "Only process files listed in",
         "**MANDATORY: You MUST use the subagent system here.",
