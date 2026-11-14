@@ -312,9 +312,14 @@ The shared `claim_type` vocabulary already includes `inference`; do not add `hed
 
 ### Interpretive divergence
 
-The domain output uses `interpretation_status=convergent | divergent | indeterminate` and an `interpretations[]` collection. Each entry requires a named `frame`, a finding, and traceable source evidence for determinate outcomes.
+The domain output uses `interpretation_status=single_frame | convergent | divergent | indeterminate` and an `interpretations[]` collection. Each entry requires a named `frame`, a finding, an `assertion_strength` (`definite | hedged`), and traceable source evidence for determinate outcomes. A finding supported only by hedged source wording must remain hedged; one with no supporting source evidence must also remain hedged.
 
-A `divergent` result is a valid domain outcome when at least two distinct named frames produce different findings and both are supported by their own evidence; this may occur even when the same source text is read through different frames. The output must include `divergence_reason`. A divergence does not change global `review.status` or `run.status`. A conflict within the same frame, unsupported findings, or untraceable sources remain `needs_review`.
+- `single_frame`: exactly one named frame produced a determinate finding.
+- `convergent`: at least two distinct named frames produced the same finding.
+- `divergent`: at least two distinct named frames produced different findings, each supported by its own evidence; this may occur even when the same source text is read through different frames. The output must include `divergence_reason`.
+- `indeterminate`: the available evidence does not support a definite finding.
+
+A divergence does not change global `review.status` or `run.status`. A conflict within the same frame, unsupported findings, or untraceable sources remain `needs_review`.
 
 ### Evaluation status
 
