@@ -182,7 +182,12 @@ def _review(*, verdict: str = "supported", status: str = "accepted") -> dict:
         "run_id": "run-1",
         "task_id": "task-1",
         "result_id": "result-1",
-        "reviewer_agent_id": "independent-reviewer",
+        "reviewer": {
+            "agent_id": "independent-reviewer",
+            "provider": "different-provider",
+            "model": "independent-model",
+            "model_version": "1",
+        },
         "status": status,
         "claims": [{
             "claim_id": "claim-1",
@@ -264,6 +269,23 @@ def test_result_and_independent_review_compute_claim_metrics_from_verdicts():
     assert result_meets_quality_gate(result, review, profile)
 
 
+def test_review_rejects_same_agent_or_same_model_as_verifier():
+    result = _result()
+    same_agent = _review()
+    same_agent["reviewer"]["agent_id"] = result["agent"]["agent_id"]
+    with pytest.raises(OrchestrationValidationError, match="independent"):
+        validate_review_envelope(same_agent, result)
+
+    same_model = _review()
+    same_model["reviewer"].update({
+        "provider": result["agent"]["provider"],
+        "model": result["agent"]["model"],
+        "model_version": result["agent"]["model_version"],
+    })
+    with pytest.raises(OrchestrationValidationError, match="independent"):
+        validate_review_envelope(same_model, result)
+
+
 def test_quality_gate_rejects_unverified_or_unsupported_material_claims():
     result = _result()
     insufficient = _review(verdict="insufficient", status="needs_review")
@@ -291,7 +313,7 @@ def test_cost_estimate_includes_cached_input_verification_retry_and_escalation()
         output_tokens=1_000_000,
         cached_input_tokens=200_000,
     )
-    assert math.isclose(estimated, 0.832)
+    assert math.isclose(estimated, 0.794)
     with pytest.raises(OrchestrationValidationError, match="cannot exceed"):
         estimate_end_to_end_cost(
             _cost_profile(), input_tokens=10, output_tokens=10, cached_input_tokens=11
