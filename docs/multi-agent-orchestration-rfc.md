@@ -111,7 +111,7 @@ Required fields:
 - `agent_id`, `provider`, `model`, `model_version`, `protocol`.
 - `capabilities`: allowlisted task skills, not free-form authority.
 - `max_concurrency`, `status`, `allowed_data_scopes`.
-- `cost_profile`: input/output pricing or other provider charges, currency, effective date, and source.
+- `cost_profile`: uncached-input, cached-input, and output pricing plus verification, retry, escalation, and orchestration costs; currency, effective date, and source.
 - `quality_profile`: benchmark ID, task domain/role, sample size, verified accuracy lower bound, hallucination upper bound, evaluation date, and evaluator version.
 
 A capability match is necessary but not sufficient: a model must also have a current quality profile that qualifies for the task's domain and quality tier.
@@ -196,7 +196,7 @@ A result may be labelled `certified` only when the applicable evaluation profile
 - use `needs_review` when evidence is missing, sources conflict, or the independent verifier disagrees;
 - use `rejected` when the result contains unsupported/contradicted material claims or fails its output contract.
 
-The primary agent must not verify itself. The verifier should be independent of the producing agent and, where feasible, blind to its provider/model identity and self-reported confidence. A disputed material claim goes to an independent adjudicator or human review; do not average contradictory claims into a false consensus.
+The primary agent must not verify itself. The verifier must use a different agent identity and model/provider version from the producer and, where feasible, be blind to the producer's provider/model identity and self-reported confidence. A disputed material claim goes to an independent adjudicator or human review; do not average contradictory claims into a false consensus.
 
 If no available model or agent meets the quality target for a task domain, report that limitation and withhold a certified answer. Do not lower the threshold to make the pipeline appear successful.
 
