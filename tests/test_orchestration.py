@@ -198,6 +198,7 @@ def _review(*, verdict: str = "supported", status: str = "accepted") -> dict:
         "run_id": "run-1",
         "task_id": "task-1",
         "result_id": "result-1",
+        "review_task_id": "verification::result-1",
         "reviewer": {
             "agent_id": "independent-reviewer",
             "provider": "different-provider",
