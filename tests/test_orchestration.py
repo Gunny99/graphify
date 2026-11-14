@@ -458,15 +458,27 @@ def test_router_uses_cheapest_model_only_among_quality_qualified_candidates():
         input_cost=0.20,
         cached_cost=0.02,
         output_cost=0.50,
+        accuracy=0.997,
+        hallucination=0.003,
     )
     qualified_budget = _agent(
         "budget",
         input_cost=0.05,
         cached_cost=0.005,
         output_cost=0.10,
+        accuracy=0.9965,
+        hallucination=0.0035,
+    )
+    non_equivalent = _agent(
+        "cheaper-but-worse",
+        input_cost=0.001,
+        cached_cost=0.0001,
+        output_cost=0.002,
+        accuracy=0.992,
+        hallucination=0.008,
     )
     ranked = rank_qualified_agents(
-        [qualified_premium, underqualified, qualified_budget],
+        [qualified_premium, underqualified, qualified_budget, non_equivalent],
         role="researcher",
         domain="technical",
         currency="USD",
