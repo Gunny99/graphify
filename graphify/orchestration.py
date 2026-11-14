@@ -213,6 +213,7 @@ def choose_execution_strategy(
         read_only_exploration_needed
         and context_pressure_high
         and workstreams >= 2
+        and max_workers >= 2
         and (cost_ok or deadline_ok)
     ):
         return {
