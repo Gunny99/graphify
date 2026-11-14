@@ -1006,8 +1006,12 @@ class TaskStore:
                     claim for claim in result["claims"]
                     if claim["material"] and claim["claim_type"] in {"factual", "inference"}
                 ]
-                requires_review = bool(material_claims) or task["input"].get("requires_code_review") is True
-                run_policy = _decode(run_row["run_json"])["execution_policy"]
+                run_policy = run["execution_policy"]
+                requires_review = (
+                    bool(material_claims)
+                    or task["input"].get("requires_code_review") is True
+                    or run_policy["strategy"] == "single_with_review"
+                )
                 if requires_review and run_policy["strategy"] not in {
                     "single_with_review", "read_only_exploration", "parallel_independent"
                 }:
