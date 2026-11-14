@@ -312,7 +312,7 @@ The shared `claim_type` vocabulary already includes `inference`; do not add `hed
 
 ### Interpretive divergence
 
-The domain output uses `interpretation_status=single_frame | convergent | divergent | indeterminate` and an `interpretations[]` collection. Each entry requires a named `frame`, a finding, an `assertion_strength` (`definite | hedged`), and traceable source evidence for determinate outcomes. A finding supported only by hedged source wording must remain hedged; one with no supporting source evidence must also remain hedged.
+The domain output uses `interpretation_status=single_frame | convergent | divergent | indeterminate` and an `interpretations[]` collection. Each entry requires a named `frame`, a finding, an `assertion_strength` (`definite | hedged`), and traceable source evidence for determinate outcomes. A finding supported only by hedged source wording must remain hedged; one with no supporting source evidence must also remain hedged. Each interpretation also requires a `claim_id` that points to a material factual/inference claim in the result. The displayed finding must exactly match that claim's statement, and the interpretation's source evidence must overlap the linked claim's evidence. This ensures every user-visible interpretation receives an independent claim-level verdict.
 
 - `single_frame`: exactly one named frame produced a determinate finding.
 - `convergent`: at least two distinct named frames produced the same finding.
