@@ -31,6 +31,7 @@ RESULT_STATUSES = frozenset({"submitted", "failed"})
 CLAIM_TYPES = frozenset({"factual", "inference", "recommendation", "opinion"})
 ZIWEI_EVIDENCE_BASES = frozenset({"explicit_source", "derived", "unknown"})
 ZIWEI_SOURCE_ASSERTIONS = frozenset({"definite", "hedged"})
+ZIWEI_DIRECTIONS = frozenset({"auspicious", "inauspicious", "character", "indeterminate"})
 ZIWEI_INTERPRETATION_STATUSES = frozenset({"single_frame", "convergent", "divergent", "indeterminate"})
 REVIEW_VERDICTS = frozenset({"supported", "contradicted", "insufficient"})
 REVIEW_STATUSES = frozenset({"accepted", "provisional", "needs_review", "rejected"})
@@ -182,13 +183,23 @@ def validate_ziwei_saju_result(
     }
     frame_claim_ids: dict[str, str] = {}
     frames: set[str] = set()
+    question_ids: set[str] = set()
+    directions: set[str] = set()
     for index, interpretation in enumerate(interpretations):
         path = f"result.output.interpretations[{index}]"
         frame = _string(interpretation.get("frame"), f"{path}.frame")
         if frame in frames:
             raise OrchestrationValidationError(f"duplicate ziwei_saju interpretation frame: {frame}")
         frames.add(frame)
-        finding = _string(interpretation.get("finding"), f"{path}.finding")
+        _string(interpretation.get("finding"), f"{path}.finding")
+        question_id = _string(interpretation.get("question_id"), f"{path}.question_id")
+        question_ids.add(question_id)
+        direction = interpretation.get("direction")
+        if direction not in ZIWEI_DIRECTIONS:
+            raise OrchestrationValidationError(
+                f"{path}.direction must be one of {sorted(ZIWEI_DIRECTIONS)}"
+            )
+        directions.add(direction)
         claim_id = _string(interpretation.get("claim_id"), f"{path}.claim_id")
         if claim_id not in claim_by_id:
             raise OrchestrationValidationError(
@@ -222,22 +233,38 @@ def validate_ziwei_saju_result(
                 f"{path}: an interpretation without source evidence must remain hedged"
             )
 
-    findings = {str(item["finding"]).strip() for item in interpretations}
     if interpretation_status == "single_frame" and len(frames) != 1:
         raise OrchestrationValidationError("single_frame requires exactly one interpretation frame")
-    if interpretation_status in {"convergent", "divergent"} and len(frames) < 2:
+    if interpretation_status in {"convergent", "divergent"}:
+        if len(frames) < 2:
+            raise OrchestrationValidationError(
+                f"{interpretation_status} requires at least two distinct interpretation frames"
+            )
+        if len(question_ids) != 1:
+            raise OrchestrationValidationError(
+                f"{interpretation_status} requires all frames to answer the same question_id"
+            )
+        if "indeterminate" in directions:
+            raise OrchestrationValidationError(
+                f"{interpretation_status} cannot include an indeterminate direction"
+            )
+    if interpretation_status == "single_frame" and directions == {"indeterminate"}:
         raise OrchestrationValidationError(
-            f"{interpretation_status} requires at least two distinct interpretation frames"
+            "an indeterminate direction must use interpretation_status='indeterminate'"
         )
-    if interpretation_status == "convergent" and len(findings) != 1:
+    if interpretation_status == "indeterminate" and directions != {"indeterminate"}:
         raise OrchestrationValidationError(
-            "convergent interpretations must preserve the same frame finding"
+            "indeterminate interpretation_status requires every frame direction to be indeterminate"
+        )
+    if interpretation_status == "convergent" and len(directions) != 1:
+        raise OrchestrationValidationError(
+            "convergent interpretations must agree on the same question direction"
         )
     if interpretation_status == "divergent":
         _string(output.get("divergence_reason"), "result.output.divergence_reason")
-        if len(findings) < 2:
+        if len(directions) < 2:
             raise OrchestrationValidationError(
-                "divergent interpretations must preserve distinct frame findings"
+                "divergent interpretations must disagree on question direction"
             )
 
     for index, claim in enumerate(claims):
