@@ -72,7 +72,7 @@ Independent verifier / adjudicator
 Final integration and cost/quality report
 ```
 
-The first implementation should use SQLite from Python's standard library. Store the queue beside the project graph at `graphify-out/orchestrator.sqlite3`. Enable foreign keys, WAL mode, and a bounded busy timeout. Use short `BEGIN IMMEDIATE` transactions for claim/lease/state changes. MCP clients call the server; they do not open the database directly. For multiple projects, each resolved graph path gets its own store.
+The default path is a single main session. SQLite only coordinates work after the single-agent-first router selects one of the narrow delegation exceptions below. The first implementation should use SQLite from Python's standard library. Store the queue beside the project graph at `graphify-out/orchestrator.sqlite3`. Enable foreign keys, WAL mode, and a bounded busy timeout. Use short `BEGIN IMMEDIATE` transactions for claim/lease/state changes. MCP clients call the server; they do not open the database directly. For multiple projects, each resolved graph path gets its own store.
 
 ## Core entities
 
@@ -140,6 +140,8 @@ Required fields:
 - `quality_profile`: benchmark ID, task domain/role, sample size, verified accuracy lower bound, hallucination upper bound, evaluation date, and evaluator version.
 
 A capability match is necessary but not sufficient: a model must also have a current quality profile that qualifies for the task's domain and quality tier.
+
+Before creating queue tasks, call `choose_execution_strategy`. A `single_agent` or `single_with_review` run has one main work task; the latter may create one separate verifier task after implementation. Exploration tasks must be read-only and independent. Parallel implementation tasks must have no dependencies, no shared mutable state, and explicit pairwise-disjoint `write_set` declarations. The store rejects a plan that does not match its declared strategy.
 
 ### Claim and evidence
 
