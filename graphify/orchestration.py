@@ -232,6 +232,11 @@ def choose_execution_strategy(
                 ),
             }
 
+    # Research and analysis usually produce material factual claims; preserve
+    # one main work session and add only the independent evidence-review stage.
+    if task_type in {"research", "analysis"}:
+        requires_independent_review = True
+
     if requires_independent_review:
         return {
             "strategy": "single_with_review",
