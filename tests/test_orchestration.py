@@ -567,9 +567,14 @@ def test_ziwei_saju_requires_explicit_evidence_basis_and_original_source_metadat
         validate_result_envelope(result)
 
     result = _ziwei_result()
-    result["claims"][0]["evidence"][0]["edition"] = ""
-    with pytest.raises(OrchestrationValidationError, match="edition"):
+    result["claims"][0]["evidence"][0].pop("edition")
+    result["claims"][0]["evidence"][0].pop("variant")
+    with pytest.raises(OrchestrationValidationError, match="edition or variant"):
         validate_result_envelope(result)
+
+    result = _ziwei_result()
+    result["claims"][0]["evidence"][0].pop("edition")
+    assert validate_result_envelope(result) is result
 
 
 def test_ziwei_saju_rejects_invented_estimates_and_incomplete_derivations():
@@ -605,6 +610,11 @@ def test_ziwei_saju_rejects_divergence_without_distinct_named_frames_or_reason()
     result = _ziwei_result()
     result["output"].pop("divergence_reason")
     with pytest.raises(OrchestrationValidationError, match="divergence_reason"):
+        validate_result_envelope(result)
+
+    result = _ziwei_result()
+    result["output"]["interpretations"][1]["finding"] = result["output"]["interpretations"][0]["finding"]
+    with pytest.raises(OrchestrationValidationError, match="distinct frame findings"):
         validate_result_envelope(result)
 
 
