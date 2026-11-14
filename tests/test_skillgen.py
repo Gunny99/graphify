@@ -372,7 +372,7 @@ _STEP_HEADINGS = (
     "### Step 2 - Detect files",
     "### Step 3 - Extract entities and relationships",
     "#### Part A - Structural extraction for code files",
-    "#### Part B - Semantic extraction (parallel subagents)",
+    "#### Part B - Semantic extraction",
     "#### Part C - Merge AST + semantic into final extraction",
     "### Step 4 - Build graph, cluster, analyze, generate outputs",
     "### Step 4.5 - Graph health check (read-only integrity gate)",
@@ -520,6 +520,36 @@ def test_all_progressive_hosts_check_and_audit_clean():
         assert gen.check(arts) == [], f"[{key}] check\n" + "\n".join(gen.check(arts))
         probs = gen.audit_coverage(platforms[key])
         assert probs == [], f"[{key}] audit\n" + "\n".join(probs)
+
+
+def test_single_session_first_policy_is_rendered_for_every_host():
+    platforms = gen.load_platforms()
+    artifacts = gen.render_all(platforms)
+    skills = [a for a in artifacts if a.path.startswith("graphify/skill")]
+    assert skills
+    for artifact in skills:
+        body = artifact.content
+        assert "Single-session-first rule" in body, artifact.path
+        assert "main session" in body.lower(), artifact.path
+        assert "estimated end-to-end cost" in body.lower(), artifact.path
+        assert "MANDATORY: You MUST use the Agent tool here" not in body, artifact.path
+        assert "MANDATORY: You MUST use the subagent system here" not in body, artifact.path
+        assert "Run Part A (AST) and Part B (semantic) in parallel." not in body, artifact.path
+
+    aider = next(a.content for a in skills if a.path == "graphify/skill-aider.md")
+    assert "sequential extraction (Aider)" in aider
+    assert "process each file one at a time" in aider
+    assert "Delegated path" in aider  # policy documents the exception, not Aider's implementation
+
+
+def test_single_session_first_monolith_roundtrip_allowlist_is_scoped():
+    assert gen._is_single_session_first_fix_line("**Single-session-first rule:** main session.")
+    assert gen._is_single_session_first_fix_line(
+        "After each chunk completes, persist its result to its assigned file."
+    )
+    assert not gen._is_single_session_first_fix_line(
+        "Unrelated wording changed without an accompanying workflow change."
+    )
 
 
 def test_no_host_has_trigger_in_frontmatter():
