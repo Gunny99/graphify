@@ -775,7 +775,7 @@ class TaskStore:
                 "max_total": run["cost_policy"]["max_total"],
             },
             "attempt": 0,
-            "max_attempts": 3,
+            "max_attempts": 2,
             "priority": int(producer_task.get("priority", 0)),
             "status": "queued",
             "created_at": now,
@@ -955,10 +955,17 @@ class TaskStore:
             self._refresh_run_status(con, row["run_id"])
             return self._run_status_in_transaction(con, row["run_id"])
 
-    def submit_review(self, value: Mapping[str, Any]) -> dict[str, Any]:
-        """Store an independent review; a needs_review result may receive a new verifier."""
+    def submit_review(
+        self,
+        value: Mapping[str, Any],
+        lease_token: str,
+    ) -> dict[str, Any]:
+        """Accept reviews only from an agent holding the bound verification-task lease."""
         review_id = str(_string(value.get("review_id"), "review.review_id"))
         result_id = str(_string(value.get("result_id"), "review.result_id"))
+        review_task_id = str(_string(value.get("review_task_id"), "review.review_task_id"))
+        reviewer_id = str(_string(value.get("reviewer", {}).get("agent_id"), "review.reviewer.agent_id"))
+
         with self._transaction() as con:
             result_row = con.execute(
                 "SELECT task_id, agent_id, result_json FROM results WHERE result_id=?",
@@ -969,105 +976,132 @@ class TaskStore:
             result = _decode(result_row["result_json"])
             review = validate_review_envelope(value, result)
 
+            reviewer_row = con.execute(
+                "SELECT profile_json FROM agents WHERE agent_id=?", (reviewer_id,)
+            ).fetchone()
+            if reviewer_row is None:
+                raise TaskNotFoundError(f"reviewer agent not registered: {reviewer_id}")
+            verifier = validate_agent_profile(_decode(reviewer_row["profile_json"]))
+            for key in ("provider", "model", "model_version"):
+                if review["reviewer"][key] != verifier[key]:
+                    raise TaskStoreError(f"reviewer identity does not match registered {key}")
+            if review["usage"]["currency"] != verifier["cost_profile"]["currency"]:
+                raise TaskStoreError("review currency does not match registered verifier pricing")
+            review["usage"]["direct_cost"] = self._generation_cost(
+                verifier["cost_profile"], review["usage"]
+            )
+            review["usage"]["pricing_source"] = verifier["cost_profile"]["pricing_source"]
+            encoded_review = _json(review)
+
+            prior_review = con.execute(
+                "SELECT review_json, result_id FROM reviews WHERE review_id=?", (review_id,)
+            ).fetchone()
+            if prior_review:
+                if prior_review["review_json"] != encoded_review or prior_review["result_id"] != result_id:
+                    raise TaskStoreError("review_id already exists with different content")
+                source_task = con.execute(
+                    "SELECT run_id FROM tasks WHERE task_id=?", (result_row["task_id"],)
+                ).fetchone()
+                if source_task is None:
+                    raise TaskNotFoundError(f"task not found: {result_row['task_id']}")
+                return self._run_status_in_transaction(con, source_task["run_id"])
+
+            review_task_row = self._owned_lease(
+                con, review_task_id, reviewer_id, lease_token
+            )
+            review_task = _decode(review_task_row["task_json"])
+            if (
+                review_task["task_type"] != "verification"
+                or review_task["role"] != "verifier"
+                or review_task["input"].get("result_id") != result_id
+                or review_task.get("parent_task_id") != result["task_id"]
+            ):
+                raise TaskLeaseError("lease is not for the verification task bound to this result")
+            if review_task_row["run_id"] != result["run_id"]:
+                raise TaskLeaseError("verification task belongs to a different run")
+            if reviewer_id in set(review_task["input"].get("excluded_agent_ids", [])):
+                raise TaskLeaseError("this agent has already reviewed the result")
+
             task_row = con.execute(
                 "SELECT * FROM tasks WHERE task_id=?", (result_row["task_id"],)
             ).fetchone()
             if task_row is None:
                 raise TaskNotFoundError(f"task not found: {result_row['task_id']}")
             if task_row["status"] not in {"submitted", "needs_review"}:
-                raise TaskStoreError(f"task cannot be reviewed in state {task_row['status']}")
-
+                raise TaskStoreError(f"source task cannot be reviewed in state {task_row['status']}")
             run_row = con.execute(
                 "SELECT run_json FROM runs WHERE run_id=?", (task_row["run_id"],)
             ).fetchone()
             if run_row is None:
                 raise TaskNotFoundError(f"run not found: {task_row['run_id']}")
             run = _decode(run_row["run_json"])
-            if review["usage"]["currency"] != run["cost_policy"]["currency"]:
-                raise TaskStoreError("review currency does not match the run cost policy")
 
             producer_row = con.execute(
                 "SELECT profile_json FROM agents WHERE agent_id=?", (result_row["agent_id"],)
             ).fetchone()
-            verifier_id = review["reviewer"]["agent_id"]
-            verifier_row = con.execute(
-                "SELECT profile_json FROM agents WHERE agent_id=?", (verifier_id,)
-            ).fetchone()
-            if producer_row is None or verifier_row is None:
-                raise TaskNotFoundError("producer or verifier agent is not registered")
+            if producer_row is None:
+                raise TaskNotFoundError(f"producer agent not registered: {result_row['agent_id']}")
             producer = validate_agent_profile(_decode(producer_row["profile_json"]))
-            verifier = validate_agent_profile(_decode(verifier_row["profile_json"]))
-            task = _decode(task_row["task_json"])
-            verifier_cost_profile = verifier["cost_profile"]
-            if verifier_cost_profile["currency"] != run["cost_policy"]["currency"]:
-                raise TaskStoreError("registered verifier pricing currency does not match the run")
-            review["usage"]["direct_cost"] = self._generation_cost(
-                verifier_cost_profile, review["usage"]
-            )
-            review["usage"]["pricing_source"] = verifier_cost_profile["pricing_source"]
-            encoded = _json(review)
-
-            # Idempotent replay is checked AFTER server-side pricing normalization.
-            existing = con.execute(
-                "SELECT review_json, result_id FROM reviews WHERE review_id=?", (review_id,)
-            ).fetchone()
-            if existing:
-                if existing["review_json"] != encoded or existing["result_id"] != result_id:
-                    raise TaskStoreError("review_id already exists with different content")
-                return self._run_status_in_transaction(con, task_row["run_id"])
-
-            previous_verifier = con.execute(
-                "SELECT 1 FROM reviews WHERE result_id=? AND reviewer_agent_id=?",
-                (result_id, verifier_id),
-            ).fetchone()
-            if previous_verifier:
-                raise TaskStoreError("this verifier has already reviewed this result")
-
+            source_task = _decode(task_row["task_json"])
             quality_ok = result_meets_quality_gate(
                 result,
                 review,
                 producer,
                 verifier,
-                task_role=task["role"],
-                domain=task["domain"],
+                task_role=source_task["role"],
+                domain=source_task["domain"],
                 accuracy_target=run["quality_policy"]["accuracy_target"],
                 hallucination_max=run["quality_policy"]["hallucination_max"],
             )
-            new_status = "accepted" if quality_ok else (
-                "rejected" if review["status"] == "rejected" else "needs_review"
-            )
-            prior_reserve = float(task.get("estimated_cost_reserved", 0.0))
-            if new_status == "needs_review":
-                task["estimated_cost_reserved"] = max(
-                    0.0, prior_reserve - float(review["usage"]["direct_cost"])
-                )
-            else:
-                task.pop("estimated_cost_reserved", None)
 
             con.execute(
                 """
                 INSERT INTO reviews(review_id, result_id, reviewer_agent_id, review_json, created_at)
                 VALUES (?, ?, ?, ?, ?)
                 """,
-                (review_id, result_id, verifier_id, encoded, _utc_now()),
+                (review_id, result_id, reviewer_id, encoded_review, _utc_now()),
             )
-            task["review_id"] = review_id
-            self._set_task(con, task_row, task, new_status)
             self._event(
                 con,
                 run_id=task_row["run_id"],
                 task_id=task_row["task_id"],
-                agent_id=verifier_id,
+                agent_id=reviewer_id,
                 event_type="review_submitted",
                 payload={
                     "review_id": review_id,
                     "result_id": result_id,
+                    "verification_task_id": review_task_id,
                     "review_status": review["status"],
                     "quality_gate_passed": quality_ok,
-                    "task_status": new_status,
                     "review_cost": review["usage"]["direct_cost"],
                 },
             )
+
+            if quality_ok:
+                review_task["review_id"] = review_id
+                review_task.pop("estimated_cost_reserved", None)
+                self._set_task(con, review_task_row, review_task, "accepted")
+                source_task["review_id"] = review_id
+                source_task.pop("estimated_cost_reserved", None)
+                self._set_task(con, task_row, source_task, "accepted")
+            else:
+                excluded = set(review_task["input"].get("excluded_agent_ids", []))
+                excluded.add(reviewer_id)
+                review_task["input"]["excluded_agent_ids"] = sorted(excluded)
+                attempts_left = int(review_task_row["attempt"]) < int(review_task_row["max_attempts"])
+                review_task["last_review_id"] = review_id
+                if attempts_left:
+                    self._set_task(con, review_task_row, review_task, "queued")
+                    source_task["status"] = "needs_review"
+                    source_task["review_id"] = review_id
+                    self._set_task(con, task_row, source_task, "needs_review")
+                else:
+                    self._set_task(con, review_task_row, review_task, "failed")
+                    claim_verdicts = {item["verdict"] for item in review["claims"]}
+                    terminal = "rejected" if claim_verdicts & {"contradicted", "insufficient"} else "needs_review"
+                    source_task["review_id"] = review_id
+                    self._set_task(con, task_row, source_task, terminal)
+
             self._refresh_run_status(con, task_row["run_id"])
             return self._run_status_in_transaction(con, task_row["run_id"])
 
