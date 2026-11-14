@@ -201,19 +201,17 @@ After transcription:
 
 ### Step 3 - Extract entities and relationships
 
-**Before starting:** note whether `--mode deep` was given. You must pass `DEEP_MODE=true` to every subagent in Step B2 if it was. Track this from the original invocation - do not lose it.
+**Before starting:** note whether `--mode deep` was given. Preserve that setting in every file/chunk, whether the main session processes it directly or a worker receives it.
 
 This step has two parts: **structural extraction** (deterministic, free) and **semantic extraction** (your AI model, costs tokens).
 
 > **graphify needs no API key. Never ask the user for one, and never block on one.** Code is extracted structurally (AST) with no LLM and no key at all — a code-only corpus (the common `/graphify .` on a repo) skips semantic extraction entirely, so go straight to Part A and skip Part B. Semantic extraction (only for docs, papers, and images) is done by your own model. graphify does **not** read `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, or any other provider key. If you cannot dispatch subagents, do not stall: a code-only corpus has no semantic work (write the empty semantic file and continue to Part C); for docs/papers/images, extract them inline yourself. If you catch yourself about to prompt for or block on a missing API key, that is a misread of this skill — proceed without one.
 
-**Run Part A (AST) and Part B (semantic) in parallel. Dispatch all semantic subagents AND start AST extraction in the same message. Both can run simultaneously since they operate on different file types. Merge results in Part C as before.**
-
-Note: Parallelizing AST + semantic saves 5-15s on large corpora. AST is deterministic and fast; start it while subagents are processing docs/papers.
+Run structural extraction and semantic extraction as separate stages. Start them concurrently only when the host genuinely supports independent execution and a measured time/cost benefit justifies it. Otherwise keep the work in the main session and run the stages sequentially. Do not create a planner/developer/tester/reviewer team for one extraction task.
 
 #### Part A - Structural extraction for code files
 
-For any code files detected, run AST extraction in parallel with Part B subagents:
+For any detected code files, run the deterministic AST extraction below. It does not require an agent or an API key.
 
 ```bash
 $(cat graphify-out/.graphify_python) -c "
@@ -237,7 +235,7 @@ else:
 "
 ```
 
-#### Part B - Semantic extraction (parallel subagents)
+#### Part B - Semantic extraction
 
 **Fast path:** If detection found zero docs, papers, and images (code-only corpus), skip Part B entirely and go straight to Part C. AST handles code - there is nothing for semantic subagents to do. **First write an empty semantic file** so Part C's merge has its input (it reads `graphify-out/.graphify_semantic.json` unconditionally; without this a code-only run hits `FileNotFoundError`):
 
@@ -249,17 +247,15 @@ Path('graphify-out/.graphify_semantic.json').write_text(json.dumps({'nodes':[],'
 "
 ```
 
-Before dispatching subagents, print a timing estimate:
-- Load `total_words` and file counts from `graphify-out/.graphify_detect.json`
-- Estimate agents needed: `ceil(uncached_non_code_files / 22)` (chunk size is 20-25)
-- Estimate time: ~45s per agent batch (they run in parallel, so total ≈ 45s × ceil(agents/parallel_limit))
-- Print: "Semantic extraction: ~N files → X agents, estimated ~Ys"
+**Single-session-first rule:** the main session is the default owner of the task. If the uncached corpus is small enough to fit without context pressure, process it sequentially in this session; do not create a worker just to move one chunk into another context. Consider delegation only when there are at least two independent chunks and the main context would otherwise be pressured, or a hard deadline requires parallelism. Delegation's expected end-to-end cost (worker tokens, duplicated context, handoff, integration, verification, retries, escalation) must be no higher than the single-session estimate unless the hard deadline requires the latency reduction. If cost or benefit is unknown, stay in the main session. Never delegate merely to fill roles. Cap worker concurrency at three and never spawn nested workers.
 
-**MANDATORY: You MUST use the subagent system here. Reading files yourself one-by-one is forbidden - it is 5-10x slower. If you do not use parallel subagents you are doing this wrong.**
+**Inline path:** process chunks sequentially in the main session, retaining source order and one context. Save each completed chunk to the same numbered chunk-file format; run the same validation and coverage checks.
+
+**Delegated path:** only when the above gate passes, send one independent chunk to each worker, with disjoint inputs/outputs. The main session retains ownership of integration and final review.
 
 **Step B0 - Check extraction cache first**
 
-Before dispatching any subagents, check which files already have cached extraction results:
+Before processing any uncached files, check which files already have cached extraction results:
 
 ```bash
 $(cat graphify-out/.graphify_python) -c "
@@ -286,7 +282,7 @@ print(f'Cache: {len(all_files)-len(uncached)} files hit, {len(uncached)} files n
 "
 ```
 
-Only dispatch subagents for files listed in `graphify-out/.graphify_uncached.txt`. If all files are cached, skip to Part C directly.
+Only process files listed in `graphify-out/.graphify_uncached.txt`. If all files are cached, skip to Part C directly.
 
 **Step B1 - Split into chunks**
 
@@ -294,7 +290,7 @@ Load files from `graphify-out/.graphify_uncached.txt`. Split into chunks of 20-2
 
 **Step B2 - Dispatch subagents**
 
-Dispatch ALL subagents in the same response so they run in parallel.
+On the delegated path, dispatch all approved independent subagents in the same response so they run in parallel. On the inline path, perform the chunks sequentially yourself and persist the same numbered chunk files.
 
 Concrete example for 3 chunks:
 ```
@@ -351,7 +347,7 @@ FILE_LIST
 
 **Step B3 - Cache and merge**
 
-Wait for all subagents. For each result:
+Wait for all delegated subagents to finish, or finish the inline chunks, then validate each result:
 - Check that `graphify-out/.graphify_chunk_N.json` exists on disk — this is the success signal
 - If the file exists and contains valid JSON with `nodes` and `edges`, include it and save to cache
 - If the file is missing, the subagent was likely dispatched as read-only — print a warning: "chunk N missing from disk — subagent may have been read-only. Re-run with general-purpose agent." Do not silently skip.
@@ -359,7 +355,7 @@ Wait for all subagents. For each result:
 
 If more than half the chunks failed or are missing, stop and tell the user to re-run and ensure `subagent_type="general-purpose"` is used.
 
-After each subagent call completes, write its result to `graphify-out/.graphify_chunk_N.json`. **After each subagent call completes, read the real token counts from the subagent tool result's `usage` field and write them back into the chunk JSON before merging** — the chunk JSON itself always has placeholder zeros. Then merge:
+After each chunk completes, persist its result to its assigned `graphify-out/.graphify_chunk_NN.json`. When the host reports actual token usage, record it; otherwise preserve the usage values in the result and never invent counts. Then merge:
 
 ```bash
 $(cat graphify-out/.graphify_python) -c "
