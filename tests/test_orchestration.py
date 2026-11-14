@@ -640,6 +640,7 @@ def test_ziwei_unknown_claim_cannot_be_marked_supported():
     result["output"]["interpretation_status"] = "indeterminate"
     for interpretation in result["output"]["interpretations"]:
         interpretation["evidence"] = []
+        interpretation["assertion_strength"] = "hedged"
     review = _review()
     review["claims"][0]["claim_id"] = "ziwei-claim-1"
     with pytest.raises(OrchestrationValidationError, match="unknown ziwei_saju"):
@@ -661,11 +662,14 @@ def test_ziwei_saju_supports_single_frame_and_requires_true_convergence():
     result["output"]["interpretation_status"] = "single_frame"
     result["output"]["interpretations"] = result["output"]["interpretations"][:1]
     result["output"].pop("divergence_reason")
+    result["claims"] = []
+    result["evidence"] = []
     assert validate_result_envelope(result) is result
 
     result = _ziwei_result()
     result["output"]["interpretation_status"] = "convergent"
     result["output"]["interpretations"][1]["finding"] = result["output"]["interpretations"][0]["finding"]
+    result["claims"][0]["statement"] = "Both frames produce the same structural finding."
     result["output"].pop("divergence_reason")
     assert validate_result_envelope(result) is result
 
