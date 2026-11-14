@@ -930,3 +930,49 @@ def test_unreported_retry_spend_counts_against_task_budget(tmp_path):
             "SELECT task_json FROM tasks WHERE task_id='task-1'"
         ).fetchone()
     assert json.loads(row["task_json"])["last_failure"] == "task_cost_budget_exceeded"
+
+
+
+def test_task_budget_counts_reported_cost_from_failed_attempts(tmp_path):
+    store = TaskStore(tmp_path / "orchestrator.sqlite3")
+    agent = _agent(
+        "agent-1", "provider", "model",
+        input_cost=100.0, cached_cost=0.0, output_cost=0.0,
+    )
+    for key in (
+        "verification_cost_per_task",
+        "expected_retry_cost_per_task",
+        "expected_escalation_cost_per_task",
+        "orchestration_cost_per_task",
+    ):
+        agent["cost_profile"][key] = 0.0
+    _register(store, agent)
+    task = _task("task-1", estimate=1_000_000)
+    task["input"]["estimated_output_tokens"] = 0
+    task["input"]["estimated_cached_input_tokens"] = 0
+    task["cost_budget"]["max_total"] = 150.0
+    store.create_run(_run(max_total=500.0, strategy="single_agent"), [task])
+
+    first = store.claim_task("agent-1")
+    assert first is not None
+    failed_result = _result("task-1", agent)
+    failed_result["status"] = "failed"
+    failed_result["usage"].update({
+        "input_tokens": 1_000_000,
+        "output_tokens": 0,
+        "cached_input_tokens": 0,
+    })
+    status = store.submit_result(failed_result, first["lease_token"])
+    assert status["total_direct_cost"] == pytest.approx(100.0)
+    assert status["tasks"][0]["status"] == "queued"
+
+    # The next $100 attempt would make the task's cumulative actual + expected
+    # cost $200, over its $150 task ceiling (the run ceiling remains $500).
+    assert store.claim_task("agent-1") is None
+    status = store.get_run_status("run-1")
+    assert status["tasks"][0]["status"] == "failed"
+    with store._connect() as con:
+        row = con.execute(
+            "SELECT task_json FROM tasks WHERE task_id='task-1'"
+        ).fetchone()
+    assert json.loads(row["task_json"])["last_failure"] == "task_cost_budget_exceeded"
