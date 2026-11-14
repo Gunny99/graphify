@@ -662,6 +662,7 @@ def test_ziwei_unknown_claim_cannot_be_marked_supported():
     result["output"]["interpretation_status"] = "indeterminate"
     result["output"]["interpretations"] = result["output"]["interpretations"][:1]
     for interpretation in result["output"]["interpretations"]:
+        interpretation["direction"] = "indeterminate"
         interpretation["evidence"] = []
         interpretation["assertion_strength"] = "hedged"
     result["claims"] = result["claims"][:1]
