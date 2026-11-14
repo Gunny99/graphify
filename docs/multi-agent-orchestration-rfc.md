@@ -105,6 +105,7 @@ Every task is an independently claimable unit of work.
   "domain": "technical",
   "objective": "Find primary-source support for the specified claims",
   "input": {},
+  "data_scopes": ["project:demo"],
   "context_refs": [],
   "depends_on": [],
   "required_capabilities": ["web_research", "primary_sources"],
@@ -135,6 +136,7 @@ An agent profile describes what a session can do and what it costs.
 Required fields:
 - `agent_id`, `provider`, `model`, `model_version`, `protocol`.
 - `capabilities`: allowlisted task skills, not free-form authority.
+- Every task carries a non-empty `data_scopes` list. An agent may claim it only when `allowed_data_scopes` contains every requested scope or `*`.
 - `max_concurrency`, `status`, `allowed_data_scopes`.
 - `cost_profile`: uncached-input, cached-input, and output pricing plus verification, retry, escalation, and orchestration costs; currency, effective date, and source.
 - `quality_profile`: benchmark ID, task domain/role, sample size, verified accuracy lower bound, hallucination upper bound, evaluation date, and evaluator version.
@@ -286,7 +288,7 @@ total_cost =
 Include provider charges, input/output/cached tokens, tool costs when billed, failed attempts, reviewer/adjudicator calls, and any escalation to a stronger model. Do not compare models using generation-token cost alone.
 
 Routing sequence:
-1. Filter candidates by task capability, data scope, current quality profile, deadline, and remaining budget.
+1. Filter candidates by task capability, explicit task `data_scopes`, recent authenticated activity, current quality profile, deadline, and remaining budget. An active registration without recent authenticated activity is not considered available for cost ranking. A failed/expired owner is skipped on retry when another qualified live agent is available, but is a bounded fallback when none is available.
 2. Calculate expected end-to-end cost using observed retry and verification rates for that role/domain.
 3. Choose the lowest-cost qualified candidate.
 4. If the result fails schema/evidence/quality checks, retry or escalate only within the task's attempt and cost budgets.

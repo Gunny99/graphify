@@ -156,6 +156,36 @@ def _validate_ziwei_evidence_ref(value: Any, path: str) -> Mapping[str, Any]:
     return evidence
 
 
+def _reject_ziwei_personal_fields(value: Any, path: str = "result") -> None:
+    """Keep raw birth particulars and direct personal identifiers out of envelopes."""
+    forbidden = {
+        "dob",
+        "dateofbirth",
+        "birthdate",
+        "birthdatetime",
+        "birthtime",
+        "residentregistrationnumber",
+        "rrn",
+        "socialsecuritynumber",
+        "ssn",
+        "phonenumber",
+        "emailaddress",
+        "personname",
+        "fullname",
+    }
+    if isinstance(value, Mapping):
+        for key, nested in value.items():
+            normalized = re.sub(r"[^a-z0-9]", "", str(key).casefold())
+            if normalized in forbidden:
+                raise OrchestrationValidationError(
+                    f"{path}.{key} contains a prohibited raw personal-data field"
+                )
+            _reject_ziwei_personal_fields(nested, f"{path}.{key}")
+    elif isinstance(value, list):
+        for index, nested in enumerate(value):
+            _reject_ziwei_personal_fields(nested, f"{path}[{index}]")
+
+
 def validate_ziwei_saju_result(
     output: Mapping[str, Any],
     claims: Sequence[Mapping[str, Any]],
@@ -167,6 +197,24 @@ def validate_ziwei_saju_result(
     """
     if output.get("domain") != "ziwei_saju":
         raise OrchestrationValidationError("ziwei_saju output must declare domain='ziwei_saju'")
+    _reject_ziwei_personal_fields(output, "result.output")
+    for hash_key, version_key, label in (
+        ("engine_hash", "engine_version", "interpretation engine"),
+        ("spec_hash", "spec_version", "governing specification"),
+    ):
+        identity = output.get(hash_key) or output.get(version_key)
+        if not isinstance(identity, str) or not identity.strip():
+            raise OrchestrationValidationError(
+                f"ziwei_saju output must identify its {label} with {hash_key} or {version_key}"
+            )
+        if output.get(hash_key) is not None and re.fullmatch(
+            r"sha256:[0-9a-fA-F]{64}", str(output[hash_key])
+        ) is None:
+            raise OrchestrationValidationError(
+                f"result.output.{hash_key} must be sha256:<64 hex characters>"
+            )
+        if output.get(version_key) is not None:
+            _string(output[version_key], f"result.output.{version_key}")
     interpretation_status = output.get("interpretation_status")
     if interpretation_status not in ZIWEI_INTERPRETATION_STATUSES:
         raise OrchestrationValidationError(
@@ -793,6 +841,7 @@ def validate_result_envelope(value: Any) -> Mapping[str, Any]:
         else:
             _validate_evidence_ref(evidence, evidence_path)
     if output.get("domain") == "ziwei_saju":
+        _reject_ziwei_personal_fields(result, "result")
         validate_ziwei_saju_result(output, claims)
     _strings(result.get("uncertainties"), "result.uncertainties")
     usage = _object(result.get("usage"), "result.usage")

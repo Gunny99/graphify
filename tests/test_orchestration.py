@@ -123,6 +123,7 @@ def _task(task_id: str, depends_on: list[str] | None = None) -> dict:
         "domain": "technical",
         "objective": "Find evidence for a factual claim",
         "input": {"question": "What does the API guarantee?"},
+        "data_scopes": ["project:demo"],
         "context_refs": [],
         "depends_on": depends_on or [],
         "required_capabilities": ["research"],
@@ -562,6 +563,8 @@ def _ziwei_result() -> dict:
     source = _ziwei_evidence()
     result["output"] = {
         "domain": "ziwei_saju",
+        "engine_version": "ziwei-engine/1.0.0",
+        "spec_version": "ziwei-spec/1.0.0",
         "interpretation_status": "divergent",
         "interpretations": [
             {
@@ -779,6 +782,8 @@ def test_ziwei_saju_convergence_uses_question_direction_not_finding_wording():
     result["output"]["interpretation_status"] = "convergent"
     result["output"]["interpretations"][0]["direction"] = "character"
     result["output"]["interpretations"][1]["direction"] = "character"
+    result["output"]["interpretations"][0]["trait_key"] = "cautious_temperament"
+    result["output"]["interpretations"][1]["trait_key"] = "cautious_temperament"
     result["output"].pop("divergence_reason")
     # The two findings intentionally retain different wording.
     assert result["output"]["interpretations"][0]["finding"] != result["output"]["interpretations"][1]["finding"]
@@ -830,7 +835,7 @@ def test_ziwei_interpretation_must_match_linked_claim_strength_and_evidence():
         item["evidence"] = []
     for claim in result["claims"]:
         claim["assertion_strength"] = "hedged"
-    with pytest.raises(OrchestrationValidationError, match="evidence must overlap"):
+    with pytest.raises(OrchestrationValidationError, match="source, location, and file hash"):
         validate_result_envelope(result)
 
 def test_ziwei_linked_source_hash_comparison_is_case_insensitive():
@@ -872,3 +877,109 @@ def test_ziwei_unknown_indeterminate_claim_can_be_reviewed_as_insufficient():
     review = _review(verdict="insufficient", status="needs_review")
     review["claims"][0]["claim_id"] = claim["claim_id"]
     assert validate_review_envelope(review, result) is review
+
+
+def test_ziwei_character_frames_require_matching_trait_for_convergence():
+    result = _ziwei_result()
+    result["output"]["interpretation_status"] = "convergent"
+    for frame in result["output"]["interpretations"]:
+        frame["direction"] = "character"
+        frame["trait_key"] = "cautious_temperament"
+    result["output"].pop("divergence_reason")
+    assert validate_result_envelope(result) is result
+
+    result["output"]["interpretations"][1]["trait_key"] = "impulsive_temperament"
+    with pytest.raises(OrchestrationValidationError, match="same direction and character trait"):
+        validate_result_envelope(result)
+
+    result["output"]["interpretation_status"] = "divergent"
+    result["output"]["divergence_reason"] = "The frames identify different character traits."
+    assert validate_result_envelope(result) is result
+
+
+def test_ziwei_mixed_determinate_and_indeterminate_frames_are_representable():
+    result = _ziwei_result()
+    result["output"]["interpretation_status"] = "single_frame"
+    unknown = result["claims"][1]
+    unknown.update({
+        "evidence_basis": "unknown",
+        "assertion_strength": "hedged",
+        "statement": "The second frame has no corresponding original passage.",
+        "evidence": [],
+    })
+    result["output"]["interpretations"][1].update({
+        "direction": "indeterminate",
+        "assertion_strength": "hedged",
+        "finding": unknown["statement"],
+        "evidence": [],
+    })
+    result["output"].pop("divergence_reason")
+    assert validate_result_envelope(result) is result
+
+
+def test_ziwei_mixed_derived_evidence_cannot_upgrade_a_hedged_premise():
+    result = _ziwei_result()
+    definite = _ziwei_evidence(assertion="definite")
+    hedged = _ziwei_evidence(assertion="hedged")
+    hedged["source_id"] = "ziwei-source-2"
+    hedged["location"] = "L900-L905"
+    result["claims"][0]["evidence"] = [definite, hedged]
+    with pytest.raises(OrchestrationValidationError, match="depending on hedged source assertions"):
+        validate_result_envelope(result)
+
+
+def test_ziwei_frame_claim_linkage_requires_same_source_location_and_hash():
+    result = _ziwei_result()
+    different_passage = dict(result["output"]["interpretations"][0]["evidence"][0])
+    different_passage["location"] = "L900-L905"
+    result["output"]["interpretations"][0]["evidence"] = [different_passage]
+    with pytest.raises(OrchestrationValidationError, match="source, location, and file hash"):
+        validate_result_envelope(result)
+
+
+def test_ziwei_verifier_can_use_independent_original_source():
+    result = _ziwei_result()
+    review = _review()
+    review["claims"][0]["claim_id"] = "ziwei-structure-claim"
+    independent = _ziwei_evidence()
+    independent["source_id"] = "independent-edition"
+    independent["uri"] = "library/ziwei/independent.txt"
+    independent["location"] = "L700-L705"
+    review["claims"][0]["evidence"] = [independent]
+    assert validate_review_envelope(review, result) is review
+
+
+def test_task_and_agent_require_nonempty_data_scopes():
+    task = _task("scope-check")
+    task["data_scopes"] = []
+    with pytest.raises(OrchestrationValidationError, match="task.data_scopes"):
+        validate_task_envelope(task)
+
+    agent = _agent("scope-agent", input_cost=0.1, cached_cost=0.01, output_cost=0.2)
+    agent["allowed_data_scopes"] = []
+    with pytest.raises(OrchestrationValidationError, match="agent.allowed_data_scopes"):
+        validate_agent_profile(agent)
+
+
+def test_ziwei_output_requires_engine_and_spec_provenance():
+    result = _ziwei_result()
+    result["output"].pop("engine_version")
+    with pytest.raises(OrchestrationValidationError, match="engine_hash or engine_version"):
+        validate_result_envelope(result)
+
+    result = _ziwei_result()
+    result["output"].pop("spec_version")
+    with pytest.raises(OrchestrationValidationError, match="spec_hash or spec_version"):
+        validate_result_envelope(result)
+
+
+def test_ziwei_envelope_rejects_raw_birth_and_direct_personal_fields():
+    result = _ziwei_result()
+    result["output"]["inputs"] = {"date_of_birth": "1990-01-01"}
+    with pytest.raises(OrchestrationValidationError, match="prohibited raw personal-data"):
+        validate_result_envelope(result)
+
+    result = _ziwei_result()
+    result["claims"][0]["private"] = {"resident_registration_number": "000000-0000000"}
+    with pytest.raises(OrchestrationValidationError, match="prohibited raw personal-data"):
+        validate_result_envelope(result)
