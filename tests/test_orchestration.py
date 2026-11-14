@@ -162,6 +162,14 @@ def _result() -> dict:
         },
         "status": "submitted",
         "output": {"answer": "The API guarantees stable task identifiers."},
+        "usage": {
+            "input_tokens": 1000,
+            "output_tokens": 150,
+            "cached_input_tokens": 0,
+            "direct_cost": 0.01,
+            "currency": "USD",
+            "pricing_source": "test-price-sheet-v1",
+        },
         "claims": [{
             "claim_id": "claim-1",
             "statement": "The API guarantees stable task identifiers.",
