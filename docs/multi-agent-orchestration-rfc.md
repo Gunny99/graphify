@@ -21,6 +21,29 @@ Proposed architecture for the next Graphify development phases. This RFC defines
 
 ## Architecture
 
+## Single-agent-first routing policy
+
+The default execution strategy is `single_agent`: one main session keeps the plan, implementation, and tests in the same context. Do not create planner/developer/tester/security/reviewer teams by default, and do not generate intermediate handoff documents that merely repeat the same context.
+
+A task may use one focused independent review after the main implementation (`single_with_review`). This is a single post-implementation check, not an agent team. Material factual claims still require independently checked evidence under the quality policy; that verification stage is not permission to delegate the entire workflow.
+
+Use multiple agents only in these exceptions:
+
+1. **Read-only exploration:** a large codebase or document corpus would otherwise overwhelm the main context. Explorers receive non-overlapping search questions, have no write tools, and return concise findings with file/line/source references. The main session remains the only writer.
+2. **Independent parallel work:** at least two workstreams are genuinely independent, have no dependency ordering, do not share mutable state, and have disjoint file write sets. Parallel execution is allowed only when the expected total cost is no higher than the single-session estimate, or a hard deadline makes the verified latency reduction necessary.
+3. **Independent review:** after the main work is complete, one separate reviewer checks implementation, security, edge cases, and tests. Additional reviewers are not spawned automatically; a second reviewer is an escalation only when the first review identifies a material dispute or confidence remains insufficient.
+
+Decision gates:
+- Any dependency between workstreams, overlapping write set, shared state, or need for iterative user feedback selects one main session.
+- For small fixes, one-file changes, sequential design/implementation/test work, or work that requires maintaining a cumulative context, use one session.
+- For wide exploration, isolate reading only; return bounded summaries instead of copying all raw context into the main session.
+- For a valid independent parallel run, cap initial concurrency at three workers. Increase only when measured results show a net benefit.
+- Never delegate merely to fill roles. Never allow workers to spawn more workers by default.
+- Before delegating, estimate the complete cost including generation, duplicated context, result handoff, integration, verification, retries, and escalation. If cost or benefit is unknown, default to one session and collect measurements first.
+
+Track each run's selected strategy, reason, number of spawned workers, tokens, wall time, integration defects, verified accuracy, hallucination rate, and full cost. Evaluate strategies against a single-session baseline on the same task before enabling a broader policy.
+
+
 A single Orchestrator owns a persistent task queue and a run state machine. Agents connect through MCP (or a later host adapter), register their capabilities, claim eligible work, and submit structured results. A separate verifier reviews material factual claims and checks that the submitted evidence actually supports them. The Orchestrator alone changes task state and decides whether a run is accepted, provisional, or rejected.
 
 ```text
@@ -62,6 +85,7 @@ Required fields:
 - `schema_version`: contract version.
 - `request`: original user request.
 - `status`: `queued | running | awaiting_review | accepted | provisional | failed | cancelled`.
+- `execution_policy`: selected strategy (`single_agent | single_with_review | read_only_exploration | parallel_independent`), concurrency cap, and read/write isolation flags.
 - `quality_policy`: accuracy and hallucination targets, evidence requirements, verifier policy, and confidence-bound method.
 - `cost_policy`: currency, budget, and total-cost ceiling.
 - `created_at`, `updated_at`, optional `deadline_at`.
