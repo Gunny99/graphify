@@ -3107,8 +3107,9 @@ def _build_server(graph_path: str):
                     "properties": {
                         "run": {"type": "object", "description": "Versioned run envelope including execution_policy, quality_policy, and cost_policy."},
                         "tasks": {"type": "array", "items": {"type": "object"}, "description": "Validated task envelopes for this run."},
+                        "coordinator_token": {"type": "string"},
                     },
-                    "required": ["run", "tasks"],
+                    "required": ["run", "tasks", "coordinator_token"],
                 },
             ),
             types.Tool(
@@ -3196,6 +3197,7 @@ def _build_server(graph_path: str):
                         "lease_token": {"type": "string"},
                         "reason": {"type": "string"},
                         "retryable": {"type": "boolean", "default": True},
+                        "coordinator_token": {"type": "string"},
                     },
                     "required": ["task_id", "agent_id", "agent_token", "lease_token", "reason"],
                 },
@@ -3205,8 +3207,11 @@ def _build_server(graph_path: str):
                 description="Get run/task states, blockers, actual cost, reserved cost, and remaining budget.",
                 inputSchema={
                     "type": "object",
-                    "properties": {"run_id": {"type": "string"}},
-                    "required": ["run_id"],
+                    "properties": {
+                        "run_id": {"type": "string"},
+                        "coordinator_token": {"type": "string"},
+                    },
+                    "required": ["run_id", "coordinator_token"],
                 },
             ),
             types.Tool(
@@ -3495,7 +3500,19 @@ def _build_server(graph_path: str):
     def _authenticate_orchestration_agent(store, agent_id: str, token: str) -> None:
         store.authenticate_agent(agent_id, token)
 
+    def _require_orchestration_coordinator(arguments: dict) -> None:
+        expected = os.environ.get("GRAPHIFY_ORCHESTRATOR_TOKEN", "")
+        supplied = arguments.get("coordinator_token", "")
+        if not expected or not isinstance(supplied, str) or not __import__("hmac").compare_digest(
+            expected, supplied
+        ):
+            raise ToolError(
+                "Coordinator authentication failed. Configure GRAPHIFY_ORCHESTRATOR_TOKEN "
+                "in the MCP server environment and pass the matching coordinator_token."
+            )
+
     def _tool_orchestrator_create_run(arguments: dict) -> str:
+        _require_orchestration_coordinator(arguments)
         store = _orchestration_store()
         return _orchestration_json(store.create_run(arguments["run"], arguments["tasks"]))
 
@@ -3564,7 +3581,7 @@ def _build_server(graph_path: str):
                 arguments["agent_id"],
                 arguments["lease_token"],
                 arguments["reason"],
-                retryable=bool(arguments.get("retryable", True)),
+                retryable=arguments.get("retryable", True),
             )
         )
 
@@ -3572,6 +3589,7 @@ def _build_server(graph_path: str):
         return _orchestration_json(_orchestration_store().get_run_status(arguments["run_id"]))
 
     def _tool_orchestrator_cancel_run(arguments: dict) -> str:
+        _require_orchestration_coordinator(arguments)
         return _orchestration_json(_orchestration_store().cancel_run(arguments["run_id"]))
 
     _handlers = {
