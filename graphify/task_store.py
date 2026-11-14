@@ -54,6 +54,12 @@ def _json(value: Any) -> str:
         raise OrchestrationValidationError(f"value is not JSON serializable: {exc}") from exc
 
 
+def _required_string(value: Any, path: str) -> str:
+    if not isinstance(value, str) or not value.strip():
+        raise TaskStoreError(f"{path} must be a non-empty string")
+    return value
+
+
 def _decode(value: str) -> dict[str, Any]:
     try:
         loaded = json.loads(value)
@@ -377,8 +383,8 @@ class TaskStore:
 
     def authenticate_agent(self, agent_id: str, auth_token: str) -> dict[str, Any]:
         """Authenticate an MCP client against a locally registered agent token."""
-        agent_id = _string(agent_id, "agent_id")
-        auth_token = _string(auth_token, "agent_token")
+        agent_id = _required_string(agent_id, "agent_id")
+        auth_token = _required_string(auth_token, "agent_token")
         with self._transaction() as con:
             row = con.execute(
                 "SELECT profile_json FROM agents WHERE agent_id=?", (agent_id,)
@@ -739,7 +745,7 @@ class TaskStore:
             raise TaskLeaseError("task is not leased to this agent")
         if row["lease_expires_at"] is None or float(row["lease_expires_at"]) <= time.time():
             raise TaskLeaseError("task lease has expired")
-        supplied_hash = _token_hash(_string(lease_token, "lease_token"))
+        supplied_hash = _token_hash(_required_string(lease_token, "lease_token"))
         stored_hash = str(row["lease_token_hash"] or "")
         if not secrets.compare_digest(supplied_hash, stored_hash):
             raise TaskLeaseError("invalid lease token")
@@ -989,7 +995,7 @@ class TaskStore:
         *,
         retryable: bool = True,
     ) -> dict[str, Any]:
-        reason = _string(reason, "reason")
+        reason = _required_string(reason, "reason")
         if not isinstance(retryable, bool):
             raise ValueError("retryable must be a boolean")
         with self._transaction() as con:
@@ -1031,7 +1037,7 @@ class TaskStore:
             task = _decode(row["task_json"])
             if task["task_type"] != "verification" or task["role"] != "verifier":
                 raise TaskLeaseError("task is not a verification task")
-            result_id = _string(task["input"].get("result_id"), "verification.input.result_id")
+            result_id = _required_string(task["input"].get("result_id"), "verification.input.result_id")
             result_row = con.execute(
                 "SELECT result_json FROM results WHERE result_id=?", (result_id,)
             ).fetchone()
@@ -1058,10 +1064,10 @@ class TaskStore:
         lease_token: str,
     ) -> dict[str, Any]:
         """Accept reviews only from an agent holding the bound verification-task lease."""
-        review_id = str(_string(value.get("review_id"), "review.review_id"))
-        result_id = str(_string(value.get("result_id"), "review.result_id"))
-        review_task_id = str(_string(value.get("review_task_id"), "review.review_task_id"))
-        reviewer_id = str(_string(value.get("reviewer", {}).get("agent_id"), "review.reviewer.agent_id"))
+        review_id = str(_required_string(value.get("review_id"), "review.review_id"))
+        result_id = str(_required_string(value.get("result_id"), "review.result_id"))
+        review_task_id = str(_required_string(value.get("review_task_id"), "review.review_task_id"))
+        reviewer_id = str(_required_string(value.get("reviewer", {}).get("agent_id"), "review.reviewer.agent_id"))
 
         with self._transaction() as con:
             result_row = con.execute(
