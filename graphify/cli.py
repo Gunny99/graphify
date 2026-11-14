@@ -1975,11 +1975,63 @@ def dispatch_command(cmd: str) -> None:
     if cmd == "agent":
         import json as _json
         import secrets as _secrets
+        from datetime import datetime, timezone
         from graphify.task_store import TaskStore, TaskStoreError
 
         args = sys.argv[2:]
         subcmd = args[0] if args else ""
-        if subcmd == "register":
+        if subcmd == "template":
+            output = Path(args[1]) if len(args) > 1 and not args[1].startswith("-") else Path("agent-profile-template.json")
+            now = datetime.now(timezone.utc).isoformat()
+            template = {
+                "schema_version": 1,
+                "agent_id": "replace-with-stable-agent-id",
+                "provider": "replace-with-provider",
+                "model": "replace-with-model",
+                "model_version": "replace-with-model-version",
+                "protocol": "mcp",
+                "capabilities": ["research", "verify"],
+                "max_concurrency": 1,
+                "status": "active",
+                "allowed_data_scopes": [str(Path.cwd().resolve())],
+                "cost_profile": {
+                    "currency": "USD",
+                    "input_cost_per_million_tokens": 0.0,
+                    "cached_input_cost_per_million_tokens": 0.0,
+                    "output_cost_per_million_tokens": 0.0,
+                    "verification_cost_per_task": 0.0,
+                    "expected_retry_cost_per_task": 0.0,
+                    "expected_escalation_cost_per_task": 0.0,
+                    "orchestration_cost_per_task": 0.0,
+                    "pricing_source": "replace-with-verifiable-price-source",
+                    "effective_at": now,
+                },
+                "quality_profiles": [
+                    {
+                        "role": role,
+                        "domain": "technical",
+                        "benchmark_id": "replace-with-benchmark-id",
+                        "evaluation_set_hash": "sha256:replace-with-held-out-set-hash",
+                        "evaluator_version": "replace-with-independent-evaluator-version",
+                        "sample_size": 1,
+                        "confidence_level": 0.95,
+                        "accuracy_lower_bound": 0.0,
+                        "hallucination_upper_bound": 1.0,
+                        "evaluated_at": now,
+                    }
+                    for role in ("researcher", "verifier")
+                ],
+                "registered_at": now,
+                "updated_at": now,
+            }
+            if output.exists():
+                print(f"Refusing to overwrite existing file: {output}", file=sys.stderr)
+                sys.exit(1)
+            output.write_text(_json.dumps(template, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+            print(f"Created trusted-profile template: {output}")
+            print("Replace every placeholder with verified model identity, pricing, and held-out evaluation results.")
+            print("The template intentionally fails the >99% accuracy / <1% hallucination gate until real benchmark bounds are supplied.")
+        elif subcmd == "register":
             profile_path = next((arg for arg in args[1:] if not arg.startswith("-")), "")
             if not profile_path:
                 print("Usage: graphify agent register <trusted-profile.json> [--graph graph.json]", file=sys.stderr)
@@ -2028,7 +2080,7 @@ def dispatch_command(cmd: str) -> None:
                     f"quality={quality}"
                 )
         else:
-            print("Usage: graphify agent [register <trusted-profile.json>|list] [--graph graph.json]", file=sys.stderr)
+            print("Usage: graphify agent [template [file]|register <trusted-profile.json>|list] [--graph graph.json]", file=sys.stderr)
             sys.exit(1)
 
     elif cmd == "provider":
