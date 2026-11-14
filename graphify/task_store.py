@@ -223,6 +223,9 @@ class TaskStore:
         task["updated_at"] = now
         if attempt is not None:
             task["attempt"] = attempt
+        if status != "leased":
+            task.pop("lease_expires_at", None)
+            task.pop("estimated_cost_reserved", None)
         con.execute(
             """
             UPDATE tasks
@@ -257,16 +260,19 @@ class TaskStore:
         ]
         if statuses and all(status == "accepted" for status in statuses):
             status = "accepted"
-        elif any(status in {"failed", "rejected", "blocked"} for status in statuses):
-            status = "failed"
-        elif any(status == "needs_review" for status in statuses):
-            status = "provisional"
+        elif any(status in {"queued", "leased"} for status in statuses):
+            # Keep independent branches running even when another branch has failed.
+            status = "running" if any(item == "leased" for item in statuses) else "queued"
         elif any(status == "submitted" for status in statuses):
             status = "awaiting_review"
-        elif any(status == "leased" for status in statuses):
-            status = "running"
+        elif any(status == "needs_review" for status in statuses):
+            status = "provisional"
+        elif any(status in {"failed", "rejected", "blocked"} for status in statuses):
+            status = "failed"
+        elif statuses and all(status == "cancelled" for status in statuses):
+            status = "cancelled"
         else:
-            status = "queued"
+            status = "failed"
         run["status"] = status
         run["updated_at"] = _utc_now()
         con.execute(
@@ -301,8 +307,17 @@ class TaskStore:
         for run_id in changed_runs:
             self._refresh_run_status(con, run_id)
 
-    def register_agent(self, value: Mapping[str, Any]) -> dict[str, Any]:
-        """Register a trusted agent profile; quality profiles must be evaluator-owned."""
+    def register_agent(
+        self,
+        value: Mapping[str, Any],
+        *,
+        trusted_profile: bool = False,
+    ) -> dict[str, Any]:
+        """Register a profile from a trusted local operator, never an agent self-assertion."""
+        if not trusted_profile:
+            raise TaskStoreError(
+                "agent registration with pricing and quality profiles requires a trusted local operator"
+            )
         profile = validate_agent_profile(value)
         agent_id = str(profile["agent_id"])
         now = _utc_now()
@@ -397,6 +412,36 @@ class TaskStore:
                 )
             self._event(con, run_id=run_id, event_type="run_created", payload={"task_count": len(tasks)})
         return self.get_run_status(run_id)
+
+    @staticmethod
+    def _generation_cost(profile: Mapping[str, Any], usage: Mapping[str, Any]) -> float:
+        """Price token usage from the trusted registered model profile, not agent claims."""
+        input_tokens = int(usage["input_tokens"])
+        cached_tokens = int(usage["cached_input_tokens"])
+        output_tokens = int(usage["output_tokens"])
+        if cached_tokens > input_tokens:
+            raise TaskStoreError("cached_input_tokens cannot exceed input_tokens")
+        uncached_tokens = input_tokens - cached_tokens
+        cost = (
+            uncached_tokens * float(profile["input_cost_per_million_tokens"])
+            + cached_tokens * float(profile["cached_input_cost_per_million_tokens"])
+            + output_tokens * float(profile["output_cost_per_million_tokens"])
+        ) / 1_000_000
+        if not math.isfinite(cost) or cost < 0:
+            raise TaskStoreError("trusted pricing profile produced an invalid cost")
+        return cost
+
+    def _get_reserved_cost(self, con: sqlite3.Connection, run_id: str) -> float:
+        """Sum expected costs held by active leases to prevent concurrent overspending."""
+        total = 0.0
+        rows = con.execute(
+            "SELECT task_json FROM tasks WHERE run_id=? AND status='leased'",
+            (run_id,),
+        ).fetchall()
+        for row in rows:
+            task = _decode(row["task_json"])
+            total += float(task.get("estimated_cost_reserved", 0.0))
+        return total
 
     def _get_actual_cost(self, con: sqlite3.Connection, run_id: str) -> float:
         total = 0.0
@@ -524,9 +569,10 @@ class TaskStore:
                     continue
 
                 spent = self._get_actual_cost(con, row["run_id"])
+                reserved = self._get_reserved_cost(con, row["run_id"])
                 max_total = float(run["cost_policy"]["max_total"])
                 expected = float(ranked[0]["estimated_total_cost"])
-                if spent + expected > max_total:
+                if spent + reserved + expected > max_total:
                     continue
                 if task.get("cost_budget"):
                     task_budget = task["cost_budget"]
@@ -538,6 +584,7 @@ class TaskStore:
                 next_attempt = int(row["attempt"]) + 1
                 task["attempt"] = next_attempt
                 task["lease_expires_at"] = expires_at
+                task["estimated_cost_reserved"] = expected
                 self._set_task(
                     con,
                     row,
@@ -659,6 +706,14 @@ class TaskStore:
             run = _decode(run_row["run_json"])
             if result["usage"]["currency"] != run["cost_policy"]["currency"]:
                 raise TaskStoreError("result currency does not match the run cost policy")
+            if agent_profile["cost_profile"]["currency"] != run["cost_policy"]["currency"]:
+                raise TaskStoreError("registered agent pricing currency does not match the run")
+            # Direct costs are server-calculated from trusted pricing, not agent-reported.
+            result["usage"]["direct_cost"] = self._generation_cost(
+                agent_profile["cost_profile"], result["usage"]
+            )
+            result["usage"]["pricing_source"] = agent_profile["cost_profile"]["pricing_source"]
+            encoded = _json(result)
             con.execute(
                 """
                 INSERT INTO results(result_id, task_id, attempt, agent_id, result_json, created_at)
@@ -780,13 +835,21 @@ class TaskStore:
                 raise TaskNotFoundError("producer or verifier agent is not registered")
             producer = validate_agent_profile(_decode(producer_row["profile_json"]))
             verifier = validate_agent_profile(_decode(verifier_row["profile_json"]))
+            task = _decode(task_row["task_json"])
+            verifier_cost_profile = verifier["cost_profile"]
+            if verifier_cost_profile["currency"] != run["cost_policy"]["currency"]:
+                raise TaskStoreError("registered verifier pricing currency does not match the run")
+            review["usage"]["direct_cost"] = self._generation_cost(
+                verifier_cost_profile, review["usage"]
+            )
+            review["usage"]["pricing_source"] = verifier_cost_profile["pricing_source"]
             quality_ok = result_meets_quality_gate(
                 result,
                 review,
                 producer,
                 verifier,
-                task_role=task_row["task_json"] and _decode(task_row["task_json"])["role"],
-                domain=_decode(task_row["task_json"])["domain"],
+                task_role=task["role"],
+                domain=task["domain"],
                 accuracy_target=run["quality_policy"]["accuracy_target"],
                 hallucination_max=run["quality_policy"]["hallucination_max"],
             )
