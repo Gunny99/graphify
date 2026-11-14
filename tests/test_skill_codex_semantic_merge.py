@@ -31,7 +31,7 @@ def _run(source: str, *, cwd: Path, corpus: Path, spec: Path, expected_chunks: i
     out = cwd / "graphify-out"
     out.mkdir(parents=True, exist_ok=True)
     (out / ".graphify_root").write_text(corpus.as_posix(), encoding="utf-8")
-    source = source.replace("SPEC_PATH", spec.as_posix()).replace("EXPECTED_CHUNKS", str(expected_chunks))
+    source = source.replace("SPEC_PATH", spec.as_posix()).replace("EXPECTED_CHUNKS = EXPECTED_CHUNKS", f"EXPECTED_CHUNKS = {expected_chunks}")
     subprocess.run([sys.executable, "-c", source], cwd=cwd, check=True,
                    capture_output=True, text=True)
 
