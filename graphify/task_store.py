@@ -54,7 +54,7 @@ def _json(value: Any) -> str:
         raise OrchestrationValidationError(f"value is not JSON serializable: {exc}") from exc
 
 
-def _required_required_string(value: Any, path: str) -> str:
+def _required_string(value: Any, path: str) -> str:
     if not isinstance(value, str) or not value.strip():
         raise TaskStoreError(f"{path} must be a non-empty string")
     return value
