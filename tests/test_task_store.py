@@ -220,8 +220,13 @@ def _review(
     }
 
 
-def _register(store: TaskStore, agent: dict) -> None:
-    store.register_agent(agent, trusted_profile=True)
+def _register(store: TaskStore, agent: dict) -> str:
+    token = f"test-agent-token::{agent['agent_id']}::secret"
+    profile = dict(agent)
+    profile["auth_token"] = token
+    store.register_agent(profile, trusted_profile=True)
+    store.authenticate_agent(agent["agent_id"], token)
+    return token
 
 
 def test_claim_uses_lowest_cost_qualified_agent_and_enforces_dependency(tmp_path):
@@ -281,6 +286,19 @@ def test_claim_uses_lowest_cost_qualified_agent_and_enforces_dependency(tmp_path
     expected_result_cost = (900 * 0.05 + 100 * 0.02 + 100 * 0.1) / 1_000_000
     expected_review_cost = (900 * 0.1 + 100 * 0.02 + 100 * 0.2) / 1_000_000
     assert math.isclose(cost, expected_result_cost + expected_review_cost)
+
+
+def test_agent_authentication_token_is_required_and_not_returned_by_list(tmp_path):
+    store = TaskStore(tmp_path / "orchestrator.sqlite3")
+    agent = _agent("agent-1", "provider", "model")
+    token = _register(store, agent)
+    with pytest.raises(TaskLeaseError, match="authentication failed"):
+        store.authenticate_agent("agent-1", "wrong-token")
+    listed = store.list_agents()
+    assert len(listed) == 1
+    assert listed[0]["agent_id"] == "agent-1"
+    assert "auth_token" not in listed[0]
+    assert "_auth_token_hash" not in listed[0]
 
 
 def test_agent_cannot_self_assert_trusted_quality_or_price_profile(tmp_path):
