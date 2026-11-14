@@ -969,6 +969,39 @@ class TaskStore:
             self._refresh_run_status(con, row["run_id"])
             return self._run_status_in_transaction(con, row["run_id"])
 
+    def get_verification_payload(
+        self,
+        task_id: str,
+        agent_id: str,
+        lease_token: str,
+    ) -> dict[str, Any]:
+        """Return the immutable result only to the agent holding its verifier lease."""
+        with self._transaction() as con:
+            row = self._owned_lease(con, task_id, agent_id, lease_token)
+            task = _decode(row["task_json"])
+            if task["task_type"] != "verification" or task["role"] != "verifier":
+                raise TaskLeaseError("task is not a verification task")
+            result_id = _string(task["input"].get("result_id"), "verification.input.result_id")
+            result_row = con.execute(
+                "SELECT result_json FROM results WHERE result_id=?", (result_id,)
+            ).fetchone()
+            if result_row is None:
+                raise TaskNotFoundError(f"result not found: {result_id}")
+            result = _decode(result_row["result_json"])
+            if result["task_id"] != task.get("parent_task_id"):
+                raise TaskStoreError("verification task is bound to a different source task")
+            return {
+                "verification_task": {
+                    "task_id": task_id,
+                    "run_id": row["run_id"],
+                    "attempt": int(row["attempt"]),
+                    "role": task["role"],
+                    "domain": task["domain"],
+                    "acceptance_criteria": task["acceptance_criteria"],
+                },
+                "result": result,
+            }
+
     def submit_review(
         self,
         value: Mapping[str, Any],
