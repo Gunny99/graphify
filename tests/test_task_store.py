@@ -728,6 +728,7 @@ def test_insufficient_review_retry_reserves_only_unspent_verification_cost(tmp_p
     producer_lease = store.claim_task("producer")
     assert producer_lease is not None
     result = _result("task-1", producer)
+    producer_actual_cost = TaskStore._generation_cost(producer["cost_profile"], result["usage"])
     store.submit_result(result, producer_lease["lease_token"])
 
     verification = store.claim_task("verifier-1")
@@ -735,9 +736,16 @@ def test_insufficient_review_retry_reserves_only_unspent_verification_cost(tmp_p
     review = _review(result, verifier1, review_task_id=verification["task_id"])
     review["status"] = "needs_review"
     review["claims"][0]["verdict"] = "insufficient"
+    actual_review_cost = TaskStore._generation_cost(verifier1["cost_profile"], review["usage"])
 
     status = store.submit_review(review, verification["lease_token"])
     with store._connect() as con:
+        assert store._get_task_actual_cost(con, "task-1") == pytest.approx(
+            producer_actual_cost + actual_review_cost
+        )
+        assert store._get_task_actual_cost(con, verification["task_id"]) == pytest.approx(
+            actual_review_cost
+        )
         row = con.execute(
             "SELECT task_json FROM tasks WHERE task_id=?",
             (verification["task_id"],),
