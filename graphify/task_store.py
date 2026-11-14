@@ -617,8 +617,25 @@ class TaskStore:
         return total
 
     def _get_task_actual_cost(self, con: sqlite3.Connection, task_id: str) -> float:
-        """Sum actual generation and review costs attributable to one logical task."""
+        """Sum actual costs attributable to one logical task or verifier attempt."""
+        task_row = con.execute(
+            "SELECT task_json FROM tasks WHERE task_id=?",
+            (task_id,),
+        ).fetchone()
+        task = _decode(task_row["task_json"]) if task_row else {}
         total = 0.0
+        if task.get("task_type") == "verification":
+            result_id = task.get("input", {}).get("result_id")
+            if not result_id:
+                return 0.0
+            rows = con.execute(
+                "SELECT review_json FROM reviews WHERE result_id=?",
+                (result_id,),
+            ).fetchall()
+            for row in rows:
+                total += float(_decode(row["review_json"])["usage"]["direct_cost"])
+            return total
+
         result_rows = con.execute(
             "SELECT result_json FROM results WHERE task_id=?",
             (task_id,),
