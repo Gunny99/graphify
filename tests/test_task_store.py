@@ -984,6 +984,13 @@ def test_unreported_retry_spend_counts_against_task_budget(tmp_path):
         "agent-1", "provider", "model",
         input_cost=100.0, cached_cost=0.0, output_cost=0.0,
     )
+    for key in (
+        "verification_cost_per_task",
+        "expected_retry_cost_per_task",
+        "expected_escalation_cost_per_task",
+        "orchestration_cost_per_task",
+    ):
+        agent["cost_profile"][key] = 0.0
     _register(store, agent)
     task = _task("task-1", estimate=1_000_000)
     task["input"]["estimated_output_tokens"] = 0
