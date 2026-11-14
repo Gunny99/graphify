@@ -783,7 +783,7 @@ def _normalized_write_set(value: Any, path: str) -> list[str]:
             raw_path != raw_path.strip()
             or raw_path.startswith(("/", "~"))
             or "\\" in raw_path
-            or "://" in raw_path
+            or re.match(r"^[A-Za-z][A-Za-z0-9+.-]*:", raw_path) is not None
             or re.match(r"^[A-Za-z]:", raw_path) is not None
             or ".." in raw_path.split("/")
         ):

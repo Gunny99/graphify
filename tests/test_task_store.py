@@ -868,3 +868,32 @@ def test_parallel_write_sets_reject_non_repository_paths(tmp_path, unsafe_path):
             _run(strategy="parallel_independent", max_parallel_agents=2),
             [first, second],
         )
+
+
+
+def test_needs_review_dependency_stays_dormant_and_run_becomes_provisional(tmp_path):
+    store = TaskStore(tmp_path / "orchestrator.sqlite3")
+    producer = _agent("producer", "producer-provider", "producer-model")
+    verifier = _agent("verifier", "verifier-provider", "verifier-model", role="verifier")
+    _register(store, producer)
+    _register(store, verifier)
+    store.create_run(
+        _run(),
+        [_task("task-1"), _task("task-2", depends_on=["task-1"])],
+    )
+    producer_lease = store.claim_task("producer")
+    assert producer_lease is not None and producer_lease["task_id"] == "task-1"
+    result = _result("task-1", producer)
+    store.submit_result(result, producer_lease["lease_token"])
+    verification = store.claim_task("verifier")
+    assert verification is not None
+    review = _review(result, verifier, review_task_id=verification["task_id"])
+    review["status"] = "needs_review"
+    review["claims"][0]["verdict"] = "insufficient"
+    status = store.submit_review(review, verification["lease_token"])
+    states = {item["task_id"]: item["status"] for item in status["tasks"]}
+    assert states["task-1"] == "needs_review"
+    assert states["task-2"] == "queued"
+    assert status["run"]["status"] == "provisional"
+    assert store.claim_task("producer") is None
+    assert store.get_run_status("run-1")["run"]["status"] == "provisional"
