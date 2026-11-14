@@ -77,12 +77,16 @@ def _agent(
     accuracy: float = 0.995,
     hallucination: float = 0.005,
     status: str = "active",
+    profile_role: str = "researcher",
+    provider: str = "test-provider",
+    model: str | None = None,
+    profile_domain: str = "technical",
 ) -> dict:
     return {
         "schema_version": 1,
         "agent_id": agent_id,
-        "provider": "test-provider",
-        "model": agent_id,
+        "provider": provider,
+        "model": model or agent_id,
         "model_version": "1",
         "protocol": "mcp",
         "capabilities": ["research"],
@@ -99,7 +103,10 @@ def _agent(
             orchestration=0.01,
         ),
         "quality_profiles": [_quality_profile(
-            accuracy=accuracy, hallucination=hallucination
+            role=profile_role,
+            domain=profile_domain,
+            accuracy=accuracy,
+            hallucination=hallucination,
         )],
         "registered_at": STAMP,
         "updated_at": STAMP,
@@ -265,12 +272,36 @@ def test_result_and_independent_review_compute_claim_metrics_from_verdicts():
         "evidence_coverage": 1.0,
         "review_complete": True,
     }
-    profile = _quality_profile()
-    assert result_meets_quality_gate(
-        result, review, profile, _quality_profile(role="verifier")
+    producer = _agent(
+        "agent-1", input_cost=0.1, cached_cost=0.01, output_cost=0.2,
+        model="test-model",
     )
-    weak_verifier = _quality_profile(role="verifier", accuracy=0.99)
-    assert not result_meets_quality_gate(result, review, profile, weak_verifier)
+    verifier = _agent(
+        "independent-reviewer",
+        input_cost=0.1,
+        cached_cost=0.01,
+        output_cost=0.2,
+        profile_role="verifier",
+        provider="different-provider",
+        model="independent-model",
+    )
+    assert result_meets_quality_gate(
+        result, review, producer, verifier, task_role="researcher", domain="technical"
+    )
+    weak_verifier = _agent(
+        "independent-reviewer",
+        input_cost=0.1,
+        cached_cost=0.01,
+        output_cost=0.2,
+        profile_role="verifier",
+        provider="different-provider",
+        model="independent-model",
+        accuracy=0.99,
+    )
+    assert not result_meets_quality_gate(
+        result, review, producer, weak_verifier,
+        task_role="researcher", domain="technical",
+    )
 
 
 def test_review_rejects_same_agent_or_same_model_as_verifier():
@@ -293,8 +324,18 @@ def test_review_rejects_same_agent_or_same_model_as_verifier():
 def test_quality_gate_rejects_unverified_or_unsupported_material_claims():
     result = _result()
     insufficient = _review(verdict="insufficient", status="needs_review")
+    producer = _agent(
+        "agent-1", input_cost=0.1, cached_cost=0.01, output_cost=0.2,
+        model="test-model",
+    )
+    verifier = _agent(
+        "independent-reviewer", input_cost=0.1, cached_cost=0.01,
+        output_cost=0.2, profile_role="verifier",
+        provider="different-provider", model="independent-model",
+    )
     assert not result_meets_quality_gate(
-        result, insufficient, _quality_profile(), _quality_profile(role="verifier")
+        result, insufficient, producer, verifier,
+        task_role="researcher", domain="technical",
     )
 
     unreviewed = _review()
