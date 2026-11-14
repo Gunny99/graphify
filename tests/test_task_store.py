@@ -566,3 +566,77 @@ def test_task_that_cannot_fit_run_budget_is_failed_instead_of_left_queued(tmp_pa
     status = store.get_run_status("run-1")
     assert status["tasks"][0]["status"] == "failed"
     assert status["run"]["status"] == "failed"
+
+
+
+def test_failed_verification_marks_source_needs_review_and_run_provisional(tmp_path):
+    store = TaskStore(tmp_path / "orchestrator.sqlite3")
+    producer = _agent("producer", "producer-provider", "producer-model")
+    verifier = _agent("verifier", "verifier-provider", "verifier-model", role="verifier")
+    _register(store, producer)
+    _register(store, verifier)
+    store.create_run(_run(), [_task("task-1")])
+
+    claimed = store.claim_task("producer")
+    assert claimed is not None
+    result = _result("task-1", producer)
+    store.submit_result(result, claimed["lease_token"])
+    verification = store.claim_task("verifier")
+    assert verification is not None
+
+    status = store.fail_task(
+        verification["task_id"], "verifier", verification["lease_token"],
+        "verifier process crashed", retryable=False,
+    )
+    states = {task["task_id"]: task["status"] for task in status["tasks"]}
+    assert states["task-1"] == "needs_review"
+    assert states[verification["task_id"]] == "failed"
+    assert status["run"]["status"] == "provisional"
+
+
+def test_exhausted_verification_lease_marks_source_needs_review(tmp_path):
+    store = TaskStore(tmp_path / "orchestrator.sqlite3")
+    producer = _agent("producer", "producer-provider", "producer-model")
+    verifier = _agent("verifier", "verifier-provider", "verifier-model", role="verifier")
+    _register(store, producer)
+    _register(store, verifier)
+    store.create_run(_run(), [_task("task-1")])
+
+    claimed = store.claim_task("producer")
+    assert claimed is not None
+    result = _result("task-1", producer)
+    store.submit_result(result, claimed["lease_token"])
+    first_verification = store.claim_task("verifier")
+    assert first_verification is not None
+    with store._transaction() as con:
+        con.execute(
+            "UPDATE tasks SET lease_expires_at=0 WHERE task_id=?",
+            (first_verification["task_id"],),
+        )
+
+    second_verification = store.claim_task("verifier")
+    assert second_verification is not None
+    assert second_verification["attempt"] == 2
+    with store._transaction() as con:
+        con.execute(
+            "UPDATE tasks SET lease_expires_at=0 WHERE task_id=?",
+            (second_verification["task_id"],),
+        )
+
+    # Any task claim runs the expiry reaper before selecting a new task.
+    store.claim_task("producer")
+    status = store.get_run_status("run-1")
+    states = {task["task_id"]: task["status"] for task in status["tasks"]}
+    assert states["task-1"] == "needs_review"
+    assert states[second_verification["task_id"]] == "failed"
+    assert status["run"]["status"] == "provisional"
+
+
+@pytest.mark.parametrize("strategy", ["single_agent", "single_with_review"])
+def test_single_session_strategy_rejects_multiple_main_tasks(tmp_path, strategy):
+    store = TaskStore(tmp_path / "orchestrator.sqlite3")
+    with pytest.raises(OrchestrationValidationError, match="exactly one main work task"):
+        store.create_run(
+            _run(strategy=strategy),
+            [_task("task-1"), _task("task-2")],
+        )

@@ -1966,6 +1966,37 @@ def _clone_repo(
     return dest
 
 
+def _parse_agent_register_args(arguments):
+    """Parse the trusted profile and optional graph path in either order."""
+    profile_path = None
+    graph_path = Path("graphify-out/graph.json")
+    index = 0
+    while index < len(arguments):
+        argument = arguments[index]
+        if argument == "--graph":
+            if index + 1 >= len(arguments) or arguments[index + 1].startswith("--"):
+                raise ValueError("--graph requires a path")
+            graph_path = Path(arguments[index + 1])
+            index += 2
+            continue
+        if argument.startswith("--graph="):
+            value = argument.partition("=")[2]
+            if not value:
+                raise ValueError("--graph requires a path")
+            graph_path = Path(value)
+            index += 1
+            continue
+        if argument.startswith("-"):
+            raise ValueError(f"unexpected option: {argument}")
+        if profile_path is not None:
+            raise ValueError(f"unexpected extra argument: {argument}")
+        profile_path = argument
+        index += 1
+    if not profile_path:
+        raise ValueError("trusted profile path is required")
+    return profile_path, graph_path
+
+
 def _reenter_main() -> None:
     from graphify.__main__ import main
     main()
@@ -2032,17 +2063,14 @@ def dispatch_command(cmd: str) -> None:
             print("Replace every placeholder with verified model identity, pricing, and held-out evaluation results.")
             print("The template intentionally fails the >99% accuracy / <1% hallucination gate until real benchmark bounds are supplied.")
         elif subcmd == "register":
-            profile_path = next((arg for arg in args[1:] if not arg.startswith("-")), "")
-            if not profile_path:
-                print("Usage: graphify agent register <trusted-profile.json> [--graph graph.json]", file=sys.stderr)
+            try:
+                profile_path, graph_path = _parse_agent_register_args(args[1:])
+            except ValueError as exc:
+                print(
+                    f"Error: {exc}\nUsage: graphify agent register <trusted-profile.json> [--graph graph.json]",
+                    file=sys.stderr,
+                )
                 sys.exit(1)
-            graph_path = Path("graphify-out/graph.json")
-            if "--graph" in args[1:]:
-                index = args.index("--graph")
-                if index + 1 >= len(args):
-                    print("Error: --graph requires a path.", file=sys.stderr)
-                    sys.exit(1)
-                graph_path = Path(args[index + 1])
             try:
                 profile = _json.loads(Path(profile_path).read_text(encoding="utf-8"))
                 if not isinstance(profile, dict):

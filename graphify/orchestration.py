@@ -430,6 +430,10 @@ def validate_execution_plan(
     if strategy in {"single_agent", "single_with_review"}:
         if max_workers != 1:
             raise OrchestrationValidationError("single-session strategies require one worker slot")
+        if len(tasks) != 1:
+            raise OrchestrationValidationError(
+                f"{strategy} requires exactly one main work task"
+            )
         return
 
     if not 2 <= len(tasks) <= max_workers:
