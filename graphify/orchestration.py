@@ -351,13 +351,15 @@ def validate_ziwei_saju_result(
             raise OrchestrationValidationError(
                 f"interpretation frame {frame!r} finding must match its independently reviewed claim statement"
             )
+        # SHA-256 hex is case-insensitive; compare canonical lowercase digests
+        # so equivalent source hashes cannot fail linkage due only to hex casing.
         finding_hashes = {
-            item.get("content_hash")
+            str(item["content_hash"]).lower()
             for item in interpretation.get("evidence", [])
             if isinstance(item, Mapping)
         }
         claim_hashes = {
-            item.get("content_hash")
+            str(item["content_hash"]).lower()
             for item in claim.get("evidence", [])
             if isinstance(item, Mapping)
         }
