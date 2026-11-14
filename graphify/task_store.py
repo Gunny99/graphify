@@ -569,6 +569,8 @@ class TaskStore:
                 excluded = set(task["input"].get("excluded_agent_ids", []))
                 if agent_id in excluded:
                     continue
+                if task["task_type"] == "verification" and "verify" not in agent["capabilities"]:
+                    continue
 
                 # Re-rank currently available agents so polling order cannot make
                 # a more expensive qualified model steal work from a cheaper one.
@@ -581,6 +583,8 @@ class TaskStore:
                     if not set(task["required_capabilities"]).issubset(set(other["capabilities"])):
                         continue
                     if other["agent_id"] in excluded:
+                        continue
+                    if task["task_type"] == "verification" and "verify" not in other["capabilities"]:
                         continue
                     if task["input"].get("read_only") is True and "read_only" not in other["capabilities"]:
                         continue
@@ -1097,8 +1101,8 @@ class TaskStore:
                     self._set_task(con, task_row, source_task, "needs_review")
                 else:
                     self._set_task(con, review_task_row, review_task, "failed")
-                    claim_verdicts = {item["verdict"] for item in review["claims"]}
-                    terminal = "rejected" if claim_verdicts & {"contradicted", "insufficient"} else "needs_review"
+                    verdicts = {item["verdict"] for item in review["claims"]}
+                    terminal = "rejected" if verdicts.intersection({"contradicted", "insufficient"}) else "needs_review"
                     source_task["review_id"] = review_id
                     self._set_task(con, task_row, source_task, terminal)
 
