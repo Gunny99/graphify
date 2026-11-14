@@ -752,3 +752,44 @@ def test_ziwei_saju_divergence_requires_same_question_and_distinct_directions():
     result["output"]["interpretations"][1]["question_id"] = "q:another-question"
     with pytest.raises(OrchestrationValidationError, match="same question_id"):
         validate_result_envelope(result)
+
+
+
+def test_ziwei_indeterminate_findings_must_remain_hedged():
+    result = _ziwei_result()
+    result["output"]["interpretation_status"] = "indeterminate"
+    for item in result["output"]["interpretations"]:
+        item["direction"] = "indeterminate"
+    with pytest.raises(OrchestrationValidationError, match="indeterminate findings must remain hedged"):
+        validate_result_envelope(result)
+
+
+def test_ziwei_indeterminate_frames_must_answer_one_question():
+    result = _ziwei_result()
+    result["output"]["interpretation_status"] = "indeterminate"
+    for item in result["output"]["interpretations"]:
+        item["direction"] = "indeterminate"
+        item["assertion_strength"] = "hedged"
+    for claim in result["claims"]:
+        claim["assertion_strength"] = "hedged"
+    result["output"]["interpretations"][1]["question_id"] = "q:another-question"
+    with pytest.raises(OrchestrationValidationError, match="same question_id"):
+        validate_result_envelope(result)
+
+
+def test_ziwei_interpretation_must_match_linked_claim_strength_and_evidence():
+    result = _ziwei_result()
+    result["claims"][0]["assertion_strength"] = "hedged"
+    with pytest.raises(OrchestrationValidationError, match="assertion_strength must match"):
+        validate_result_envelope(result)
+
+    result = _ziwei_result()
+    result["output"]["interpretation_status"] = "indeterminate"
+    for item in result["output"]["interpretations"]:
+        item["direction"] = "indeterminate"
+        item["assertion_strength"] = "hedged"
+        item["evidence"] = []
+    for claim in result["claims"]:
+        claim["assertion_strength"] = "hedged"
+    with pytest.raises(OrchestrationValidationError, match="evidence must overlap"):
+        validate_result_envelope(result)
