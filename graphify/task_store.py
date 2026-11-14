@@ -364,7 +364,10 @@ class TaskStore:
                 failed_agents = set(task["input"].get("failed_agent_ids", []))
                 failed_agents.add(str(row["lease_owner"]))
                 task["input"]["failed_agent_ids"] = sorted(failed_agents)
-            task.pop("estimated_cost_reserved", None)
+            if status == "failed":
+                task.pop("estimated_cost_reserved", None)
+            # An expired worker reports no billable usage. Keep the reservation
+            # intact for the retry rather than releasing budget speculatively.
             self._set_task(con, row, task, status)
             if status == "failed" and task.get("task_type") == "verification":
                 self._mark_verification_parent_needs_review(
@@ -1167,7 +1170,9 @@ class TaskStore:
                 failed_agents = set(task["input"].get("failed_agent_ids", []))
                 failed_agents.add(agent_id)
                 task["input"]["failed_agent_ids"] = sorted(failed_agents)
-            task.pop("estimated_cost_reserved", None)
+            if new_status == "failed":
+                task.pop("estimated_cost_reserved", None)
+            # fail_task has no usage payload; a retry keeps its reserved budget.
             self._set_task(con, row, task, new_status)
             if new_status == "failed" and task.get("task_type") == "verification":
                 self._mark_verification_parent_needs_review(con, task, reason)

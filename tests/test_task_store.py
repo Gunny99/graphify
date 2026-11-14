@@ -897,3 +897,46 @@ def test_needs_review_dependency_stays_dormant_and_run_becomes_provisional(tmp_p
     assert status["run"]["status"] == "provisional"
     assert store.claim_task("producer") is None
     assert store.get_run_status("run-1")["run"]["status"] == "provisional"
+
+
+
+def test_retryable_fail_task_keeps_cost_reservation(tmp_path):
+    store = TaskStore(tmp_path / "orchestrator.sqlite3")
+    agent = _agent("agent-1", "provider", "model")
+    _register(store, agent)
+    task = _task("task-1")
+    store.create_run(_run(strategy="single_agent"), [task])
+    claimed = store.claim_task("agent-1")
+    assert claimed is not None
+    original_reserve = claimed["estimated_cost_reserved"]
+
+    status = store.fail_task(
+        "task-1", "agent-1", claimed["lease_token"],
+        "worker failed without usage telemetry", retryable=True,
+    )
+    assert status["tasks"][0]["status"] == "queued"
+    assert status["reserved_cost"] == pytest.approx(original_reserve)
+    assert status["run"]["status"] == "queued"
+
+
+def test_expired_retryable_lease_keeps_cost_reservation(tmp_path):
+    store = TaskStore(tmp_path / "orchestrator.sqlite3")
+    agent = _agent("agent-1", "provider", "model")
+    _register(store, agent)
+    store.create_run(_run(strategy="single_agent"), [_task("task-1")])
+    claimed = store.claim_task("agent-1")
+    assert claimed is not None
+    original_reserve = claimed["estimated_cost_reserved"]
+
+    with store._transaction() as con:
+        con.execute(
+            "UPDATE tasks SET lease_expires_at=0 WHERE task_id='task-1'"
+        )
+        store._reap_expired_leases(
+            con, datetime.now(timezone.utc).timestamp() + 1
+        )
+
+    status = store.get_run_status("run-1")
+    assert status["tasks"][0]["status"] == "queued"
+    assert status["reserved_cost"] == pytest.approx(original_reserve)
+    assert status["run"]["status"] == "queued"
