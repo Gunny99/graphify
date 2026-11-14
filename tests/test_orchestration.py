@@ -266,7 +266,11 @@ def test_result_and_independent_review_compute_claim_metrics_from_verdicts():
         "review_complete": True,
     }
     profile = _quality_profile()
-    assert result_meets_quality_gate(result, review, profile)
+    assert result_meets_quality_gate(
+        result, review, profile, _quality_profile(role="verifier")
+    )
+    weak_verifier = _quality_profile(role="verifier", accuracy=0.99)
+    assert not result_meets_quality_gate(result, review, profile, weak_verifier)
 
 
 def test_review_rejects_same_agent_or_same_model_as_verifier():
@@ -289,7 +293,9 @@ def test_review_rejects_same_agent_or_same_model_as_verifier():
 def test_quality_gate_rejects_unverified_or_unsupported_material_claims():
     result = _result()
     insufficient = _review(verdict="insufficient", status="needs_review")
-    assert not result_meets_quality_gate(result, insufficient, _quality_profile())
+    assert not result_meets_quality_gate(
+        result, insufficient, _quality_profile(), _quality_profile(role="verifier")
+    )
 
     unreviewed = _review()
     unreviewed["claims"] = []
