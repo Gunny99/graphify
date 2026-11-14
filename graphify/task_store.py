@@ -407,7 +407,16 @@ class TaskStore:
             existing = con.execute(
                 "SELECT profile_json FROM agents WHERE agent_id=?", (agent_id,)
             ).fetchone()
-            if existing and active:
+            pending_reviews = con.execute(
+                """
+                SELECT COUNT(*)
+                FROM results AS result
+                JOIN tasks AS task ON task.task_id = result.task_id
+                WHERE result.agent_id = ? AND task.status IN ('submitted', 'needs_review')
+                """,
+                (agent_id,),
+            ).fetchone()[0]
+            if existing and (active or pending_reviews):
                 previous = _decode(existing["profile_json"])
                 immutable_keys = (
                     "provider", "model", "model_version", "cost_profile",
@@ -415,7 +424,7 @@ class TaskStore:
                 )
                 if any(previous[key] != profile[key] for key in immutable_keys):
                     raise TaskStoreError(
-                        "cannot change model identity, pricing, or quality profile while this agent owns leases"
+                        "cannot change model identity, pricing, or quality profile while this agent has active leases or pending verification results"
                     )
             registered_at = (
                 _decode(existing["profile_json"]).get("registered_at") if existing else None
@@ -1053,6 +1062,13 @@ class TaskStore:
                     failed_agents = set(task["input"].get("failed_agent_ids", []))
                     failed_agents.add(agent_id)
                     task["input"]["failed_agent_ids"] = sorted(failed_agents)
+                    task["estimated_cost_reserved"] = max(
+                        0.0,
+                        float(task.get("estimated_cost_reserved", 0.0))
+                        - float(result["usage"]["direct_cost"]),
+                    )
+                else:
+                    task.pop("estimated_cost_reserved", None)
                 task.pop("result_id", None)
             else:
                 material_claims = [
@@ -1365,6 +1381,11 @@ class TaskStore:
                     source_task["review_id"] = review_id
                     self._set_task(con, task_row, source_task, "rejected")
                 elif attempts_left and ranked_verifiers:
+                    review_task["estimated_cost_reserved"] = max(
+                        0.0,
+                        float(review_task.get("estimated_cost_reserved", 0.0))
+                        - float(review["usage"]["direct_cost"]),
+                    )
                     self._set_task(con, review_task_row, review_task, "queued")
                     source_task["review_id"] = review_id
                     self._set_task(con, task_row, source_task, "needs_review")
