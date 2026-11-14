@@ -314,10 +314,14 @@ The shared `claim_type` vocabulary already includes `inference`; do not add `hed
 
 The domain output uses `interpretation_status=single_frame | convergent | divergent | indeterminate` and an `interpretations[]` collection. Each entry requires a named `frame`, a finding, an `assertion_strength` (`definite | hedged`), and traceable source evidence for determinate outcomes. A finding supported only by hedged source wording must remain hedged; one with no supporting source evidence must also remain hedged. Each interpretation also requires a `claim_id` that points to a material factual/inference claim in the result. The displayed finding must exactly match that claim's statement, and the interpretation's source evidence must overlap the linked claim's evidence. This ensures every user-visible interpretation receives an independent claim-level verdict.
 
+Each interpretation includes a stable `question_id` and a structured `direction`: `auspicious | inauspicious | character | indeterminate`. Convergence is not literal wording equality; it is agreement on the direction of the same question.
+
 - `single_frame`: exactly one named frame produced a determinate finding.
-- `convergent`: at least two distinct named frames produced the same finding.
-- `divergent`: at least two distinct named frames produced different findings, each supported by its own evidence; this may occur even when the same source text is read through different frames. The output must include `divergence_reason`.
-- `indeterminate`: the available evidence does not support a definite finding.
+- `convergent`: at least two distinct named frames answer the same `question_id` with the same determinate `direction`. Their finding text may differ.
+- `divergent`: at least two distinct named frames answer the same `question_id` with different determinate directions, each supported by its own evidence. The output must include `divergence_reason`.
+- `indeterminate`: every frame's direction is `indeterminate`; findings remain hedged.
+
+Do not aggregate different `question_id` values into one convergent/divergent status. Use separate question results.
 
 A divergence does not change global `review.status` or `run.status`. A conflict within the same frame, unsupported findings, or untraceable sources remain `needs_review`.
 
