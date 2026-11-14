@@ -9,6 +9,7 @@ from contextlib import contextmanager
 from datetime import datetime, timezone
 import hashlib
 import json
+import math
 import secrets
 import sqlite3
 import time
@@ -223,7 +224,7 @@ class TaskStore:
         task["updated_at"] = now
         if attempt is not None:
             task["attempt"] = attempt
-        if status != "leased":
+        if status not in {"leased", "submitted", "needs_review"}:
             task.pop("lease_expires_at", None)
             task.pop("estimated_cost_reserved", None)
         con.execute(
@@ -254,11 +255,17 @@ class TaskStore:
         run = _decode(row["run_json"])
         if run["status"] == "cancelled":
             return "cancelled"
+        actual_cost = self._get_actual_cost(con, run_id)
+        reserved_cost = self._get_reserved_cost(con, run_id)
+        max_total = float(run["cost_policy"]["max_total"])
         statuses = [
             item["status"]
             for item in con.execute("SELECT status FROM tasks WHERE run_id=?", (run_id,))
         ]
-        if statuses and all(status == "accepted" for status in statuses):
+        if actual_cost + reserved_cost > max_total:
+            status = "failed"
+            run["failure_reason"] = "run_cost_budget_exceeded"
+        elif statuses and all(status == "accepted" for status in statuses):
             status = "accepted"
         elif any(status in {"queued", "leased"} for status in statuses):
             # Keep independent branches running even when another branch has failed.
@@ -331,9 +338,11 @@ class TaskStore:
             ).fetchone()
             if existing and active:
                 previous = _decode(existing["profile_json"])
-                identity_keys = ("provider", "model", "model_version")
-                if any(previous[key] != profile[key] for key in identity_keys):
-                    raise TaskStoreError("cannot change an agent model identity while it owns leased tasks")
+                immutable_keys = ("provider", "model", "model_version", "cost_profile", "quality_profiles")
+                if any(previous[key] != profile[key] for key in immutable_keys):
+                    raise TaskStoreError(
+                        "cannot change model identity, pricing, or quality profile while this agent owns leases"
+                    )
             registered_at = (
                 _decode(existing["profile_json"]).get("registered_at") if existing else None
             ) or profile.get("registered_at") or now
@@ -435,7 +444,7 @@ class TaskStore:
         """Sum expected costs held by active leases to prevent concurrent overspending."""
         total = 0.0
         rows = con.execute(
-            "SELECT task_json FROM tasks WHERE run_id=? AND status='leased'",
+            "SELECT task_json FROM tasks WHERE run_id=? AND status IN ('leased', 'submitted', 'needs_review')",
             (run_id,),
         ).fetchall()
         for row in rows:
@@ -559,9 +568,9 @@ class TaskStore:
                     role=task["role"],
                     domain=task["domain"],
                     currency=run["cost_policy"]["currency"],
-                    estimated_input_tokens=int(task["input"].get("estimated_input_tokens", 0)),
-                    estimated_output_tokens=int(task["input"].get("estimated_output_tokens", 0)),
-                    estimated_cached_input_tokens=int(task["input"].get("estimated_cached_input_tokens", 0)),
+                    estimated_input_tokens=task["input"].get("estimated_input_tokens", 0),
+                    estimated_output_tokens=task["input"].get("estimated_output_tokens", 0),
+                    estimated_cached_input_tokens=task["input"].get("estimated_cached_input_tokens", 0),
                     accuracy_target=run["quality_policy"]["accuracy_target"],
                     hallucination_max=run["quality_policy"]["hallucination_max"],
                 )
@@ -714,16 +723,24 @@ class TaskStore:
             )
             result["usage"]["pricing_source"] = agent_profile["cost_profile"]["pricing_source"]
             encoded = _json(result)
-            con.execute(
-                """
-                INSERT INTO results(result_id, task_id, attempt, agent_id, result_json, created_at)
-                VALUES (?, ?, ?, ?, ?, ?)
-                """,
-                (result_id, task_id, result["attempt"], agent_id, encoded, _utc_now()),
-            )
+            try:
+                con.execute(
+                    """
+                    INSERT INTO results(result_id, task_id, attempt, agent_id, result_json, created_at)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                    """,
+                    (result_id, task_id, result["attempt"], agent_id, encoded, _utc_now()),
+                )
+            except sqlite3.IntegrityError as exc:
+                raise TaskStoreError("a result already exists for this task attempt") from exc
             new_status = "submitted"
             if result["status"] == "failed":
                 new_status = "queued" if int(row["attempt"]) < int(row["max_attempts"]) else "failed"
+            else:
+                prior_reserve = float(task.get("estimated_cost_reserved", 0.0))
+                task["estimated_cost_reserved"] = max(
+                    0.0, prior_reserve - float(result["usage"]["direct_cost"])
+                )
             task["result_id"] = result_id
             self._set_task(con, row, task, new_status)
             self._event(
@@ -807,6 +824,11 @@ class TaskStore:
             ).fetchone()
             if result_row is None:
                 raise TaskNotFoundError(f"result not found: {result_id}")
+            prior_review = con.execute(
+                "SELECT review_id FROM reviews WHERE result_id=?", (result_id,)
+            ).fetchone()
+            if prior_review is not None:
+                raise TaskStoreError("result already has a review; use the original review_id for idempotent replay")
             result = _decode(result_row["result_json"])
             review = validate_review_envelope(value, result)
             task_row = con.execute(
@@ -856,6 +878,13 @@ class TaskStore:
             new_status = "accepted" if quality_ok else (
                 "rejected" if review["status"] == "rejected" else "needs_review"
             )
+            prior_reserve = float(task.get("estimated_cost_reserved", 0.0))
+            if new_status == "needs_review":
+                task["estimated_cost_reserved"] = max(
+                    0.0, prior_reserve - float(review["usage"]["direct_cost"])
+                )
+            else:
+                task.pop("estimated_cost_reserved", None)
             con.execute(
                 """
                 INSERT INTO reviews(review_id, result_id, reviewer_agent_id, review_json, created_at)
