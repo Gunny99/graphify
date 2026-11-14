@@ -880,7 +880,6 @@ class TaskStore:
                 new_status = "queued" if int(row["attempt"]) < int(row["max_attempts"]) else "failed"
                 task["last_failed_result_id"] = result_id
                 task.pop("result_id", None)
-                task.pop("estimated_cost_reserved", None)
             else:
                 material_claims = [
                     claim for claim in result["claims"]
@@ -896,7 +895,11 @@ class TaskStore:
                     )
                 task["result_id"] = result_id
                 if requires_review:
-                    remaining_reserve = float(task.get("estimated_cost_reserved", 0.0))
+                    remaining_reserve = max(
+                        0.0,
+                        float(task.get("estimated_cost_reserved", 0.0))
+                        - float(result["usage"]["direct_cost"]),
+                    )
                     verification_id = self._create_verification_task(
                         con,
                         run_id=row["run_id"],
