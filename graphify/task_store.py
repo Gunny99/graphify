@@ -24,6 +24,7 @@ from graphify.orchestration import (
     validate_agent_profile,
     validate_result_envelope,
     validate_review_envelope,
+    validate_execution_plan,
     validate_run_envelope,
     validate_task_envelope,
     validate_task_graph,
@@ -378,6 +379,7 @@ class TaskStore:
         if not tasks:
             raise OrchestrationValidationError("a run must contain at least one task")
         validate_task_graph(tasks)
+        validate_execution_plan(run, tasks)
         run_id = str(run["run_id"])
         if run["status"] != "queued":
             raise OrchestrationValidationError("new runs must start with status='queued'")
@@ -551,6 +553,22 @@ class TaskStore:
                 run = _decode(run_row["run_json"])
                 if run["status"] in {"failed", "cancelled", "accepted"}:
                     continue
+                execution = run["execution_policy"]
+                active_in_run = con.execute(
+                    "SELECT COUNT(*) FROM tasks WHERE run_id=? AND status='leased'",
+                    (row["run_id"],),
+                ).fetchone()[0]
+                if active_in_run >= int(execution["max_parallel_agents"]):
+                    continue
+                if execution["strategy"] in {"single_agent", "single_with_review"}:
+                    primary_agent_id = run.get("primary_agent_id")
+                    if task["task_type"] != "verification" and primary_agent_id not in {None, agent_id}:
+                        continue
+                if task["input"].get("read_only") is True and "read_only" not in agent["capabilities"]:
+                    continue
+                excluded = set(task["input"].get("excluded_agent_ids", []))
+                if agent_id in excluded:
+                    continue
 
                 # Re-rank currently available agents so polling order cannot make
                 # a more expensive qualified model steal work from a cheaper one.
@@ -561,6 +579,10 @@ class TaskStore:
                 for other_row in agent_rows:
                     other = validate_agent_profile(_decode(other_row["profile_json"]))
                     if not set(task["required_capabilities"]).issubset(set(other["capabilities"])):
+                        continue
+                    if other["agent_id"] in excluded:
+                        continue
+                    if task["input"].get("read_only") is True and "read_only" not in other["capabilities"]:
                         continue
                     leased = con.execute(
                         "SELECT COUNT(*) FROM tasks WHERE lease_owner=? AND status='leased'",
@@ -611,6 +633,17 @@ class TaskStore:
                     lease_expires_at=expires_epoch,
                     attempt=next_attempt,
                 )
+                if (
+                    execution["strategy"] in {"single_agent", "single_with_review"}
+                    and task["task_type"] != "verification"
+                    and run.get("primary_agent_id") is None
+                ):
+                    run["primary_agent_id"] = agent_id
+                    run["updated_at"] = _utc_now()
+                    con.execute(
+                        "UPDATE runs SET run_json=?, updated_at=? WHERE run_id=?",
+                        (_json(run), run["updated_at"], row["run_id"]),
+                    )
                 self._refresh_run_status(con, row["run_id"])
                 self._event(
                     con,
@@ -807,6 +840,8 @@ class TaskStore:
                 return self._run_status_in_transaction(con, str(result["run_id"]))
             row = self._owned_lease(con, task_id, agent_id, lease_token)
             task = _decode(row["task_json"])
+            if task["task_type"] == "verification":
+                raise TaskStoreError("verification tasks must use submit_review, not submit_result")
             if result["run_id"] != row["run_id"] or int(result["attempt"]) != int(row["attempt"]):
                 raise TaskStoreError("result run_id or attempt does not match the active task lease")
             run_row = con.execute(
@@ -832,27 +867,38 @@ class TaskStore:
             new_status = "submitted"
             if result["status"] == "failed":
                 new_status = "queued" if int(row["attempt"]) < int(row["max_attempts"]) else "failed"
-            else:
-                prior_reserve = float(task.get("estimated_cost_reserved", 0.0))
-                task["estimated_cost_reserved"] = max(
-                    0.0, prior_reserve - float(result["usage"]["direct_cost"])
-                )
-            if result["status"] == "failed":
                 task["last_failed_result_id"] = result_id
                 task.pop("result_id", None)
                 task.pop("estimated_cost_reserved", None)
             else:
+                material_claims = [
+                    claim for claim in result["claims"]
+                    if claim["material"] and claim["claim_type"] in {"factual", "inference"}
+                ]
+                requires_review = bool(material_claims) or task["input"].get("requires_code_review") is True
+                run_policy = _decode(run_row["run_json"])["execution_policy"]
+                if requires_review and run_policy["strategy"] not in {
+                    "single_with_review", "parallel_independent"
+                }:
+                    raise TaskStoreError(
+                        "this result requires independent review; create the run with single_with_review"
+                    )
                 task["result_id"] = result_id
-                remaining_reserve = float(task.get("estimated_cost_reserved", 0.0))
-                verification_id = self._create_verification_task(
-                    con,
-                    run_id=row["run_id"],
-                    producer_task=task,
-                    result=result,
-                    reserved_cost=remaining_reserve,
-                )
-                task["verification_task_id"] = verification_id
-                task.pop("estimated_cost_reserved", None)
+                if requires_review:
+                    remaining_reserve = float(task.get("estimated_cost_reserved", 0.0))
+                    verification_id = self._create_verification_task(
+                        con,
+                        run_id=row["run_id"],
+                        producer_task=task,
+                        result=result,
+                        reserved_cost=remaining_reserve,
+                    )
+                    task["verification_task_id"] = verification_id
+                    task.pop("estimated_cost_reserved", None)
+                    new_status = "submitted"
+                else:
+                    task.pop("estimated_cost_reserved", None)
+                    new_status = "accepted"
             self._set_task(con, row, task, new_status)
             self._event(
                 con,
