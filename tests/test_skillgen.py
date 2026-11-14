@@ -552,6 +552,38 @@ def test_single_session_first_monolith_roundtrip_allowlist_is_scoped():
     )
 
 
+def test_single_session_first_policy_is_rendered_for_every_host():
+    platforms = gen.load_platforms()
+    artifacts = gen.render_all(platforms)
+    skills = [
+        artifact for artifact in artifacts
+        if artifact.path.startswith("graphify/skill") and artifact.path.endswith(".md")
+    ]
+    assert skills
+    for artifact in skills:
+        body = artifact.content
+        assert "Single-session-first rule" in body, artifact.path
+        assert "estimated end-to-end cost" in body.lower(), artifact.path
+        assert "Do not create a planner/developer/tester/reviewer team" in body, artifact.path
+        assert "MANDATORY: You MUST use the Agent tool here" not in body, artifact.path
+        assert "MANDATORY: You MUST use the subagent system here" not in body, artifact.path
+        assert "Run Part A (AST) and Part B (semantic) in parallel." not in body, artifact.path
+
+    aider = next(a.content for a in skills if a.path == "graphify/skill-aider.md")
+    assert "sequential extraction (Aider)" in aider
+    assert "Process each file one at a time" in aider
+
+
+def test_single_session_first_monolith_roundtrip_allowlist_is_scoped():
+    assert gen._is_single_session_first_fix_line("**Single-session-first rule:** main session.")
+    assert gen._is_single_session_first_fix_line(
+        "After each chunk completes, persist its result to its assigned file."
+    )
+    assert not gen._is_single_session_first_fix_line(
+        "Unrelated wording changed without an accompanying workflow change."
+    )
+
+
 def test_no_host_has_trigger_in_frontmatter():
     """No split host emits a trigger: field — not part of Agent Skills spec (#1180)."""
     for key in ("claude", "codex", "opencode", "kilo", "copilot", "claw", "droid",
