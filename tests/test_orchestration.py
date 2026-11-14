@@ -627,7 +627,8 @@ def test_ziwei_saju_preserves_hedged_source_language():
     with pytest.raises(OrchestrationValidationError, match="must remain hedged"):
         validate_result_envelope(result)
 
-    result["claims"][0]["assertion_strength"] = "hedged"
+    for claim in result["claims"]:
+        claim["assertion_strength"] = "hedged"
     for item in result["output"]["interpretations"]:
         item["assertion_strength"] = "hedged"
     assert validate_result_envelope(result) is result
