@@ -314,7 +314,7 @@ The preflight below is authoritative. It checks every expected chunk filename, r
 
 If more than half the expected chunks are missing or invalid, the command exits with an error. **Stop the pipeline immediately in that case** — do not run Step B3.5, write semantic cache entries, or continue to Part C. If half or fewer failed, continue using only the valid chunk files; files belonging to failed chunks remain uncached and will be retried by the next `--update`.
 
-If a same-run retry is supported and appropriate, re-dispatch the affected chunk with the host's writable worker: re-run with `general-purpose agent` and ensure ``subagent_type="general-purpose"`` is used. Otherwise retain the failed source files for the next `--update`; never convert a failed chunk into an empty success.
+If same-run retry is supported and appropriate, re-dispatch the affected chunk with the host's writable worker. Re-run with the Codex `worker` agent. Ensure `agent_type="worker"` is used. Otherwise retain the failed source files for the next `--update`; never convert a failed chunk into an empty success.
 
 ```bash
 $(cat graphify-out/.graphify_python) -c "
