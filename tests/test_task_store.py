@@ -385,3 +385,36 @@ def test_independent_queued_tasks_continue_after_another_branch_fails(tmp_path):
     )
     assert status["run"]["status"] in {"running", "queued"}
     assert status["tasks"][1]["status"] == "leased"
+
+def test_read_only_exploration_results_with_material_claims_are_independently_reviewed(tmp_path):
+    store = TaskStore(tmp_path / "orchestrator.sqlite3")
+    explorer = _agent("explorer", "explorer-provider", "explorer-model", max_concurrency=2)
+    explorer["capabilities"].append("read_only")
+    verifier = _agent("verifier", "verifier-provider", "verifier-model", role="verifier")
+    _register(store, explorer)
+    _register(store, verifier)
+
+    tasks = [_task("explore-1"), _task("explore-2")]
+    for task in tasks:
+        task["input"]["read_only"] = True
+        task["required_capabilities"] = ["read_only", "research"]
+    store.create_run(
+        _run(strategy="read_only_exploration", max_parallel_agents=2),
+        tasks,
+    )
+
+    claimed = store.claim_task("explorer")
+    assert claimed is not None
+    result = _result(claimed["task_id"], explorer)
+    submitted = store.submit_result(result, claimed["lease_token"])
+    states = {task["task_id"]: task["status"] for task in submitted["tasks"]}
+    assert states[claimed["task_id"]] == "submitted"
+
+    verification = store.claim_task("verifier")
+    assert verification is not None
+    assert verification["task_type"] == "verification"
+    payload = store.get_verification_payload(
+        verification["task_id"], "verifier", verification["lease_token"]
+    )
+    assert payload["result"]["result_id"] == result["result_id"]
+
