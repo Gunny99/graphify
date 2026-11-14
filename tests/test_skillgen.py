@@ -1303,6 +1303,7 @@ def test_core_bounds_semantic_chunks_by_lines_as_well_as_file_count():
     assert "2000 lines gets a chunk to itself" in b1, (
         "a file past the Read cap must be dispatched alone"
     )
+    assert "replace `EXPECTED_CHUNKS` with that exact integer" in b1
 
 
 def test_coverage_check_flags_a_partly_read_file_and_clears_a_complete_one(
