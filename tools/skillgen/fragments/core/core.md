@@ -228,6 +228,8 @@ Load files from `graphify-out/.graphify_uncached.txt`. Split into chunks bounded
 
 Both bounds matter. The line bound is not only about the 2000-line Read cap: a subagent holding 25 files splits its attention across all of them and skims the dense ones, and a 590-line plan can come back with zero nodes that way. Bounding content as well as file count is what keeps a chunk's coverage honest (#2225).
 
+After splitting, assign stable chunk numbers `01`, `02`, ... in dispatch order and record the exact number of chunks created. Before running the Step B3 preflight, replace `EXPECTED_CHUNKS` with that exact integer. Do not count only successful responses. If B2 is skipped because every semantic file is cached, use `EXPECTED_CHUNKS = 0`.
+
 @@DISPATCH@@
 
 **Step B3 - Collect, cache, and merge**
@@ -237,6 +239,8 @@ Wait for all dispatched workers before collecting results. Use the exact number 
 The preflight below is authoritative. It checks every expected chunk filename, removes invalid or unexpected temporary chunk files so later merge steps cannot crash on malformed JSON, and counts missing/invalid chunks. A chunk is valid only when it contains object-valued nodes and edges as lists, optional hyperedges as a list, coverage as a string-to-nonnegative-integer object, and nonnegative integer token counts. Empty node/edge lists are valid results.
 
 If more than half the expected chunks are missing or invalid, the command exits with an error. **Stop the pipeline immediately in that case** — do not run Step B3.5, write semantic cache entries, or continue to Part C. If half or fewer failed, continue using only the valid chunk files; files belonging to failed chunks remain uncached and will be retried by the next `--update`.
+
+If a same-run retry is supported and appropriate, re-dispatch the affected chunk with the host's writable worker: re-run with `@@WRITER_AGENT@@` and ensure `@@WRITER_AGENT_ARG@@` is used. Otherwise retain the failed source files for the next `--update`; never convert a failed chunk into an empty success.
 
 ```bash
 $(cat graphify-out/.graphify_python) -c "
