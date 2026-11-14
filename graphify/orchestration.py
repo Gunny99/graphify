@@ -336,6 +336,12 @@ def validate_task_envelope(value: Any) -> Mapping[str, Any]:
     if task.get("task_type") not in TASK_TYPES:
         raise OrchestrationValidationError(f"task.task_type must be one of {sorted(TASK_TYPES)}")
     task_input = _object(task.get("input"), "task.input")
+    data_scopes = _strings(task.get("data_scopes"), "task.data_scopes")
+    if not data_scopes:
+        raise OrchestrationValidationError("task.data_scopes must contain at least one scope")
+    for key in ("excluded_agent_ids", "failed_agent_ids"):
+        if key in task_input:
+            _strings(task_input[key], f"task.input.{key}")
     for key in (
         "estimated_input_tokens",
         "estimated_output_tokens",
@@ -484,10 +490,12 @@ def validate_agent_profile(value: Any) -> Mapping[str, Any]:
     for key in ("agent_id", "provider", "model", "model_version", "protocol"):
         _string(agent.get(key), f"agent.{key}")
     _strings(agent.get("capabilities"), "agent.capabilities")
+    allowed_scopes = _strings(agent.get("allowed_data_scopes"), "agent.allowed_data_scopes")
+    if not allowed_scopes:
+        raise OrchestrationValidationError("agent.allowed_data_scopes must contain at least one scope")
     _integer(agent.get("max_concurrency"), "agent.max_concurrency", minimum=1)
     if agent.get("status") not in AGENT_STATUSES:
         raise OrchestrationValidationError(f"agent.status must be one of {sorted(AGENT_STATUSES)}")
-    _strings(agent.get("allowed_data_scopes"), "agent.allowed_data_scopes")
     _validate_cost_profile(agent.get("cost_profile"), "agent.cost_profile")
     profiles = _objects(agent.get("quality_profiles"), "agent.quality_profiles")
     seen: set[tuple[str, str]] = set()

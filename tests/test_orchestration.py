@@ -123,6 +123,7 @@ def _task(task_id: str, depends_on: list[str] | None = None) -> dict:
         "domain": "technical",
         "objective": "Find evidence for a factual claim",
         "input": {"question": "What does the API guarantee?"},
+        "data_scopes": ["project:demo"],
         "context_refs": [],
         "depends_on": depends_on or [],
         "required_capabilities": ["research"],

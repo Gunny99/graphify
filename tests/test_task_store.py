@@ -130,6 +130,7 @@ def _task(
             "estimated_output_tokens": 1_000,
             "estimated_cached_input_tokens": 0,
         },
+        "data_scopes": ["project:demo"],
         "context_refs": [],
         "depends_on": list(depends_on or []),
         "required_capabilities": ["research"],
@@ -418,3 +419,150 @@ def test_read_only_exploration_results_with_material_claims_are_independently_re
     )
     assert payload["result"]["result_id"] == result["result_id"]
 
+
+
+
+def test_task_scope_filters_agents_and_prevents_out_of_scope_cheapest_agent_from_blocking(tmp_path):
+    store = TaskStore(tmp_path / "orchestrator.sqlite3")
+    outsider = _agent("outsider", "cheap-provider", "cheap-model", input_cost=0.001)
+    outsider["allowed_data_scopes"] = ["project:other"]
+    allowed = _agent("allowed", "allowed-provider", "allowed-model", input_cost=0.2)
+    _register(store, outsider)
+    _register(store, allowed)
+    task = _task("scoped-task")
+    task["input"]["write_set"] = ["src/a.py"]
+    second = _task("second-task")
+    second["input"]["write_set"] = ["src/b.py"]
+    store.create_run(_run(strategy="parallel_independent", max_parallel_agents=2), [task, second])
+
+    assert store.claim_task("outsider") is None
+    claimed = store.claim_task("allowed")
+    assert claimed is not None and claimed["task_id"] == "scoped-task"
+
+
+def test_stale_active_agent_does_not_block_cheaper_agent_ranking(tmp_path):
+    store = TaskStore(tmp_path / "orchestrator.sqlite3")
+    offline = _agent("offline", "cheap-provider", "cheap-model", input_cost=0.001)
+    polling = _agent("polling", "polling-provider", "polling-model", input_cost=0.2)
+    _register(store, offline)
+    _register(store, polling)
+    task = _task("task-1")
+    task["input"]["write_set"] = ["src/a.py"]
+    second = _task("task-2")
+    second["input"]["write_set"] = ["src/b.py"]
+    store.create_run(_run(strategy="parallel_independent", max_parallel_agents=2), [task, second])
+    with store._connect() as con:
+        con.execute(
+            "UPDATE agents SET updated_at=? WHERE agent_id=?",
+            ("2000-01-01T00:00:00+00:00", "offline"),
+        )
+
+    claimed = store.claim_task("polling")
+    assert claimed is not None and claimed["task_id"] == "task-1"
+
+
+def test_failed_agent_is_skipped_when_an_alternative_is_available(tmp_path):
+    store = TaskStore(tmp_path / "orchestrator.sqlite3")
+    cheap = _agent("cheap", "cheap-provider", "cheap-model", input_cost=0.001)
+    fallback = _agent("fallback", "fallback-provider", "fallback-model", input_cost=0.2)
+    _register(store, cheap)
+    _register(store, fallback)
+    task = _task("task-1")
+    task["input"]["write_set"] = ["src/a.py"]
+    second = _task("task-2")
+    second["input"]["write_set"] = ["src/b.py"]
+    store.create_run(_run(strategy="parallel_independent", max_parallel_agents=2), [task, second])
+
+    first = store.claim_task("cheap")
+    assert first is not None
+    failed = store.fail_task("task-1", "cheap", first["lease_token"], "transient failure")
+    assert failed["tasks"][0]["status"] == "queued"
+
+    second_claim = store.claim_task("fallback")
+    assert second_claim is not None and second_claim["attempt"] == 2
+
+
+def test_single_with_review_always_creates_review_for_claimless_implementation(tmp_path):
+    store = TaskStore(tmp_path / "orchestrator.sqlite3")
+    producer = _agent("producer", "producer-provider", "producer-model")
+    verifier = _agent("verifier", "verifier-provider", "verifier-model", role="verifier")
+    _register(store, producer)
+    _register(store, verifier)
+    task = _task("implementation")
+    task["task_type"] = "implementation"
+    store.create_run(_run(strategy="single_with_review"), [task])
+
+    claimed = store.claim_task("producer")
+    assert claimed is not None
+    result = _result("implementation", producer)
+    result["claims"] = []
+    result["evidence"] = []
+    submitted = store.submit_result(result, claimed["lease_token"])
+    source = next(t for t in submitted["tasks"] if t["task_id"] == "implementation")
+    verification = next(t for t in submitted["tasks"] if t["task_type"] == "verification")
+    assert source["status"] == "submitted"
+    assert source["verification_task_id"] == verification["task_id"]
+    assert verification["status"] == "queued"
+
+
+def test_rejected_review_is_terminal_and_never_queues_a_second_reviewer(tmp_path):
+    store = TaskStore(tmp_path / "orchestrator.sqlite3")
+    producer = _agent("producer", "producer-provider", "producer-model")
+    verifier = _agent("verifier", "verifier-provider", "verifier-model", role="verifier")
+    _register(store, producer)
+    _register(store, verifier)
+    store.create_run(_run(), [_task("task-1")])
+    claimed = store.claim_task("producer")
+    assert claimed is not None
+    result = _result("task-1", producer)
+    store.submit_result(result, claimed["lease_token"])
+    verification = store.claim_task("verifier")
+    assert verification is not None
+    review = _review(result, verifier, review_task_id=verification["task_id"])
+    review["status"] = "rejected"
+    review["claims"][0]["verdict"] = "contradicted"
+
+    status = store.submit_review(review, verification["lease_token"])
+    states = {t["task_id"]: t["status"] for t in status["tasks"]}
+    assert states["task-1"] == "rejected"
+    assert states[verification["task_id"]] == "accepted"
+    assert status["run"]["status"] == "failed"
+
+
+def test_insufficient_review_without_an_alternate_verifier_becomes_provisional(tmp_path):
+    store = TaskStore(tmp_path / "orchestrator.sqlite3")
+    producer = _agent("producer", "producer-provider", "producer-model")
+    verifier = _agent("verifier", "verifier-provider", "verifier-model", role="verifier")
+    _register(store, producer)
+    _register(store, verifier)
+    store.create_run(_run(), [_task("task-1")])
+    claimed = store.claim_task("producer")
+    assert claimed is not None
+    result = _result("task-1", producer)
+    store.submit_result(result, claimed["lease_token"])
+    verification = store.claim_task("verifier")
+    assert verification is not None
+    review = _review(result, verifier, review_task_id=verification["task_id"])
+    review["status"] = "needs_review"
+    review["claims"][0]["verdict"] = "insufficient"
+
+    status = store.submit_review(review, verification["lease_token"])
+    states = {t["task_id"]: t["status"] for t in status["tasks"]}
+    assert states["task-1"] == "needs_review"
+    assert states[verification["task_id"]] == "accepted"
+    assert status["run"]["status"] == "provisional"
+
+
+def test_task_that_cannot_fit_run_budget_is_failed_instead_of_left_queued(tmp_path):
+    store = TaskStore(tmp_path / "orchestrator.sqlite3")
+    expensive = _agent(
+        "expensive", "expensive-provider", "expensive-model",
+        input_cost=100.0, cached_cost=100.0, output_cost=100.0,
+    )
+    _register(store, expensive)
+    store.create_run(_run(max_total=0.01, strategy="single_agent"), [_task("task-1")])
+
+    assert store.claim_task("expensive") is None
+    status = store.get_run_status("run-1")
+    assert status["tasks"][0]["status"] == "failed"
+    assert status["run"]["status"] == "failed"
