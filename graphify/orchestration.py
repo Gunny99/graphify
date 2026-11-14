@@ -130,8 +130,16 @@ def _validate_evidence_ref(value: Any, path: str) -> Mapping[str, Any]:
 def _validate_ziwei_evidence_ref(value: Any, path: str) -> Mapping[str, Any]:
     """Validate a traceable original-text citation for the ziwei_saju domain."""
     evidence = _object(value, path)
-    for key in ("source_id", "source_type", "uri", "location", "excerpt", "edition", "source_text_status"):
+    for key in ("source_id", "source_type", "uri", "location", "excerpt", "source_text_status"):
         _string(evidence.get(key), f"{path}.{key}", allow_empty=(key == "excerpt"))
+    has_edition = isinstance(evidence.get("edition"), str) and bool(evidence["edition"].strip())
+    has_variant = isinstance(evidence.get("variant"), str) and bool(evidence["variant"].strip())
+    if not (has_edition or has_variant):
+        raise OrchestrationValidationError(
+            f"{path} must identify at least one edition or variant"
+        )
+    if "edition" in evidence and evidence["edition"] is not None:
+        _string(evidence["edition"], f"{path}.edition")
     content_hash = _string(evidence.get("content_hash"), f"{path}.content_hash")
     if re.fullmatch(r"sha256:[0-9a-fA-F]{64}", content_hash) is None:
         raise OrchestrationValidationError(
@@ -174,7 +182,7 @@ def validate_ziwei_saju_result(
         if frame in frames:
             raise OrchestrationValidationError(f"duplicate ziwei_saju interpretation frame: {frame}")
         frames.add(frame)
-        _string(interpretation.get("finding"), f"{path}.finding")
+        finding = _string(interpretation.get("finding"), f"{path}.finding")
         evidence = _objects(interpretation.get("evidence"), f"{path}.evidence")
         if interpretation_status != "indeterminate" and not evidence:
             raise OrchestrationValidationError(
@@ -189,6 +197,11 @@ def validate_ziwei_saju_result(
         )
     if interpretation_status == "divergent":
         _string(output.get("divergence_reason"), "result.output.divergence_reason")
+        findings = {str(item["finding"]).strip() for item in interpretations}
+        if len(findings) < 2:
+            raise OrchestrationValidationError(
+                "divergent interpretations must preserve distinct frame findings"
+            )
 
     for index, claim in enumerate(claims):
         path = f"result.claims[{index}]"
