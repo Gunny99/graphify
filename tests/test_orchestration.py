@@ -206,6 +206,14 @@ def _review(*, verdict: str = "supported", status: str = "accepted") -> dict:
             "model_version": "1",
         },
         "status": status,
+        "usage": {
+            "input_tokens": 100,
+            "output_tokens": 50,
+            "cached_input_tokens": 0,
+            "direct_cost": 0.01,
+            "currency": "USD",
+            "pricing_source": "test-price-sheet-v1",
+        },
         "claims": [{
             "claim_id": "claim-1",
             "verdict": verdict,
@@ -378,6 +386,9 @@ def test_result_and_independent_review_compute_claim_metrics_from_verdicts():
         "unreviewed_claims": 0,
         "accuracy": 1.0,
         "hallucination_rate": 0.0,
+        "insufficient_rate": 0.0,
+        "unreviewed_rate": 0.0,
+        "verification_failure_rate": 0.0,
         "evidence_coverage": 1.0,
         "review_complete": True,
     }
