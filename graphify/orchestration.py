@@ -324,8 +324,27 @@ def validate_review_envelope(value: Any, result: Mapping[str, Any]) -> Mapping[s
     """Validate an independent review and require a verdict for every material claim."""
     review = _object(value, "review")
     _schema_version(review, "review")
-    for key in ("review_id", "run_id", "task_id", "result_id", "reviewer_agent_id"):
+    for key in ("review_id", "run_id", "task_id", "result_id"):
         _string(review.get(key), f"review.{key}")
+    if (
+        review["run_id"] != result["run_id"]
+        or review["task_id"] != result["task_id"]
+        or review["result_id"] != result["result_id"]
+    ):
+        raise OrchestrationValidationError("review run/task/result IDs must match the submitted result")
+    reviewer = _object(review.get("reviewer"), "review.reviewer")
+    for key in ("agent_id", "provider", "model", "model_version"):
+        _string(reviewer.get(key), f"review.reviewer.{key}")
+    producer = result["agent"]
+    same_agent = reviewer["agent_id"] == producer["agent_id"]
+    same_model = all(
+        reviewer[key] == producer[key]
+        for key in ("provider", "model", "model_version")
+    )
+    if same_agent or same_model:
+        raise OrchestrationValidationError(
+            "reviewer must be independent of the producing agent and model"
+        )
     if review.get("status") not in REVIEW_STATUSES:
         raise OrchestrationValidationError(f"review.status must be one of {sorted(REVIEW_STATUSES)}")
     submitted = {str(claim["claim_id"]): claim for claim in result["claims"]}
@@ -349,6 +368,15 @@ def validate_review_envelope(value: Any, result: Mapping[str, Any]) -> Mapping[s
     for claim_id, claim in submitted.items():
         if claim.get("material") and claim.get("claim_type") in {"factual", "inference"} and claim_id not in seen:
             raise OrchestrationValidationError(f"material claim {claim_id} has no independent review verdict")
+    if review.get("status") == "accepted":
+        material_ids = {
+            claim_id for claim_id, claim in submitted.items()
+            if claim.get("material") and claim.get("claim_type") in {"factual", "inference"}
+        }
+        if any(item["verdict"] != "supported" for item in reviewed if item["claim_id"] in material_ids):
+            raise OrchestrationValidationError(
+                "an accepted review cannot contain contradicted or insufficient material claims"
+            )
     _timestamp(review.get("created_at"), "review.created_at")
     return review
 
