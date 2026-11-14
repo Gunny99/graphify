@@ -258,7 +258,18 @@ def test_claim_uses_lowest_cost_qualified_agent_and_enforces_dependency(tmp_path
     verification = store.claim_task("verifier")
     assert verification is not None
     assert verification["task_type"] == "verification"
+    payload = store.get_verification_payload(
+        verification["task_id"], "verifier", verification["lease_token"]
+    )
+    assert payload["result"]["result_id"] == result["result_id"]
+    assert payload["result"]["output"]["answer"]
+    with pytest.raises(TaskLeaseError):
+        store.get_verification_payload(
+            verification["task_id"], "verifier", "wrong-token"
+        )
     review = _review(result, verifier, review_task_id=verification["task_id"])
+    with pytest.raises(TaskLeaseError):
+        store.submit_review(review, "wrong-token")
     reviewed = store.submit_review(review, verification["lease_token"])
     task_states = {task["task_id"]: task["status"] for task in reviewed["tasks"]}
     assert task_states["task-1"] == "accepted"
@@ -267,8 +278,8 @@ def test_claim_uses_lowest_cost_qualified_agent_and_enforces_dependency(tmp_path
 
     # Token charges are calculated from the trusted price sheet, never the agent's $999 claim.
     cost = store.get_run_status("run-1")["total_direct_cost"]
-    expected_result_cost = (900 * 0.05 + 100 * 0.1) / 1_000_000
-    expected_review_cost = (900 * 0.1 + 100 * 0.2) / 1_000_000
+    expected_result_cost = (900 * 0.05 + 100 * 0.02 + 100 * 0.1) / 1_000_000
+    expected_review_cost = (900 * 0.1 + 100 * 0.02 + 100 * 0.2) / 1_000_000
     assert math.isclose(cost, expected_result_cost + expected_review_cost)
 
 
