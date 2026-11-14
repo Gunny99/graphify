@@ -291,6 +291,37 @@ Routing sequence:
 
 When two candidates have statistically indistinguishable quality and both meet the target, choose the one with lower expected total cost. When quality is not comparable or confidence bounds overlap the threshold, do not assume equivalence; use the better-supported candidate or mark the result provisional.
 
+## Domain extension: ziwei_saju
+
+The `ziwei_saju` adapter keeps domain semantics inside the result payload; it does not add domain-specific states to the global run/task state machine.
+
+### Claim evidence and source wording
+
+Each material domain claim must carry:
+- `evidence_basis`: `explicit_source | derived | unknown`.
+- `assertion_strength`: `definite | hedged`, describing how strongly the final claim itself is stated.
+- `evidence`: original-source references with `source_id`, `source_type`, repository-relative `uri`, `location`, full source-file `content_hash` (`sha256:<64 hex>), verbatim `excerpt`, bibliographic `edition`, optional `variant`, `source_assertion` (`definite | hedged`), and `source_text_status` (for example, OCR/collation status).
+- `derivation_steps`: required for `evidence_basis=derived`; derived claims use `claim_type=inference`.
+
+`unknown` claims carry no supporting evidence and must remain hedged/unconfirmed. A source author's hedged wording is recorded as `source_assertion=hedged`; it is not a model-generated estimate. The `ziwei_saju` validator rejects `estimated` as an evidence basis because this domain's governing specification does not permit model-invented estimated coefficients or assumptions. A claim supported only by hedged source assertions cannot be upgraded to a definite statement.
+
+The shared `claim_type` vocabulary already includes `inference`; do not add `hedged` as a claim type because hedging is assertion strength, not claim kind.
+
+### Interpretive divergence
+
+The domain output uses `interpretation_status=convergent | divergent | indeterminate` and an `interpretations[]` collection. Each entry requires a named `frame`, a finding, and traceable source evidence for determinate outcomes.
+
+A `divergent` result is a valid domain outcome when at least two distinct named frames produce different findings and both are supported by their own evidence; this may occur even when the same source text is read through different frames. The output must include `divergence_reason`. A divergence does not change global `review.status` or `run.status`. A conflict within the same frame, unsupported findings, or untraceable sources remain `needs_review`.
+
+### Evaluation status
+
+Keep three evaluations distinct:
+1. deterministic engine unit/regression tests against the versioned rule specification;
+2. independent scoring of source extraction and condition application;
+3. sealed holdout evaluation of predictions, never exposed to indexing, prompts, or tuning.
+
+The currently described 63 regression cases do not establish the >99% accuracy / <1% hallucination statistical target. The domain quality profile remains `provisional` until an independently labelled, sufficiently large, non-leaking evaluation set establishes the confidence bounds. Report `contradicted`, `insufficient`, and `unreviewed` claims separately. An `insufficient` material claim blocks acceptance but is not automatically labelled a proven hallucination.
+
 ## Lease, retry, and idempotency rules
 
 - A task claim creates a random lease token and expiry. Only that agent/token pair may heartbeat, submit, or fail the task.
