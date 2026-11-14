@@ -30,6 +30,12 @@ RESULT_STATUSES = frozenset({"submitted", "failed"})
 CLAIM_TYPES = frozenset({"factual", "inference", "recommendation", "opinion"})
 REVIEW_VERDICTS = frozenset({"supported", "contradicted", "insufficient"})
 REVIEW_STATUSES = frozenset({"accepted", "provisional", "needs_review", "rejected"})
+EXECUTION_STRATEGIES = frozenset({
+    "single_agent",
+    "single_with_review",
+    "read_only_exploration",
+    "parallel_independent",
+})
 
 
 class OrchestrationValidationError(ValueError):
@@ -147,6 +153,103 @@ def _validate_quality_profile(value: Any, path: str) -> Mapping[str, Any]:
     return profile
 
 
+
+def choose_execution_strategy(
+    *,
+    task_type: str,
+    independent_workstreams: int = 1,
+    has_dependencies: bool = False,
+    shared_state_required: bool = False,
+    file_write_sets_disjoint: bool = False,
+    read_only_exploration_needed: bool = False,
+    context_pressure_high: bool = False,
+    requires_independent_review: bool = False,
+    estimated_single_cost: float | None = None,
+    estimated_parallel_total_cost: float | None = None,
+    estimated_single_seconds: float | None = None,
+    estimated_parallel_seconds: float | None = None,
+    hard_deadline_requires_parallelism: bool = False,
+    max_parallel_agents: int = 3,
+) -> dict[str, Any]:
+    """Choose the least-complex strategy; single-session execution is the default."""
+    _string(task_type, "task_type")
+    workstreams = _integer(independent_workstreams, "independent_workstreams", minimum=1)
+    max_workers = _integer(max_parallel_agents, "max_parallel_agents", minimum=1)
+    if max_workers > 3:
+        raise OrchestrationValidationError("max_parallel_agents cannot exceed 3")
+    single_cost = (
+        _number(estimated_single_cost, "estimated_single_cost")
+        if estimated_single_cost is not None else None
+    )
+    parallel_cost = (
+        _number(estimated_parallel_total_cost, "estimated_parallel_total_cost")
+        if estimated_parallel_total_cost is not None else None
+    )
+    single_seconds = (
+        _number(estimated_single_seconds, "estimated_single_seconds")
+        if estimated_single_seconds is not None else None
+    )
+    parallel_seconds = (
+        _number(estimated_parallel_seconds, "estimated_parallel_seconds")
+        if estimated_parallel_seconds is not None else None
+    )
+
+    if read_only_exploration_needed and context_pressure_high and workstreams >= 2:
+        return {
+            "strategy": "read_only_exploration",
+            "max_parallel_agents": min(max_workers, workstreams, 3),
+            "read_only": True,
+            "reason": "Large-scope read-only exploration benefits from isolated context.",
+        }
+
+    if (
+        workstreams >= 2
+        and not has_dependencies
+        and not shared_state_required
+        and file_write_sets_disjoint
+        and max_workers >= 2
+    ):
+        cost_ok = (
+            single_cost is not None
+            and parallel_cost is not None
+            and parallel_cost <= single_cost
+        )
+        deadline_ok = (
+            hard_deadline_requires_parallelism
+            and single_seconds is not None
+            and parallel_seconds is not None
+            and parallel_seconds < single_seconds
+        )
+        if cost_ok or deadline_ok:
+            return {
+                "strategy": "parallel_independent",
+                "max_parallel_agents": min(max_workers, workstreams, 3),
+                "read_only": False,
+                "write_conflicts_checked": True,
+                "reason": (
+                    "Independent workstreams have disjoint write sets and "
+                    "parallelism has a measured cost or deadline benefit."
+                ),
+            }
+
+    if requires_independent_review:
+        return {
+            "strategy": "single_with_review",
+            "max_parallel_agents": 1,
+            "read_only": False,
+            "reason": "Keep implementation in one session and invoke one independent reviewer after completion.",
+        }
+
+    return {
+        "strategy": "single_agent",
+        "max_parallel_agents": 1,
+        "read_only": False,
+        "reason": (
+            "Default to one session for sequential, coupled, small, or non-profitable parallel work."
+        ),
+    }
+
+
 def validate_run_envelope(value: Any) -> Mapping[str, Any]:
     """Validate a run contract, including the non-negotiable quality/cost policy."""
     run = _object(value, "run")
@@ -169,6 +272,33 @@ def validate_run_envelope(value: Any) -> Mapping[str, Any]:
         raise OrchestrationValidationError("material factual claims must require evidence")
     if quality.get("independent_verification") is not True:
         raise OrchestrationValidationError("independent_verification must be true")
+    execution = _object(run.get("execution_policy"), "run.execution_policy")
+    strategy = execution.get("strategy")
+    if strategy not in EXECUTION_STRATEGIES:
+        raise OrchestrationValidationError(
+            f"run.execution_policy.strategy must be one of {sorted(EXECUTION_STRATEGIES)}"
+        )
+    max_parallel = _integer(
+        execution.get("max_parallel_agents"),
+        "run.execution_policy.max_parallel_agents",
+        minimum=1,
+    )
+    if max_parallel > 3:
+        raise OrchestrationValidationError("max_parallel_agents cannot exceed 3")
+    if strategy in {"single_agent", "single_with_review"} and max_parallel != 1:
+        raise OrchestrationValidationError(
+            f"{strategy} must use max_parallel_agents=1 for worker execution"
+        )
+    if strategy == "parallel_independent" and max_parallel < 2:
+        raise OrchestrationValidationError(
+            "parallel_independent requires at least two independent workers"
+        )
+    if strategy == "read_only_exploration" and execution.get("read_only") is not True:
+        raise OrchestrationValidationError("read_only_exploration requires read_only=true")
+    if strategy == "parallel_independent" and execution.get("write_conflicts_checked") is not True:
+        raise OrchestrationValidationError(
+            "parallel_independent requires write_conflicts_checked=true"
+        )
     cost = _object(run.get("cost_policy"), "run.cost_policy")
     _string(cost.get("currency"), "run.cost_policy.currency")
     _number(cost.get("max_total"), "run.cost_policy.max_total")
