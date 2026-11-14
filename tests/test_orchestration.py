@@ -832,3 +832,15 @@ def test_ziwei_interpretation_must_match_linked_claim_strength_and_evidence():
         claim["assertion_strength"] = "hedged"
     with pytest.raises(OrchestrationValidationError, match="evidence must overlap"):
         validate_result_envelope(result)
+
+def test_ziwei_linked_source_hash_comparison_is_case_insensitive():
+    result = _ziwei_result()
+    interpretation_evidence = dict(result["output"]["interpretations"][0]["evidence"][0])
+    claim_evidence = dict(result["claims"][0]["evidence"][0])
+    interpretation_evidence["content_hash"] = "sha256:" + "A" * 64
+    claim_evidence["content_hash"] = "sha256:" + "a" * 64
+    result["output"]["interpretations"][0]["evidence"] = [interpretation_evidence]
+    result["claims"][0]["evidence"] = [claim_evidence]
+
+    assert validate_result_envelope(result) is result
+
