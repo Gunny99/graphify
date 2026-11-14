@@ -597,16 +597,18 @@ def test_failed_verification_marks_source_needs_review_and_run_provisional(tmp_p
 def test_exhausted_verification_lease_marks_source_needs_review(tmp_path):
     store = TaskStore(tmp_path / "orchestrator.sqlite3")
     producer = _agent("producer", "producer-provider", "producer-model")
-    verifier = _agent("verifier", "verifier-provider", "verifier-model", role="verifier")
+    verifier1 = _agent("verifier-1", "verifier-provider-1", "verifier-model-1", role="verifier")
+    verifier2 = _agent("verifier-2", "verifier-provider-2", "verifier-model-2", role="verifier")
     _register(store, producer)
-    _register(store, verifier)
+    _register(store, verifier1)
+    _register(store, verifier2)
     store.create_run(_run(), [_task("task-1")])
 
     claimed = store.claim_task("producer")
     assert claimed is not None
     result = _result("task-1", producer)
     store.submit_result(result, claimed["lease_token"])
-    first_verification = store.claim_task("verifier")
+    first_verification = store.claim_task("verifier-1")
     assert first_verification is not None
     with store._transaction() as con:
         con.execute(
@@ -614,7 +616,7 @@ def test_exhausted_verification_lease_marks_source_needs_review(tmp_path):
             (first_verification["task_id"],),
         )
 
-    second_verification = store.claim_task("verifier")
+    second_verification = store.claim_task("verifier-2")
     assert second_verification is not None
     assert second_verification["attempt"] == 2
     with store._transaction() as con:
