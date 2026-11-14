@@ -36,20 +36,18 @@ def _run(source: str, *, cwd: Path, corpus: Path, spec: Path) -> None:
                    capture_output=True, text=True)
 
 
-def test_codex_b2_persists_each_result_and_fails_closed():
+def test_codex_b2_persists_valid_chunks_and_defers_failure_policy_to_shared_b3():
     skill = _codex_skill()
     b2 = skill.split("**Step B2", 1)[1].split("**Step B3", 1)[0]
 
-    assert "write each result to its matching" in b2
+    assert "write each valid result separately" in b2
     assert "graphify-out/.graphify_chunk_NN.json" in b2
-    assert "Do not aggregate results or write `graphify-out/.graphify_semantic_new.json` in B2" in b2
-    assert "If any subagent fails, returns no result or invalid JSON" in b2
-    assert "stop before Step B3" in b2
-    assert "save cache" in b2
-    assert "leave the existing graph and semantic cache untouched" in b2
-    assert "read back from its expected chunk file" in b2
+    assert "Do not aggregate results or write" in b2
+    assert "leave that chunk's expected file absent" in b2
+    assert "Continue to shared Step B3 with the valid chunk files" in b2
+    assert "common collector applies the same missing/failed-chunk policy on every host" in b2
+    assert "leaves omitted files unstamped" in b2
     assert "Empty lists are valid extraction results" in b2
-
 
 def test_codex_chunk_results_survive_b3_merge_cache_and_all_cached_rerun(tmp_path):
     skill = _codex_skill()

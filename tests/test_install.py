@@ -560,6 +560,14 @@ def test_opencode_skill_uses_opencode_agent_guidance():
     assert "general-purpose" not in b2
     assert "Concrete example for 3 chunks" not in b2
     assert "OpenCode platform" in b2
+    # All host dispatch variants pass chunk-scoped results to the shared B3.
+    assert "associate each response with the chunk number" in b2
+    assert "graphify-out/.graphify_chunk_NN.json" in b2
+    assert "CHUNK_PATH" in b2
+    assert "its own absolute CHUNK_PATH substituted" in b2
+    assert "write or replace the chunk's expected file with that response as a fallback" in b2
+    assert "graphify-out/.graphify_semantic_new.json" in b2
+    assert "shared Step B3" in b2
 
 
 def test_kilo_skill_mentions_task_tool():
