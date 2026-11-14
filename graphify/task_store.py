@@ -938,10 +938,10 @@ class TaskStore:
                 requires_review = bool(material_claims) or task["input"].get("requires_code_review") is True
                 run_policy = _decode(run_row["run_json"])["execution_policy"]
                 if requires_review and run_policy["strategy"] not in {
-                    "single_with_review", "parallel_independent"
+                    "single_with_review", "read_only_exploration", "parallel_independent"
                 }:
                     raise TaskStoreError(
-                        "this result requires independent review; create the run with single_with_review"
+                        "this result requires independent review; choose a strategy that supports it"
                     )
                 task["result_id"] = result_id
                 if requires_review:
