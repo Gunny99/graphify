@@ -582,6 +582,13 @@ class TaskStore:
                     other = validate_agent_profile(_decode(other_row["profile_json"]))
                     if not set(task["required_capabilities"]).issubset(set(other["capabilities"])):
                         continue
+                    if (
+                        execution["strategy"] in {"single_agent", "single_with_review"}
+                        and task["task_type"] != "verification"
+                        and run.get("primary_agent_id") is not None
+                        and other["agent_id"] != run["primary_agent_id"]
+                    ):
+                        continue
                     if other["agent_id"] in excluded:
                         continue
                     if task["task_type"] == "verification" and "verify" not in other["capabilities"]:
@@ -764,7 +771,7 @@ class TaskStore:
                 "estimated_input_tokens": max(1, input_tokens),
                 "estimated_output_tokens": 500,
                 "estimated_cached_input_tokens": 0,
-                "excluded_agent_ids": [],
+                "excluded_agent_ids": [str(result["agent"]["agent_id"])],
             },
             "context_refs": [{"source_type": "result", "result_id": result["result_id"]}],
             "depends_on": [],
