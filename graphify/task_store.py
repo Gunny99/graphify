@@ -170,7 +170,7 @@ class TaskStore:
 
                 CREATE TABLE IF NOT EXISTS reviews (
                     review_id TEXT PRIMARY KEY,
-                    result_id TEXT NOT NULL UNIQUE REFERENCES results(result_id) ON DELETE CASCADE,
+                    result_id TEXT NOT NULL REFERENCES results(result_id) ON DELETE CASCADE,
                     reviewer_agent_id TEXT NOT NULL REFERENCES agents(agent_id),
                     review_json TEXT NOT NULL,
                     created_at TEXT NOT NULL
@@ -224,8 +224,9 @@ class TaskStore:
         task["updated_at"] = now
         if attempt is not None:
             task["attempt"] = attempt
-        if status not in {"leased", "submitted", "needs_review"}:
+        if status != "leased":
             task.pop("lease_expires_at", None)
+        if status not in {"leased", "submitted", "needs_review"}:
             task.pop("estimated_cost_reserved", None)
         con.execute(
             """
@@ -741,7 +742,11 @@ class TaskStore:
                 task["estimated_cost_reserved"] = max(
                     0.0, prior_reserve - float(result["usage"]["direct_cost"])
                 )
-            task["result_id"] = result_id
+            if result["status"] == "failed":
+                task["last_failed_result_id"] = result_id
+                task.pop("result_id", None)
+            else:
+                task["result_id"] = result_id
             self._set_task(con, row, task, new_status)
             self._event(
                 con,
@@ -824,11 +829,6 @@ class TaskStore:
             ).fetchone()
             if result_row is None:
                 raise TaskNotFoundError(f"result not found: {result_id}")
-            prior_review = con.execute(
-                "SELECT review_id FROM reviews WHERE result_id=?", (result_id,)
-            ).fetchone()
-            if prior_review is not None:
-                raise TaskStoreError("result already has a review; use the original review_id for idempotent replay")
             result = _decode(result_row["result_json"])
             review = validate_review_envelope(value, result)
             task_row = con.execute(
