@@ -435,7 +435,8 @@ def quality_profile_qualifies(
 def result_meets_quality_gate(
     result: Mapping[str, Any],
     review: Mapping[str, Any],
-    quality_profile: Mapping[str, Any],
+    producer_quality_profile: Mapping[str, Any],
+    verifier_quality_profile: Mapping[str, Any],
     *,
     accuracy_target: float = 0.99,
     hallucination_max: float = 0.01,
@@ -446,7 +447,13 @@ def result_meets_quality_gate(
     if review.get("status") != "accepted":
         return False
     if not quality_profile_qualifies(
-        quality_profile,
+        producer_quality_profile,
+        accuracy_target=accuracy_target,
+        hallucination_max=hallucination_max,
+    ):
+        return False
+    if not quality_profile_qualifies(
+        verifier_quality_profile,
         accuracy_target=accuracy_target,
         hallucination_max=hallucination_max,
     ):
