@@ -901,6 +901,15 @@ class TaskStore:
                 return self._run_status_in_transaction(con, str(result["run_id"]))
             row = self._owned_lease(con, task_id, agent_id, lease_token)
             task = _decode(row["task_json"])
+            result_domain = result["output"].get("domain")
+            if result_domain is not None and result_domain != task["domain"]:
+                raise TaskStoreError(
+                    f"result domain {result_domain!r} does not match task domain {task['domain']!r}"
+                )
+            if task["domain"] == "ziwei_saju" and result_domain != "ziwei_saju":
+                raise TaskStoreError(
+                    "ziwei_saju tasks require result.output.domain='ziwei_saju'"
+                )
             if task["task_type"] == "verification":
                 raise TaskStoreError("verification tasks must use submit_review, not submit_result")
             if result["run_id"] != row["run_id"] or int(result["attempt"]) != int(row["attempt"]):
