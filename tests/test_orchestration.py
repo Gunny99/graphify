@@ -606,6 +606,12 @@ def test_ziwei_saju_requires_explicit_evidence_basis_and_original_source_metadat
     result["claims"][0]["evidence"][0].pop("edition")
     assert validate_result_envelope(result) is result
 
+    result = _ziwei_result()
+    result["claims"][0]["evidence"] = [_ziwei_evidence()]
+    result["claims"][0]["evidence"][0]["excerpt"] = ""
+    with pytest.raises(OrchestrationValidationError, match="excerpt"):
+        validate_result_envelope(result)
+
 
 def test_ziwei_saju_rejects_invented_estimates_and_incomplete_derivations():
     result = _ziwei_result()
