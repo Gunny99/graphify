@@ -565,6 +565,9 @@ def test_pi_never_names_the_claude_general_purpose_agent():
     claude, _ = _platform_artifacts("claude")
     assert "Re-run with general-purpose agent." in claude
     assert 'ensure `subagent_type="general-purpose"` is used.' in claude
+    codex, _ = _platform_artifacts("codex")
+    assert "Re-run with the Codex `worker` agent." in codex
+    assert 'ensure `agent_type="worker"` is used.' in codex
 
 
 def test_compact_extraction_hosts_use_the_compact_spec():
