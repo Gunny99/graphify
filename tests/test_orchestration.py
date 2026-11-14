@@ -120,6 +120,7 @@ def _task(task_id: str, depends_on: list[str] | None = None) -> dict:
         "run_id": "run-1",
         "task_type": "research",
         "role": "researcher",
+        "domain": "technical",
         "objective": "Find evidence for a factual claim",
         "input": {"question": "What does the API guarantee?"},
         "context_refs": [],
