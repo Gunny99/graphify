@@ -204,6 +204,8 @@ def validate_task_envelope(value: Any) -> Mapping[str, Any]:
         raise OrchestrationValidationError("task.attempt cannot exceed task.max_attempts")
     if task.get("status") not in TASK_STATUSES:
         raise OrchestrationValidationError(f"task.status must be one of {sorted(TASK_STATUSES)}")
+    if "priority" in task:
+        _integer(task["priority"], "task.priority")
     for key in ("parent_task_id", "quality_policy_ref"):
         if key in task and task[key] is not None:
             _string(task[key], f"task.{key}")
@@ -378,6 +380,12 @@ def validate_review_envelope(value: Any, result: Mapping[str, Any]) -> Mapping[s
             raise OrchestrationValidationError(
                 "an accepted review cannot contain contradicted or insufficient material claims"
             )
+    usage = _object(review.get("usage"), "review.usage")
+    for key in ("input_tokens", "output_tokens", "cached_input_tokens"):
+        _integer(usage.get(key), f"review.usage.{key}")
+    _number(usage.get("direct_cost"), "review.usage.direct_cost")
+    _string(usage.get("currency"), "review.usage.currency")
+    _string(usage.get("pricing_source"), "review.usage.pricing_source")
     _timestamp(review.get("created_at"), "review.created_at")
     return review
 
