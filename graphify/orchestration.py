@@ -435,25 +435,65 @@ def quality_profile_qualifies(
 def result_meets_quality_gate(
     result: Mapping[str, Any],
     review: Mapping[str, Any],
-    producer_quality_profile: Mapping[str, Any],
-    verifier_quality_profile: Mapping[str, Any],
+    producer_agent: Mapping[str, Any],
+    verifier_agent: Mapping[str, Any],
     *,
+    task_role: str,
+    domain: str,
     accuracy_target: float = 0.99,
     hallucination_max: float = 0.01,
 ) -> bool:
-    """Gate a result on independent claim review AND an independently measured model profile."""
+    """Gate a result on independent review and qualified producer/verifier agents."""
     validate_result_envelope(result)
     validate_review_envelope(review, result)
+    producer = validate_agent_profile(producer_agent)
+    verifier = validate_agent_profile(verifier_agent)
     if review.get("status") != "accepted":
         return False
+
+    producer_identity = result["agent"]
+    verifier_identity = review["reviewer"]
+    for key in ("agent_id", "provider", "model", "model_version"):
+        if producer[key] != producer_identity[key]:
+            raise OrchestrationValidationError(
+                f"producer agent profile does not match result.agent.{key}"
+            )
+        if verifier[key] != verifier_identity[key]:
+            raise OrchestrationValidationError(
+                f"verifier agent profile does not match review.reviewer.{key}"
+            )
+    if (
+        producer["agent_id"] == verifier["agent_id"]
+        or (
+            producer["provider"],
+            producer["model"],
+            producer["model_version"],
+        ) == (
+            verifier["provider"],
+            verifier["model"],
+            verifier["model_version"],
+        )
+    ):
+        return False
+
+    producer_profile = next((
+        item for item in producer["quality_profiles"]
+        if item["role"] == task_role and item["domain"] == domain
+    ), None)
+    verifier_profile = next((
+        item for item in verifier["quality_profiles"]
+        if item["role"] == "verifier" and item["domain"] == domain
+    ), None)
+    if producer_profile is None or verifier_profile is None:
+        return False
     if not quality_profile_qualifies(
-        producer_quality_profile,
+        producer_profile,
         accuracy_target=accuracy_target,
         hallucination_max=hallucination_max,
     ):
         return False
     if not quality_profile_qualifies(
-        verifier_quality_profile,
+        verifier_profile,
         accuracy_target=accuracy_target,
         hallucination_max=hallucination_max,
     ):
