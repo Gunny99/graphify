@@ -906,10 +906,15 @@ class TaskStore:
         """Create a verifier-only task bound to one immutable result."""
         verification_id = f"verification::{result['result_id']}"
         existing = con.execute(
-            "SELECT task_id FROM tasks WHERE task_id=?", (verification_id,)
+            "SELECT 1 FROM tasks WHERE task_id=?", (verification_id,)
         ).fetchone()
         if existing:
-            return verification_id
+            # Never adopt a caller-created task as a verifier task. Task IDs are
+            # globally unique, and a crafted collision could otherwise point a
+            # submitted result at an unrelated task in this or another run.
+            raise TaskStoreError(
+                f"verification task ID collision: {verification_id}"
+            )
         run_row = con.execute(
             "SELECT run_json FROM runs WHERE run_id=?", (run_id,)
         ).fetchone()

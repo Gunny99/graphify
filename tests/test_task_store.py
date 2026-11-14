@@ -634,6 +634,33 @@ def test_exhausted_verification_lease_marks_source_needs_review(tmp_path):
     assert status["run"]["status"] == "provisional"
 
 
+def test_result_cannot_adopt_an_existing_task_as_its_verification_task(tmp_path):
+    store = TaskStore(tmp_path / "orchestrator.sqlite3")
+    producer = _agent("producer", "producer-provider", "producer-model")
+    _register(store, producer)
+    store.create_run(_run(), [_task("task-1")])
+
+    claimed = store.claim_task("producer")
+    assert claimed is not None
+
+    # A task in another run can occupy the predictable verification::<result_id>
+    # namespace. It must never be adopted as the verifier for this result.
+    store.create_run(
+        _run("run-2", strategy="single_agent"),
+        [_task("verification::collision", "run-2")],
+    )
+    result = _result("task-1", producer, result_id="collision")
+    with pytest.raises(TaskStoreError, match="verification task ID collision"):
+        store.submit_result(result, claimed["lease_token"])
+
+    status = store.get_run_status("run-1")
+    assert status["tasks"][0]["status"] == "leased"
+    with store._connect() as con:
+        assert con.execute(
+            "SELECT COUNT(*) FROM results WHERE result_id='collision'"
+        ).fetchone()[0] == 0
+
+
 @pytest.mark.parametrize("strategy", ["single_agent", "single_with_review"])
 def test_single_session_strategy_rejects_multiple_main_tasks(tmp_path, strategy):
     store = TaskStore(tmp_path / "orchestrator.sqlite3")
