@@ -233,6 +233,7 @@ def validate_ziwei_saju_result(
     frames: set[str] = set()
     question_ids: set[str] = set()
     directions: set[str] = set()
+    determinate_signatures: set[tuple[str, str | None]] = set()
     for index, interpretation in enumerate(interpretations):
         path = f"result.output.interpretations[{index}]"
         frame = _string(interpretation.get("frame"), f"{path}.frame")
@@ -248,6 +249,22 @@ def validate_ziwei_saju_result(
                 f"{path}.direction must be one of {sorted(ZIWEI_DIRECTIONS)}"
             )
         directions.add(direction)
+        if direction == "character":
+            trait_key = _string(interpretation.get("trait_key"), f"{path}.trait_key")
+            normalized_trait = trait_key.strip().casefold()
+            if trait_key != normalized_trait:
+                raise OrchestrationValidationError(
+                    f"{path}.trait_key must be normalized (trimmed and case-folded)"
+                )
+            signature = (direction, normalized_trait)
+        else:
+            if "trait_key" in interpretation:
+                raise OrchestrationValidationError(
+                    f"{path}.trait_key is only valid when direction='character'"
+                )
+            signature = (direction, None)
+        if direction != "indeterminate":
+            determinate_signatures.add(signature)
         claim_id = _string(interpretation.get("claim_id"), f"{path}.claim_id")
         if claim_id not in claim_by_id:
             raise OrchestrationValidationError(
@@ -259,12 +276,12 @@ def validate_ziwei_saju_result(
             raise OrchestrationValidationError(
                 f"{path}.assertion_strength must be one of {sorted(ZIWEI_SOURCE_ASSERTIONS)}"
             )
-        if interpretation_status == "indeterminate" and assertion_strength != "hedged":
+        if direction == "indeterminate" and assertion_strength != "hedged":
             raise OrchestrationValidationError(
                 f"{path}: indeterminate findings must remain hedged"
             )
         evidence = _objects(interpretation.get("evidence"), f"{path}.evidence")
-        if interpretation_status != "indeterminate" and not evidence:
+        if direction != "indeterminate" and not evidence:
             raise OrchestrationValidationError(
                 f"{path}.evidence is required for a determinate interpretation"
             )
@@ -291,39 +308,37 @@ def validate_ziwei_saju_result(
         raise OrchestrationValidationError(
             "all ziwei_saju interpretation frames must answer the same question_id"
         )
-    if interpretation_status == "single_frame" and len(frames) != 1:
-        raise OrchestrationValidationError("single_frame requires exactly one interpretation frame")
-    if interpretation_status in {"convergent", "divergent"}:
-        if len(frames) < 2:
+    determinate_frames = [
+        item for item in interpretations if item.get("direction") != "indeterminate"
+    ]
+    if interpretation_status == "indeterminate":
+        if determinate_frames:
             raise OrchestrationValidationError(
-                f"{interpretation_status} requires at least two distinct interpretation frames"
+                "indeterminate interpretation_status requires every frame direction to be indeterminate"
             )
-        if len(question_ids) != 1:
+    else:
+        if not determinate_frames:
             raise OrchestrationValidationError(
-                f"{interpretation_status} requires all frames to answer the same question_id"
+                "a result with no determinate frame must use interpretation_status='indeterminate'"
             )
-        if "indeterminate" in directions:
+        if interpretation_status == "single_frame" and len(determinate_frames) != 1:
             raise OrchestrationValidationError(
-                f"{interpretation_status} cannot include an indeterminate direction"
+                "single_frame requires exactly one determinate interpretation frame"
             )
-    if interpretation_status == "single_frame" and directions == {"indeterminate"}:
-        raise OrchestrationValidationError(
-            "an indeterminate direction must use interpretation_status='indeterminate'"
-        )
-    if interpretation_status == "indeterminate" and directions != {"indeterminate"}:
-        raise OrchestrationValidationError(
-            "indeterminate interpretation_status requires every frame direction to be indeterminate"
-        )
-    if interpretation_status == "convergent" and len(directions) != 1:
-        raise OrchestrationValidationError(
-            "convergent interpretations must agree on the same question direction"
-        )
-    if interpretation_status == "divergent":
-        _string(output.get("divergence_reason"), "result.output.divergence_reason")
-        if len(directions) < 2:
+        if interpretation_status in {"convergent", "divergent"} and len(determinate_frames) < 2:
             raise OrchestrationValidationError(
-                "divergent interpretations must disagree on question direction"
+                f"{interpretation_status} requires at least two determinate interpretation frames"
             )
+        if interpretation_status == "convergent" and len(determinate_signatures) != 1:
+            raise OrchestrationValidationError(
+                "convergent interpretations must agree on the same direction and character trait"
+            )
+        if interpretation_status == "divergent":
+            _string(output.get("divergence_reason"), "result.output.divergence_reason")
+            if len(determinate_signatures) < 2:
+                raise OrchestrationValidationError(
+                    "divergent interpretations must disagree on direction or character trait"
+                )
 
     for index, claim in enumerate(claims):
         path = f"result.claims[{index}]"
@@ -372,12 +387,14 @@ def validate_ziwei_saju_result(
 
         # A hedged statement in every cited source cannot be strengthened into
         # a definite claim merely by paraphrasing it.
-        if (
-            all(item["source_assertion"] == "hedged" for item in validated)
-            and assertion_strength != "hedged"
-        ):
+        must_remain_hedged = (
+            any(item["source_assertion"] == "hedged" for item in validated)
+            if basis == "derived"
+            else all(item["source_assertion"] == "hedged" for item in validated)
+        )
+        if must_remain_hedged and assertion_strength != "hedged":
             raise OrchestrationValidationError(
-                f"{path}: claims based only on hedged source assertions must remain hedged"
+                f"{path}: claims depending on hedged source assertions must remain hedged"
             )
 
     # The user-visible finding must be the exact claim that receives an
@@ -399,23 +416,31 @@ def validate_ziwei_saju_result(
             raise OrchestrationValidationError(
                 f"interpretation frame {frame!r} finding must match its independently reviewed claim statement"
             )
-        # SHA-256 hex is case-insensitive; compare canonical lowercase digests
-        # so equivalent source hashes cannot fail linkage due only to hex casing.
-        finding_hashes = {
-            str(item["content_hash"]).lower()
+        # content_hash is a full-file hash; include source identity and passage
+        # locator so distinct excerpts from one source file cannot be conflated.
+        finding_keys = {
+            (
+                str(item["source_id"]).strip(),
+                str(item["location"]).strip(),
+                str(item["content_hash"]).strip().lower(),
+            )
             for item in interpretation.get("evidence", [])
             if isinstance(item, Mapping)
         }
-        claim_hashes = {
-            str(item["content_hash"]).lower()
+        claim_keys = {
+            (
+                str(item["source_id"]).strip(),
+                str(item["location"]).strip(),
+                str(item["content_hash"]).strip().lower(),
+            )
             for item in claim.get("evidence", [])
             if isinstance(item, Mapping)
         }
-        if bool(finding_hashes) != bool(claim_hashes) or (
-            finding_hashes and not finding_hashes.intersection(claim_hashes)
+        if bool(finding_keys) != bool(claim_keys) or (
+            finding_keys and not finding_keys.intersection(claim_keys)
         ):
             raise OrchestrationValidationError(
-                f"interpretation frame {frame!r} evidence must overlap its linked claim evidence"
+                f"interpretation frame {frame!r} evidence must overlap its linked claim evidence by source, location, and file hash"
             )
     return output
 
@@ -652,6 +677,12 @@ def validate_task_envelope(value: Any) -> Mapping[str, Any]:
     if task.get("task_id") in dependencies:
         raise OrchestrationValidationError("task cannot depend on itself")
     _strings(task.get("required_capabilities"), "task.required_capabilities")
+    data_scopes = _strings(task.get("data_scopes"), "task.data_scopes")
+    if not data_scopes:
+        raise OrchestrationValidationError("task.data_scopes must contain at least one scope")
+    for key in ("excluded_agent_ids", "failed_agent_ids"):
+        if key in task_input:
+            _strings(task_input[key], f"task.input.{key}")
     _object(task.get("output_schema"), "task.output_schema")
     _strings(task.get("acceptance_criteria"), "task.acceptance_criteria")
     attempt = _integer(task.get("attempt"), "task.attempt")
@@ -784,7 +815,9 @@ def validate_agent_profile(value: Any) -> Mapping[str, Any]:
     _integer(agent.get("max_concurrency"), "agent.max_concurrency", minimum=1)
     if agent.get("status") not in AGENT_STATUSES:
         raise OrchestrationValidationError(f"agent.status must be one of {sorted(AGENT_STATUSES)}")
-    _strings(agent.get("allowed_data_scopes"), "agent.allowed_data_scopes")
+    allowed_scopes = _strings(agent.get("allowed_data_scopes"), "agent.allowed_data_scopes")
+    if not allowed_scopes:
+        raise OrchestrationValidationError("agent.allowed_data_scopes must contain at least one scope")
     _validate_cost_profile(agent.get("cost_profile"), "agent.cost_profile")
     profiles = _objects(agent.get("quality_profiles"), "agent.quality_profiles")
     seen: set[tuple[str, str]] = set()
@@ -913,22 +946,8 @@ def validate_review_envelope(value: Any, result: Mapping[str, Any]) -> Mapping[s
         if claim_review.get("verdict") == "supported":
             if not evidence:
                 raise OrchestrationValidationError(f"{path}: supported verdict requires verifier evidence")
-            if result["output"].get("domain") == "ziwei_saju":
-                original_evidence = submitted[claim_id].get("evidence", [])
-                original_keys = {
-                    _ziwei_evidence_identity(item)
-                    for item in original_evidence
-                    if isinstance(item, Mapping)
-                }
-                review_keys = {
-                    _ziwei_evidence_identity(item)
-                    for item in evidence
-                    if isinstance(item, Mapping)
-                }
-                if not original_keys.intersection(review_keys):
-                    raise OrchestrationValidationError(
-                        f"{path}: supported verdict evidence must overlap the claim's original source, location, and file hash"
-                    )
+            # An independent verifier may use a different source or edition.
+            # Its citation is validated above against the Ziwei evidence schema.
     for claim_id, claim in submitted.items():
         if claim.get("material") and claim.get("claim_type") in {"factual", "inference"} and claim_id not in seen:
             raise OrchestrationValidationError(f"material claim {claim_id} has no independent review verdict")
