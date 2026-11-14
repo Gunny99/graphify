@@ -705,6 +705,12 @@ def test_ziwei_saju_supports_single_frame_and_requires_true_convergence():
     with pytest.raises(OrchestrationValidationError, match="same question_id"):
         validate_result_envelope(result)
 
+    result = _ziwei_result()
+    result["output"]["interpretation_status"] = "convergent"
+    result["output"].pop("divergence_reason")
+    with pytest.raises(OrchestrationValidationError, match="same question direction"):
+        validate_result_envelope(result)
+
 
 def test_ziwei_saju_rejects_definite_findings_based_only_on_hedged_sources():
     result = _ziwei_result()
