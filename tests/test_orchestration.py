@@ -299,14 +299,35 @@ def test_execution_strategy_defaults_to_single_session_and_only_parallelizes_dis
     assert independent["strategy"] == "parallel_independent"
     assert independent["max_parallel_agents"] == 3
 
-    exploration = choose_execution_strategy(
+    exploration_without_measurement = choose_execution_strategy(
         task_type="research",
         independent_workstreams=3,
         read_only_exploration_needed=True,
         context_pressure_high=True,
     )
+    assert exploration_without_measurement["strategy"] == "single_with_review"
+
+    exploration = choose_execution_strategy(
+        task_type="research",
+        independent_workstreams=3,
+        read_only_exploration_needed=True,
+        context_pressure_high=True,
+        estimated_single_cost=1.0,
+        estimated_parallel_total_cost=0.9,
+    )
     assert exploration["strategy"] == "read_only_exploration"
     assert exploration["read_only"] is True
+
+    deadline_exploration = choose_execution_strategy(
+        task_type="implementation",
+        independent_workstreams=3,
+        read_only_exploration_needed=True,
+        context_pressure_high=True,
+        estimated_single_seconds=120.0,
+        estimated_parallel_seconds=60.0,
+        hard_deadline_requires_parallelism=True,
+    )
+    assert deadline_exploration["strategy"] == "read_only_exploration"
 
 
 def test_execution_plan_rejects_overlapping_parallel_write_sets():
