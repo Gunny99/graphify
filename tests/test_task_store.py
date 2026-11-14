@@ -15,10 +15,16 @@ from graphify.orchestration import OrchestrationValidationError
 STAMP = "2026-11-14T00:00:00Z"
 
 
-def _quality(role: str = "researcher", *, accuracy: float = 0.995, hallucination: float = 0.005):
+def _quality(
+    role: str = "researcher",
+    *,
+    domain: str = "technical",
+    accuracy: float = 0.995,
+    hallucination: float = 0.005,
+):
     return {
         "role": role,
-        "domain": "technical",
+        "domain": domain,
         "benchmark_id": "technical-v1",
         "evaluation_set_hash": "sha256:held-out",
         "evaluator_version": "human-v1",
@@ -108,14 +114,21 @@ def _run(
     }
 
 
-def _task(task_id: str, run_id: str = "run-1", *, depends_on=None, estimate=1_000):
+def _task(
+    task_id: str,
+    run_id: str = "run-1",
+    *,
+    depends_on=None,
+    estimate=1_000,
+    domain="technical",
+):
     return {
         "schema_version": 1,
         "task_id": task_id,
         "run_id": run_id,
         "task_type": "research",
         "role": "researcher",
-        "domain": "technical",
+        "domain": domain,
         "objective": f"Research {task_id}",
         "input": {
             "question": "What is supported by the source?",
@@ -378,3 +391,26 @@ def test_independent_queued_tasks_continue_after_another_branch_fails(tmp_path):
     )
     assert status["run"]["status"] in {"running", "queued"}
     assert status["tasks"][1]["status"] == "leased"
+
+
+
+def test_result_domain_must_match_task_domain(tmp_path):
+    store = TaskStore(tmp_path / "orchestrator.sqlite3")
+    agent = _agent("agent-1", "provider", "model")
+    agent["quality_profiles"].append(_quality(domain="ziwei_saju"))
+    _register(store, agent)
+    task = _task("ziwei-task", domain="ziwei_saju")
+    store.create_run(_run(), [task])
+    claimed = store.claim_task("agent-1")
+    assert claimed is not None
+
+    # A generic result cannot satisfy a task explicitly declared for ziwei_saju.
+    result = _result("ziwei-task", agent)
+    with pytest.raises(TaskStoreError, match="ziwei_saju tasks require"):
+        store.submit_result(result, claimed["lease_token"])
+
+    # Nor can a result silently claim a different domain.
+    result = _result("ziwei-task", agent)
+    result["output"]["domain"] = "technical"
+    with pytest.raises(TaskStoreError, match="result domain"):
+        store.submit_result(result, claimed["lease_token"])
