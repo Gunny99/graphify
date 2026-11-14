@@ -206,6 +206,14 @@ def _review(*, verdict: str = "supported", status: str = "accepted") -> dict:
             "model_version": "1",
         },
         "status": status,
+        "usage": {
+            "input_tokens": 100,
+            "output_tokens": 50,
+            "cached_input_tokens": 0,
+            "direct_cost": 0.01,
+            "currency": "USD",
+            "pricing_source": "test-price-sheet-v1",
+        },
         "claims": [{
             "claim_id": "claim-1",
             "verdict": verdict,
@@ -527,11 +535,13 @@ def _ziwei_result() -> dict:
             {
                 "frame": "structure_reading",
                 "finding": "The structural frame finds an obstruction.",
+                "assertion_strength": "definite",
                 "evidence": [source],
             },
             {
                 "frame": "decade_triad_frame",
                 "finding": "The decade-triad frame finds a different emphasis.",
+                "assertion_strength": "definite",
                 "evidence": [source],
             },
         ],
@@ -598,6 +608,8 @@ def test_ziwei_saju_preserves_hedged_source_language():
         validate_result_envelope(result)
 
     result["claims"][0]["assertion_strength"] = "hedged"
+    for item in result["output"]["interpretations"]:
+        item["assertion_strength"] = "hedged"
     assert validate_result_envelope(result) is result
 
 
@@ -641,3 +653,33 @@ def test_insufficient_claims_are_not_misreported_as_proven_hallucinations():
     assert metrics["hallucination_rate"] == 0.0
     assert metrics["insufficient_rate"] == 1.0
     assert metrics["verification_failure_rate"] == 1.0
+
+
+
+def test_ziwei_saju_supports_single_frame_and_requires_true_convergence():
+    result = _ziwei_result()
+    result["output"]["interpretation_status"] = "single_frame"
+    result["output"]["interpretations"] = result["output"]["interpretations"][:1]
+    result["output"].pop("divergence_reason")
+    assert validate_result_envelope(result) is result
+
+    result = _ziwei_result()
+    result["output"]["interpretation_status"] = "convergent"
+    result["output"]["interpretations"][1]["finding"] = result["output"]["interpretations"][0]["finding"]
+    result["output"].pop("divergence_reason")
+    assert validate_result_envelope(result) is result
+
+    result = _ziwei_result()
+    result["output"]["interpretation_status"] = "convergent"
+    result["output"].pop("divergence_reason")
+    with pytest.raises(OrchestrationValidationError, match="same frame finding"):
+        validate_result_envelope(result)
+
+
+def test_ziwei_saju_rejects_definite_findings_based_only_on_hedged_sources():
+    result = _ziwei_result()
+    for item in result["output"]["interpretations"]:
+        item["evidence"] = [_ziwei_evidence(assertion="hedged")]
+        item["assertion_strength"] = "definite"
+    with pytest.raises(OrchestrationValidationError, match="findings based only on hedged"):
+        validate_result_envelope(result)
