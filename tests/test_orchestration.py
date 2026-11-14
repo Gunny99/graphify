@@ -256,6 +256,68 @@ def test_run_envelope_requires_strict_quality_targets_and_cost_rule():
         validate_run_envelope(bad_hallucination)
 
 
+
+def test_execution_strategy_defaults_to_single_session_and_only_parallelizes_disjoint_work():
+    from graphify.orchestration import choose_execution_strategy
+
+    sequential = choose_execution_strategy(
+        task_type="implementation",
+        independent_workstreams=3,
+        has_dependencies=True,
+        file_write_sets_disjoint=True,
+        estimated_single_cost=1.0,
+        estimated_parallel_total_cost=0.5,
+    )
+    assert sequential["strategy"] == "single_agent"
+
+    single_file = choose_execution_strategy(
+        task_type="implementation",
+        independent_workstreams=1,
+        file_write_sets_disjoint=True,
+        estimated_single_cost=1.0,
+        estimated_parallel_total_cost=0.5,
+    )
+    assert single_file["strategy"] == "single_agent"
+
+    independent = choose_execution_strategy(
+        task_type="implementation",
+        independent_workstreams=3,
+        file_write_sets_disjoint=True,
+        estimated_single_cost=1.0,
+        estimated_parallel_total_cost=0.9,
+        max_parallel_agents=3,
+    )
+    assert independent["strategy"] == "parallel_independent"
+    assert independent["max_parallel_agents"] == 3
+
+    exploration = choose_execution_strategy(
+        task_type="research",
+        independent_workstreams=3,
+        read_only_exploration_needed=True,
+        context_pressure_high=True,
+    )
+    assert exploration["strategy"] == "read_only_exploration"
+    assert exploration["read_only"] is True
+
+
+def test_execution_plan_rejects_overlapping_parallel_write_sets():
+    from graphify.orchestration import validate_execution_plan
+
+    run = {
+        "execution_policy": {
+            "strategy": "parallel_independent",
+            "max_parallel_agents": 2,
+            "write_conflicts_checked": True,
+        }
+    }
+    first = _task("task-1")
+    second = _task("task-2")
+    first["input"]["write_set"] = ["src/a.py"]
+    second["input"]["write_set"] = ["src/a.py"]
+    with pytest.raises(OrchestrationValidationError, match="overlap"):
+        validate_execution_plan(run, [first, second])
+
+
 def test_task_graph_rejects_unknown_dependencies_and_cycles():
     first = _task("task-1")
     second = _task("task-2", ["task-1"])
