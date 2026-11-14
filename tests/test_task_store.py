@@ -855,7 +855,7 @@ def test_parallel_write_sets_reject_normalized_and_ancestor_conflicts(
 
 @pytest.mark.parametrize(
     "unsafe_path",
-    ["../outside.py", "/etc/passwd", r"src\outside.py", "C:/outside.py"],
+    ["../outside.py", "/etc/passwd", r"src\outside.py", "C:/outside.py", "http:outside.py"],
 )
 def test_parallel_write_sets_reject_non_repository_paths(tmp_path, unsafe_path):
     store = TaskStore(tmp_path / "orchestrator.sqlite3")
