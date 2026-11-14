@@ -229,7 +229,7 @@ class TaskStore:
             task["attempt"] = attempt
         if status != "leased":
             task.pop("lease_expires_at", None)
-        if status not in {"leased", "submitted", "needs_review"}:
+        if status not in {"leased", "submitted", "needs_review", "queued"}:
             task.pop("estimated_cost_reserved", None)
         con.execute(
             """
@@ -306,6 +306,7 @@ class TaskStore:
             task = _decode(row["task_json"])
             attempt = int(row["attempt"])
             status = "failed" if attempt >= int(row["max_attempts"]) else "queued"
+            task.pop("estimated_cost_reserved", None)
             self._set_task(con, row, task, status)
             self._event(
                 con,
@@ -448,7 +449,7 @@ class TaskStore:
         """Sum expected costs held by active leases to prevent concurrent overspending."""
         total = 0.0
         rows = con.execute(
-            "SELECT task_json FROM tasks WHERE run_id=? AND status IN ('leased', 'submitted', 'needs_review')",
+            "SELECT task_json FROM tasks WHERE run_id=? AND status IN ('leased', 'submitted', 'needs_review', 'queued')",
             (run_id,),
         ).fetchall()
         for row in rows:
@@ -583,9 +584,11 @@ class TaskStore:
 
                 spent = self._get_actual_cost(con, row["run_id"])
                 reserved = self._get_reserved_cost(con, row["run_id"])
+                own_reserve = float(task.get("estimated_cost_reserved", 0.0))
+                reserved_other = max(0.0, reserved - own_reserve)
                 max_total = float(run["cost_policy"]["max_total"])
                 expected = float(ranked[0]["estimated_total_cost"])
-                if spent + reserved + expected > max_total:
+                if spent + reserved_other + expected > max_total:
                     continue
                 if task.get("cost_budget"):
                     task_budget = task["cost_budget"]
@@ -683,6 +686,95 @@ class TaskStore:
             )
             return expires_at
 
+    def _create_verification_task(
+        self,
+        con: sqlite3.Connection,
+        *,
+        run_id: str,
+        producer_task: Mapping[str, Any],
+        result: Mapping[str, Any],
+        reserved_cost: float,
+    ) -> str:
+        """Create a verifier-only task bound to one immutable result."""
+        verification_id = f"verification::{result['result_id']}"
+        existing = con.execute(
+            "SELECT task_id FROM tasks WHERE task_id=?", (verification_id,)
+        ).fetchone()
+        if existing:
+            return verification_id
+        run_row = con.execute(
+            "SELECT run_json FROM runs WHERE run_id=?", (run_id,)
+        ).fetchone()
+        if run_row is None:
+            raise TaskNotFoundError(f"run not found: {run_id}")
+        run = _decode(run_row["run_json"])
+        now = _utc_now()
+        input_tokens = (
+            int(result["usage"]["input_tokens"])
+            + int(result["usage"]["output_tokens"])
+        )
+        verification_task = {
+            "schema_version": 1,
+            "task_id": verification_id,
+            "run_id": run_id,
+            "parent_task_id": producer_task["task_id"],
+            "task_type": "verification",
+            "role": "verifier",
+            "domain": producer_task["domain"],
+            "objective": "Independently verify every material factual claim and its cited evidence.",
+            "input": {
+                "result_id": result["result_id"],
+                "estimated_input_tokens": max(1, input_tokens),
+                "estimated_output_tokens": 500,
+                "estimated_cached_input_tokens": 0,
+                "excluded_agent_ids": [],
+            },
+            "context_refs": [{"source_type": "result", "result_id": result["result_id"]}],
+            "depends_on": [],
+            "required_capabilities": ["verify"],
+            "output_schema": {"type": "review"},
+            "acceptance_criteria": [
+                "Every material factual/inference claim has a verdict",
+                "Every supported claim has independent source evidence",
+            ],
+            "cost_budget": {
+                "currency": run["cost_policy"]["currency"],
+                "max_total": run["cost_policy"]["max_total"],
+            },
+            "attempt": 0,
+            "max_attempts": 3,
+            "priority": int(producer_task.get("priority", 0)),
+            "status": "queued",
+            "created_at": now,
+            "updated_at": now,
+            "estimated_cost_reserved": max(0.0, float(reserved_cost)),
+        }
+        validate_task_envelope(verification_task)
+        con.execute(
+            """
+            INSERT INTO tasks(task_id, run_id, task_json, status, attempt,
+                              max_attempts, priority, created_at, updated_at)
+            VALUES (?, ?, ?, 'queued', 0, ?, ?, ?, ?)
+            """,
+            (
+                verification_id,
+                run_id,
+                _json(verification_task),
+                verification_task["max_attempts"],
+                verification_task["priority"],
+                now,
+                now,
+            ),
+        )
+        self._event(
+            con,
+            run_id=run_id,
+            task_id=verification_id,
+            event_type="verification_task_created",
+            payload={"result_id": result["result_id"], "reserved_cost": verification_task["estimated_cost_reserved"]},
+        )
+        return verification_id
+
     def submit_result(self, value: Mapping[str, Any], lease_token: str) -> dict[str, Any]:
         """Persist a result for the currently leased attempt; retries are idempotent."""
         result = validate_result_envelope(value)
@@ -748,8 +840,19 @@ class TaskStore:
             if result["status"] == "failed":
                 task["last_failed_result_id"] = result_id
                 task.pop("result_id", None)
+                task.pop("estimated_cost_reserved", None)
             else:
                 task["result_id"] = result_id
+                remaining_reserve = float(task.get("estimated_cost_reserved", 0.0))
+                verification_id = self._create_verification_task(
+                    con,
+                    run_id=row["run_id"],
+                    producer_task=task,
+                    result=result,
+                    reserved_cost=remaining_reserve,
+                )
+                task["verification_task_id"] = verification_id
+                task.pop("estimated_cost_reserved", None)
             self._set_task(con, row, task, new_status)
             self._event(
                 con,
@@ -788,6 +891,7 @@ class TaskStore:
                 else "failed"
             )
             task["last_failure"] = reason
+            task.pop("estimated_cost_reserved", None)
             self._set_task(con, row, task, new_status)
             self._event(
                 con,
