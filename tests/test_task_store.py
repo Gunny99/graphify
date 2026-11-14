@@ -72,16 +72,23 @@ def _agent(
     }
 
 
-def _run(run_id: str = "run-1", *, max_total: float = 5.0) -> dict:
+def _run(
+    run_id: str = "run-1",
+    *,
+    max_total: float = 5.0,
+    strategy: str = "single_with_review",
+    max_parallel_agents: int = 1,
+) -> dict:
     return {
         "schema_version": 1,
         "run_id": run_id,
         "request": "Verify the stated behaviour from primary sources.",
         "status": "queued",
         "execution_policy": {
-            "strategy": "single_with_review",
-            "max_parallel_agents": 1,
-            "read_only": False,
+            "strategy": strategy,
+            "max_parallel_agents": max_parallel_agents,
+            "read_only": strategy == "read_only_exploration",
+            "write_conflicts_checked": strategy == "parallel_independent",
         },
         "quality_policy": {
             "accuracy_target": 0.9901,
@@ -178,13 +185,16 @@ def _result(task_id: str, agent: dict, *, result_id="result-1", attempt=1):
     }
 
 
-def _review(result: dict, verifier: dict, *, review_id="review-1"):
+def _review(
+    result: dict, verifier: dict, *, review_task_id: str, review_id="review-1"
+):
     return {
         "schema_version": 1,
         "review_id": review_id,
         "run_id": result["run_id"],
         "task_id": result["task_id"],
         "result_id": result["result_id"],
+        "review_task_id": review_task_id,
         "reviewer": {
             "agent_id": verifier["agent_id"],
             "provider": verifier["provider"],
@@ -245,7 +255,11 @@ def test_claim_uses_lowest_cost_qualified_agent_and_enforces_dependency(tmp_path
     assert store.get_run_status("run-1")["tasks"][1]["status"] == "queued"
     assert store.claim_task("budget") is None
 
-    reviewed = store.submit_review(_review(result, verifier))
+    verification = store.claim_task("verifier")
+    assert verification is not None
+    assert verification["task_type"] == "verification"
+    review = _review(result, verifier, review_task_id=verification["task_id"])
+    reviewed = store.submit_review(review, verification["lease_token"])
     task_states = {task["task_id"]: task["status"] for task in reviewed["tasks"]}
     assert task_states["task-1"] == "accepted"
     assert task_states["task-2"] == "queued"
@@ -297,12 +311,13 @@ def test_expected_cost_is_reserved_across_concurrent_leases(tmp_path):
         input_cost=0.2, cached_cost=0.02, output_cost=0.5,
     )
     _register(store, expensive)
+    first_task = _task("task-1", estimate=1_000_000)
+    second_task = _task("task-2", estimate=1_000_000)
+    first_task["input"]["write_set"] = ["src/one.py"]
+    second_task["input"]["write_set"] = ["src/two.py"]
     store.create_run(
-        _run(max_total=0.5),
-        [
-            _task("task-1", estimate=1_000_000),
-            _task("task-2", estimate=1_000_000),
-        ],
+        _run(max_total=1.2, strategy="parallel_independent", max_parallel_agents=2),
+        [first_task, second_task],
     )
     first = store.claim_task("agent-1")
     assert first is not None
@@ -317,9 +332,13 @@ def test_independent_queued_tasks_continue_after_another_branch_fails(tmp_path):
     store = TaskStore(tmp_path / "orchestrator.sqlite3")
     agent = _agent("agent-1", "provider", "model", max_concurrency=2)
     _register(store, agent)
+    first_task = _task("failed-branch")
+    second_task = _task("independent-branch")
+    first_task["input"]["write_set"] = ["src/first.py"]
+    second_task["input"]["write_set"] = ["src/second.py"]
     store.create_run(
-        _run(),
-        [_task("failed-branch"), _task("independent-branch")],
+        _run(strategy="parallel_independent", max_parallel_agents=2),
+        [first_task, second_task],
     )
     first = store.claim_task("agent-1")
     assert first is not None
