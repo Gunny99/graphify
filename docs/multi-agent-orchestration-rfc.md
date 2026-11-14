@@ -306,7 +306,7 @@ Each material domain claim must carry:
 - `evidence`: original-source references with `source_id`, `source_type`, repository-relative `uri`, `location`, full source-file `content_hash` (`sha256:<64 hex>), verbatim `excerpt`, bibliographic `edition`, optional `variant`, `source_assertion` (`definite | hedged`), and `source_text_status` (for example, OCR/collation status).
 - `derivation_steps`: required for `evidence_basis=derived`; derived claims use `claim_type=inference`.
 
-`unknown` claims carry no supporting evidence and must remain hedged/unconfirmed. A source author's hedged wording is recorded as `source_assertion=hedged`; it is not a model-generated estimate. The `ziwei_saju` validator rejects `estimated` as an evidence basis because this domain's governing specification does not permit model-invented estimated coefficients or assumptions. A claim supported only by hedged source assertions cannot be upgraded to a definite statement.
+`unknown` claims carry no supporting evidence and must remain hedged/unconfirmed. A source author's hedged wording is recorded as `source_assertion=hedged`; it is not a model-generated estimate. The `ziwei_saju` validator rejects `estimated` as an evidence basis because this domain's governing specification does not permit model-invented estimated coefficients or assumptions. A claim supported only by hedged source assertions cannot be upgraded to a definite statement. A `derived` claim must remain hedged when **any** premise evidence is hedged, even when another cited premise is definite. The result output must identify both the interpretation engine (`engine_hash` or `engine_version`) and the governing rule specification (`spec_hash` or `spec_version`). Do not include raw birth date/time, resident-registration or social-security numbers, or direct personal contact identifiers in the envelope; pass only the minimum redacted inputs needed for reproducibility.
 
 The shared `claim_type` vocabulary already includes `inference`; do not add `hedged` as a claim type because hedging is assertion strength, not claim kind.
 
@@ -314,14 +314,14 @@ The shared `claim_type` vocabulary already includes `inference`; do not add `hed
 
 The domain output uses `interpretation_status=single_frame | convergent | divergent | indeterminate` and an `interpretations[]` collection. Each entry requires a named `frame`, a finding, an `assertion_strength` (`definite | hedged`), and traceable source evidence for determinate outcomes. A finding supported only by hedged source wording must remain hedged; one with no supporting source evidence must also remain hedged. Each interpretation also requires a `claim_id` that points to a material factual/inference claim in the result. The displayed finding must exactly match that claim's statement, and the interpretation's source evidence must overlap the linked claim's evidence. This ensures every user-visible interpretation receives an independent claim-level verdict.
 
-Each interpretation includes a stable `question_id` and a structured `direction`: `auspicious | inauspicious | character | indeterminate`. Every frame in one result envelope must answer the same `question_id`; emit separate question results rather than bundling unrelated questions. Convergence is not literal wording equality; it is agreement on the direction of the same question.
+Each interpretation includes a stable `question_id` and a structured `direction`: `auspicious | inauspicious | character | indeterminate`. A `character` direction must also carry a normalized `trait_key` identifying the specific trait in canonical, trimmed, case-folded form. Every frame in one result envelope must answer the same `question_id`; emit separate question results rather than bundling unrelated questions. Convergence is not literal wording equality: auspicious/inauspicious directions must agree, while character directions must agree on both `direction` and `trait_key`.
 
-- `single_frame`: exactly one named frame produced a determinate finding.
-- `convergent`: at least two distinct named frames answer the same `question_id` with the same determinate `direction`. Their finding text may differ.
-- `divergent`: at least two distinct named frames answer the same `question_id` with different determinate directions, each supported by its own evidence. The output must include `divergence_reason`.
+- `single_frame`: exactly one named frame produced a determinate finding; additional frames may explicitly be indeterminate (no correspondence).
+- `convergent`: at least two distinct named frames answer the same `question_id` with the same determinate direction/trait key. Their finding text may differ. Indeterminate frames may coexist and do not vote on convergence.
+- `divergent`: at least two distinct named frames answer the same `question_id` with different determinate directions or character trait keys, each supported by its own evidence. The output must include `divergence_reason`. Indeterminate frames may coexist without being treated as a contrary finding.
 - `indeterminate`: every frame's direction is `indeterminate`; every finding remains hedged, even when source passages are definite.
 
-For every frame, `assertion_strength` must match the linked claim's `assertion_strength`. The frame's evidence and its linked claim's evidence must either both be absent (only for an `unknown` claim in an indeterminate result) or share at least one identical source-file `content_hash`.
+For every frame, `assertion_strength` must match the linked claim's `assertion_strength`. The frame's evidence and its linked claim's evidence must either both be absent (only for an `unknown` claim in an indeterminate frame) or share at least one identical `(source_id, location, content_hash)` tuple. Since `content_hash` identifies the full source file, the hash alone does not prove that two citations identify the same passage.
 
 Do not aggregate different `question_id` values into one convergent/divergent status. Use separate question results.
 
@@ -334,7 +334,7 @@ Keep three evaluations distinct:
 2. independent scoring of source extraction and condition application;
 3. sealed holdout evaluation of predictions, never exposed to indexing, prompts, or tuning.
 
-The currently described 63 regression cases do not establish the >99% accuracy / <1% hallucination statistical target. The domain quality profile remains `provisional` until an independently labelled, sufficiently large, non-leaking evaluation set establishes the confidence bounds. Report `contradicted`, `insufficient`, and `unreviewed` claims separately. An `insufficient` material claim blocks acceptance but is not automatically labelled a proven hallucination.
+The currently described 63 regression cases do not establish the >99% accuracy / <1% hallucination statistical target. The domain quality profile remains `provisional` until an independently labelled, sufficiently large, non-leaking evaluation set establishes the confidence bounds. Report `contradicted`, `insufficient`, and `unreviewed` claims separately. An `insufficient` material claim blocks acceptance but is not automatically labelled a proven hallucination. The `verification_failure_rate` (contradicted + insufficient + unreviewed over all material claims) is the conservative release gate and must be checked explicitly by `result_meets_quality_gate`.
 
 ## Lease, retry, and idempotency rules
 
@@ -344,6 +344,7 @@ The currently described 63 regression cases do not establish the >99% accuracy /
 - A worker cannot claim a task whose dependencies are incomplete, whose capability set does not match, or whose task budget/deadline has expired.
 - Every automatic retry is bounded by `max_attempts`, task cost budget, and run cost budget. No unbounded self-spawning or recursive delegation.
 - A run is accepted only after all required tasks are accepted and the final quality gate passes.
+- An explicit `rejected` review or a `contradicted` verdict is terminal rejection. An `insufficient` verdict is unresolved evidence, not proof of contradiction: keep the source task `needs_review` and the run `provisional` when no eligible independent verifier remains. Requeue only when a different fresh, eligible verifier is available and the attempt budget remains.
 
 ## Initial MCP contract
 

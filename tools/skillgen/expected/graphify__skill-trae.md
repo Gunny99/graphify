@@ -124,7 +124,7 @@ from graphify.detect import detect
 from pathlib import Path
 from graphify.paths import out_path
 from graphify.watch import _read_build_excludes, _read_build_gitignore
-INPUT_PATH = Path('graphify-out/.graphify_root').read_text(encoding=\"utf-8-sig\").strip()
+INPUT_PATH = (out / '.graphify_root').read_text(encoding=\"utf-8-sig\").strip()
 result = detect(Path(INPUT_PATH), extra_excludes=_read_build_excludes(out_path()), gitignore=_read_build_gitignore(out_path()))
 # Write the sidecar from Python, not a shell redirect, so the same block renders
 # on PowerShell hosts without console-encoding drift (#2528).
@@ -239,7 +239,17 @@ import json
 from graphify.cache import check_semantic_cache
 from pathlib import Path
 
-detect = json.loads(Path('graphify-out/.graphify_detect.json').read_text(encoding=\"utf-8\"))
+project_root = Path.cwd().resolve()
+out = Path('graphify-out')
+if out.is_symlink():
+    raise SystemExit("Refusing to use symlinked graphify-out")
+if not out.exists():
+    raise SystemExit("graphify-out is missing; rerun Step 1")
+out = out.resolve(strict=True)
+if out.parent != project_root:
+    raise SystemExit("graphify-out resolves outside the project root")
+
+detect = json.loads((out / '.graphify_detect.json').read_text(encoding=\"utf-8\"))
 # Only content files go to semantic extraction. Code is already covered structurally
 # by the AST pass (Part A); flattening every category here makes subagents re-read
 # every source file (#1392). Video is transcribed to a document in Step 2.5 first.
@@ -251,13 +261,18 @@ cached_nodes, cached_edges, cached_hyperedges, uncached = check_semantic_cache(a
 # Always (re)write the cache file: write hits, else DELETE any leftover from a prior
 # run so Part C never merges a stale .graphify_cached.json (#1392).
 if cached_nodes or cached_edges or cached_hyperedges:
-    Path('graphify-out/.graphify_cached.json').write_text(json.dumps({'nodes': cached_nodes, 'edges': cached_edges, 'hyperedges': cached_hyperedges}, ensure_ascii=False), encoding=\"utf-8\")
+    (out / '.graphify_cached.json').write_text(json.dumps({'nodes': cached_nodes, 'edges': cached_edges, 'hyperedges': cached_hyperedges}, ensure_ascii=False), encoding=\"utf-8\")
 else:
-    Path('graphify-out/.graphify_cached.json').unlink(missing_ok=True)
-Path('graphify-out/.graphify_uncached.txt').write_text('\n'.join(uncached), encoding=\"utf-8\")
+    (out / '.graphify_cached.json').unlink(missing_ok=True)
+(out / '.graphify_uncached.txt').write_text('\n'.join(uncached), encoding=\"utf-8\")
 # Nothing has been dispatched yet, so any chunk file on disk is a leftover from an
 # interrupted run, and Step B3 merges every .graphify_chunk_*.json it finds.
-for stale in Path('graphify-out').glob('.graphify_chunk_*.json'):
+for stale in out.glob('.graphify_chunk_*.json'):
+    if stale.is_symlink():
+        stale.unlink(missing_ok=True)  # unlink only the link itself
+        continue
+    if not stale.is_file():
+        raise SystemExit(f"Refusing to remove non-regular chunk path: {stale.name}")
     stale.unlink()
 print(f'Cache: {len(all_files)-len(uncached)} files hit, {len(uncached)} files need extraction')
 "
@@ -294,7 +309,8 @@ Each subagent writes its result to its own `graphify-out/.graphify_chunk_NN.json
 CHUNK_PATH must be an **absolute** path — derive it before dispatching:
 ```bash
 PROJECT_ROOT=$(pwd)  # cwd — where Part C globs graphify-out/ (NOT .graphify_root/scan dir, #1392)
-# Then for chunk N: CHUNK_PATH="${PROJECT_ROOT}/graphify-out/.graphify_chunk_0N.json"
+CHUNK_NUM=1  # replace with the actual chunk number
+CHUNK_PATH="${PROJECT_ROOT}/graphify-out/.graphify_chunk_$(printf '%02d' "$CHUNK_NUM").json"
 ```
 
 Subagent prompt template:
@@ -314,10 +330,20 @@ If same-run retry is supported and appropriate, re-dispatch the affected chunk w
 ```bash
 $(cat graphify-out/.graphify_python) -c "
 import json
+import os
+import stat
 from pathlib import Path
 
 EXPECTED_CHUNKS = EXPECTED_CHUNKS
+project_root = Path.cwd().resolve()
 out = Path('graphify-out')
+if out.is_symlink():
+    raise SystemExit("Refusing to use symlinked graphify-out")
+if not out.exists():
+    raise SystemExit("graphify-out is missing; rerun Step 1")
+out = out.resolve(strict=True)
+if out.parent != project_root:
+    raise SystemExit("graphify-out resolves outside the project root")
 expected_names = {
     f'.graphify_chunk_{number:02d}.json'
     for number in range(1, EXPECTED_CHUNKS + 1)
@@ -328,16 +354,27 @@ valid = []
 for path in sorted(out.glob('.graphify_chunk_*.json')):
     if path.name not in expected_names:
         print(f'WARNING: removing unexpected chunk file {path.name}')
-        path.unlink(missing_ok=True)
+        if path.is_symlink() or path.is_file():
+            path.unlink(missing_ok=True)
+        else:
+            raise SystemExit(f"Refusing to remove non-regular chunk path: {path.name}")
 
 for number in range(1, EXPECTED_CHUNKS + 1):
     name = f'.graphify_chunk_{number:02d}.json'
     path = out / name
+    if path.is_symlink():
+        path.unlink(missing_ok=True)
+        failed.append((name, 'symlink not allowed'))
+        continue
     if not path.is_file():
-        failed.append((name, 'missing'))
+        failed.append((name, 'missing or not a regular file'))
         continue
     try:
-        data = json.loads(path.read_text(encoding=\"utf-8\"))
+        descriptor = os.open(path, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
+        with os.fdopen(descriptor, "r", encoding="utf-8") as stream:
+            if not stat.S_ISREG(os.fstat(stream.fileno()).st_mode):
+                raise ValueError("chunk must be a regular file")
+            data = json.load(stream)
         if not isinstance(data, dict):
             raise ValueError('root must be a JSON object')
         for field in ('nodes', 'edges'):
@@ -827,6 +864,25 @@ The graph is the map. Your job after the pipeline is to be the guide.
 Before running any subcommand below (`--update`, `--cluster-only`, `query`, `path`, `explain`, `add`), check that `.graphify_python` exists. If it's missing (e.g. user deleted `graphify-out/`), re-resolve the interpreter first:
 
 ```bash
+PROJECT_ROOT=$(pwd -P) || exit 1
+if [ -L graphify-out ]; then
+    printf '%s\n' 'Refusing to use symlinked graphify-out' >&2
+    exit 1
+fi
+if [ -e graphify-out ] && [ ! -d graphify-out ]; then
+    printf '%s\n' 'graphify-out exists but is not a directory' >&2
+    exit 1
+fi
+mkdir -p graphify-out
+GRAPHIFY_OUT=$(cd graphify-out && pwd -P) || exit 1
+if [ "$GRAPHIFY_OUT" != "$PROJECT_ROOT/graphify-out" ]; then
+    printf '%s\n' 'graphify-out resolves outside the project root' >&2
+    exit 1
+fi
+if [ -L graphify-out/.graphify_python ]; then
+    printf '%s\n' 'Refusing to read a symlinked Python interpreter marker' >&2
+    exit 1
+fi
 if [ ! -f graphify-out/.graphify_python ]; then
     GRAPHIFY_BIN=$(which graphify 2>/dev/null)
     if [ -n "$GRAPHIFY_BIN" ]; then

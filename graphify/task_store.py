@@ -16,6 +16,9 @@ import time
 from pathlib import Path
 from typing import Any, Iterator, Mapping, Sequence
 
+AGENT_HEARTBEAT_TTL_SECONDS = 120
+
+
 from graphify.orchestration import (
     OrchestrationValidationError,
     estimate_end_to_end_cost,
@@ -302,7 +305,7 @@ class TaskStore:
     def _reap_expired_leases(self, con: sqlite3.Connection, now_epoch: float) -> None:
         rows = con.execute(
             """
-            SELECT task_id, run_id, task_json, attempt, max_attempts
+            SELECT task_id, run_id, task_json, attempt, max_attempts, lease_owner
             FROM tasks
             WHERE status='leased' AND lease_expires_at <= ?
             """,
@@ -313,6 +316,10 @@ class TaskStore:
             task = _decode(row["task_json"])
             attempt = int(row["attempt"])
             status = "failed" if attempt >= int(row["max_attempts"]) else "queued"
+            if row["lease_owner"] and status == "queued":
+                failed_agents = set(task["input"].get("failed_agent_ids", []))
+                failed_agents.add(str(row["lease_owner"]))
+                task["input"]["failed_agent_ids"] = sorted(failed_agents)
             task.pop("estimated_cost_reserved", None)
             self._set_task(con, row, task, status)
             self._event(
@@ -396,6 +403,7 @@ class TaskStore:
             supplied = _token_hash(auth_token)
             if not stored or not secrets.compare_digest(stored, supplied):
                 raise TaskLeaseError("agent authentication failed")
+            con.execute("UPDATE agents SET updated_at=? WHERE agent_id=?", (_utc_now(), agent_id))
             return {
                 "agent_id": profile["agent_id"],
                 "provider": profile["provider"],
@@ -559,6 +567,10 @@ class TaskStore:
             agent = validate_agent_profile(_decode(agent_row["profile_json"]))
             if agent["status"] != "active":
                 return None
+            con.execute("UPDATE agents SET updated_at=? WHERE agent_id=?", (_utc_now(), agent_id))
+            fresh_after = datetime.fromtimestamp(
+                now_epoch - AGENT_HEARTBEAT_TTL_SECONDS, timezone.utc
+            ).isoformat()
             active_count = con.execute(
                 "SELECT COUNT(*) FROM tasks WHERE lease_owner=? AND status='leased'",
                 (agent_id,),
@@ -622,7 +634,12 @@ class TaskStore:
                         continue
                 if task["input"].get("read_only") is True and "read_only" not in agent["capabilities"]:
                     continue
+                task_scopes = set(task["data_scopes"])
+                agent_scopes = set(agent["allowed_data_scopes"])
+                if "*" not in agent_scopes and not task_scopes.issubset(agent_scopes):
+                    continue
                 excluded = set(task["input"].get("excluded_agent_ids", []))
+                failed_agents = set(task["input"].get("failed_agent_ids", []))
                 if agent_id in excluded:
                     continue
                 if task["task_type"] == "verification" and "verify" not in agent["capabilities"]:
@@ -631,12 +648,18 @@ class TaskStore:
                 # Re-rank currently available agents so polling order cannot make
                 # a more expensive qualified model steal work from a cheaper one.
                 available_agents: list[dict[str, Any]] = []
+                previously_failed_agents: list[dict[str, Any]] = []
                 agent_rows = con.execute(
-                    "SELECT agent_id, profile_json FROM agents WHERE status='active'"
+                    "SELECT agent_id, profile_json FROM agents "
+                    "WHERE status='active' AND updated_at >= ?",
+                    (fresh_after,),
                 ).fetchall()
                 for other_row in agent_rows:
                     other = validate_agent_profile(_decode(other_row["profile_json"]))
                     if not set(task["required_capabilities"]).issubset(set(other["capabilities"])):
+                        continue
+                    other_scopes = set(other["allowed_data_scopes"])
+                    if "*" not in other_scopes and not task_scopes.issubset(other_scopes):
                         continue
                     if (
                         execution["strategy"] in {"single_agent", "single_with_review"}
@@ -656,7 +679,10 @@ class TaskStore:
                         (other["agent_id"],),
                     ).fetchone()[0]
                     if leased < other["max_concurrency"]:
-                        available_agents.append(other)
+                        if other["agent_id"] in failed_agents:
+                            previously_failed_agents.append(other)
+                        else:
+                            available_agents.append(other)
                 ranked = rank_qualified_agents(
                     available_agents,
                     role=task["role"],
@@ -668,6 +694,18 @@ class TaskStore:
                     accuracy_target=run["quality_policy"]["accuracy_target"],
                     hallucination_max=run["quality_policy"]["hallucination_max"],
                 )
+                if not ranked and previously_failed_agents:
+                    ranked = rank_qualified_agents(
+                        available_agents + previously_failed_agents,
+                        role=task["role"],
+                        domain=task["domain"],
+                        currency=run["cost_policy"]["currency"],
+                        estimated_input_tokens=task["input"].get("estimated_input_tokens", 0),
+                        estimated_output_tokens=task["input"].get("estimated_output_tokens", 0),
+                        estimated_cached_input_tokens=task["input"].get("estimated_cached_input_tokens", 0),
+                        accuracy_target=run["quality_policy"]["accuracy_target"],
+                        hallucination_max=run["quality_policy"]["hallucination_max"],
+                    )
                 if not ranked or ranked[0]["agent_id"] != agent_id:
                     continue
 
@@ -677,13 +715,35 @@ class TaskStore:
                 reserved_other = max(0.0, reserved - own_reserve)
                 max_total = float(run["cost_policy"]["max_total"])
                 expected = float(ranked[0]["estimated_total_cost"])
+                if spent + expected > max_total:
+                    task["last_failure"] = "run_cost_budget_exceeded"
+                    self._set_task(con, row, task, "failed")
+                    self._event(
+                        con, run_id=row["run_id"], task_id=row["task_id"],
+                        event_type="task_budget_exceeded",
+                        payload={"reason": task["last_failure"], "expected_cost": expected, "spent": spent},
+                    )
+                    self._refresh_run_status(con, row["run_id"])
+                    continue
                 if spent + reserved_other + expected > max_total:
+                    # Another active lease may release its reserve; keep this task queued.
                     continue
                 if task.get("cost_budget"):
                     task_budget = task["cost_budget"]
                     if task_budget["currency"] != run["cost_policy"]["currency"]:
-                        continue
-                    if expected > float(task_budget["max_total"]):
+                        task["last_failure"] = "task_cost_budget_currency_mismatch"
+                    elif expected > float(task_budget["max_total"]):
+                        task["last_failure"] = "task_cost_budget_exceeded"
+                    else:
+                        task.pop("last_failure", None)
+                    if task.get("last_failure"):
+                        self._set_task(con, row, task, "failed")
+                        self._event(
+                            con, run_id=row["run_id"], task_id=row["task_id"],
+                            event_type="task_budget_exceeded",
+                            payload={"reason": task["last_failure"], "expected_cost": expected},
+                        )
+                        self._refresh_run_status(con, row["run_id"])
                         continue
 
                 next_attempt = int(row["attempt"]) + 1
@@ -818,6 +878,7 @@ class TaskStore:
             "task_id": verification_id,
             "run_id": run_id,
             "parent_task_id": producer_task["task_id"],
+            "data_scopes": list(producer_task["data_scopes"]),
             "task_type": "verification",
             "role": "verifier",
             "domain": producer_task["domain"],
@@ -944,14 +1005,22 @@ class TaskStore:
             if result["status"] == "failed":
                 new_status = "queued" if int(row["attempt"]) < int(row["max_attempts"]) else "failed"
                 task["last_failed_result_id"] = result_id
+                if new_status == "queued":
+                    failed_agents = set(task["input"].get("failed_agent_ids", []))
+                    failed_agents.add(agent_id)
+                    task["input"]["failed_agent_ids"] = sorted(failed_agents)
                 task.pop("result_id", None)
             else:
                 material_claims = [
                     claim for claim in result["claims"]
                     if claim["material"] and claim["claim_type"] in {"factual", "inference"}
                 ]
-                requires_review = bool(material_claims) or task["input"].get("requires_code_review") is True
-                run_policy = _decode(run_row["run_json"])["execution_policy"]
+                run_policy = run["execution_policy"]
+                requires_review = (
+                    bool(material_claims)
+                    or task["input"].get("requires_code_review") is True
+                    or run_policy["strategy"] == "single_with_review"
+                )
                 if requires_review and run_policy["strategy"] not in {
                     "single_with_review", "read_only_exploration", "parallel_independent"
                 }:
@@ -1016,6 +1085,10 @@ class TaskStore:
                 else "failed"
             )
             task["last_failure"] = reason
+            if new_status == "queued":
+                failed_agents = set(task["input"].get("failed_agent_ids", []))
+                failed_agents.add(agent_id)
+                task["input"]["failed_agent_ids"] = sorted(failed_agents)
             task.pop("estimated_cost_reserved", None)
             self._set_task(con, row, task, new_status)
             self._event(
@@ -1200,19 +1273,59 @@ class TaskStore:
                 excluded = set(review_task["input"].get("excluded_agent_ids", []))
                 excluded.add(reviewer_id)
                 review_task["input"]["excluded_agent_ids"] = sorted(excluded)
-                attempts_left = int(review_task_row["attempt"]) < int(review_task_row["max_attempts"])
                 review_task["last_review_id"] = review_id
-                if attempts_left:
+                verdicts = {item["verdict"] for item in review["claims"]}
+                explicit_rejection = review["status"] == "rejected" or "contradicted" in verdicts
+                attempts_left = int(review_task_row["attempt"]) < int(review_task_row["max_attempts"])
+                available_verifiers: list[dict[str, Any]] = []
+                if attempts_left and not explicit_rejection:
+                    fresh_after = datetime.fromtimestamp(
+                        time.time() - AGENT_HEARTBEAT_TTL_SECONDS, timezone.utc
+                    ).isoformat()
+                    candidate_rows = con.execute(
+                        "SELECT agent_id, profile_json FROM agents "
+                        "WHERE status='active' AND updated_at >= ?",
+                        (fresh_after,),
+                    ).fetchall()
+                    task_scopes = set(review_task["data_scopes"])
+                    for candidate_row in candidate_rows:
+                        candidate = validate_agent_profile(_decode(candidate_row["profile_json"]))
+                        if candidate["agent_id"] in excluded:
+                            continue
+                        if not set(review_task["required_capabilities"]).issubset(set(candidate["capabilities"])):
+                            continue
+                        candidate_scopes = set(candidate["allowed_data_scopes"])
+                        if "*" not in candidate_scopes and not task_scopes.issubset(candidate_scopes):
+                            continue
+                        leased = con.execute(
+                            "SELECT COUNT(*) FROM tasks WHERE lease_owner=? AND status='leased'",
+                            (candidate["agent_id"],),
+                        ).fetchone()[0]
+                        if leased < candidate["max_concurrency"]:
+                            available_verifiers.append(candidate)
+                ranked_verifiers = rank_qualified_agents(
+                    available_verifiers,
+                    role=review_task["role"],
+                    domain=review_task["domain"],
+                    currency=run["cost_policy"]["currency"],
+                    estimated_input_tokens=review_task["input"].get("estimated_input_tokens", 0),
+                    estimated_output_tokens=review_task["input"].get("estimated_output_tokens", 0),
+                    estimated_cached_input_tokens=review_task["input"].get("estimated_cached_input_tokens", 0),
+                    accuracy_target=run["quality_policy"]["accuracy_target"],
+                    hallucination_max=run["quality_policy"]["hallucination_max"],
+                )
+                if explicit_rejection:
+                    self._set_task(con, review_task_row, review_task, "accepted")
+                    source_task["review_id"] = review_id
+                    self._set_task(con, task_row, source_task, "rejected")
+                elif attempts_left and ranked_verifiers:
                     self._set_task(con, review_task_row, review_task, "queued")
-                    source_task["status"] = "needs_review"
                     source_task["review_id"] = review_id
                     self._set_task(con, task_row, source_task, "needs_review")
                 else:
-                    self._set_task(con, review_task_row, review_task, "failed")
-                    verdicts = {item["verdict"] for item in review["claims"]}
-                    terminal = "rejected" if verdicts.intersection({"contradicted", "insufficient"}) else "needs_review"
+                    self._set_task(con, review_task_row, review_task, "accepted")
                     source_task["review_id"] = review_id
-                    self._set_task(con, task_row, source_task, terminal)
+                    self._set_task(con, task_row, source_task, "needs_review")
 
             self._refresh_run_status(con, task_row["run_id"])
             return self._run_status_in_transaction(con, task_row["run_id"])

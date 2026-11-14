@@ -17,7 +17,10 @@ Each subagent receives this exact prompt (substitute FILE_LIST, CHUNK_NUM, TOTAL
 CHUNK_PATH must be an **absolute** path — derive it before dispatching:
 ```powershell
 $PROJECT_ROOT = (Get-Location).Path  # cwd — where Part C globs graphify-out\ (NOT .graphify_root/scan dir, #1392)
-# Then for chunk N: $CHUNK_PATH = Join-Path $PROJECT_ROOT "graphify-out\.graphify_chunk_0N.json"
+# Set CHUNK_NUM to the integer assigned in Step B1 (1, 2, ...).
+$CHUNK_NUM = 1  # replace with the actual chunk number
+$CHUNK_NAME = ".graphify_chunk_{0:D2}.json" -f $CHUNK_NUM
+$CHUNK_PATH = Join-Path $PROJECT_ROOT "graphify-out\$CHUNK_NAME"
 ```
 
 Subagent prompt template:

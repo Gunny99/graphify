@@ -71,6 +71,24 @@ Only when the path is one or more `https://github.com/...` URLs, or several loca
 
 ```powershell
 # Detect Python with graphify — uv/pipx-aware (fixes #831)
+$projectRoot = (Resolve-Path .).Path
+$outItem = Get-Item graphify-out -Force -ErrorAction SilentlyContinue
+if ($outItem -and (($outItem.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0)) {
+    throw "Refusing to use reparse-point graphify-out"
+}
+if ($outItem -and -not $outItem.PSIsContainer) {
+    throw "graphify-out exists but is not a directory"
+}
+if (-not $outItem) { New-Item -ItemType Directory -Path graphify-out | Out-Null }
+$resolvedOut = (Resolve-Path graphify-out).Path
+$expectedOut = [IO.Path]::GetFullPath((Join-Path $projectRoot 'graphify-out'))
+if ([IO.Path]::GetFullPath($resolvedOut) -ne $expectedOut) {
+    throw "graphify-out resolves outside the project root"
+}
+$pythonMarker = Get-Item graphify-out\.graphify_python -Force -ErrorAction SilentlyContinue
+if ($pythonMarker -and (($pythonMarker.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0)) {
+    throw "Refusing to read a reparse-point Python interpreter marker"
+}
 New-Item -ItemType Directory -Force -Path graphify-out | Out-Null
 $GRAPHIFY_PYTHON = $null
 
@@ -273,19 +291,33 @@ detect = json.loads(Path('graphify-out/.graphify_detect.json').read_text(encodin
 # every source file (#1392). Video is transcribed to a document in Step 2.5 first.
 all_files = [f for cat in ('document', 'paper', 'image') for f in detect['files'].get(cat, [])]
 
-INPUT_PATH = Path('graphify-out/.graphify_root').read_text(encoding="utf-8-sig").strip()
+project_root = Path.cwd().resolve()
+out = Path('graphify-out')
+if out.is_symlink():
+    raise SystemExit("Refusing to use symlinked graphify-out")
+if not out.exists():
+    raise SystemExit("graphify-out is missing; rerun Step 1")
+out = out.resolve(strict=True)
+if out.parent != project_root:
+    raise SystemExit("graphify-out resolves outside the project root")
+INPUT_PATH = (out / '.graphify_root').read_text(encoding="utf-8-sig").strip()
 cached_nodes, cached_edges, cached_hyperedges, uncached = check_semantic_cache(all_files, root=INPUT_PATH, prompt_file='SPEC_PATH')
 
 # Always (re)write the cache file: write hits, else DELETE any leftover from a prior
 # run so Part C never merges a stale .graphify_cached.json (#1392).
 if cached_nodes or cached_edges or cached_hyperedges:
-    Path('graphify-out/.graphify_cached.json').write_text(json.dumps({'nodes': cached_nodes, 'edges': cached_edges, 'hyperedges': cached_hyperedges}, ensure_ascii=False), encoding="utf-8")
+    (out / '.graphify_cached.json').write_text(json.dumps({'nodes': cached_nodes, 'edges': cached_edges, 'hyperedges': cached_hyperedges}, ensure_ascii=False), encoding="utf-8")
 else:
-    Path('graphify-out/.graphify_cached.json').unlink(missing_ok=True)
-Path('graphify-out/.graphify_uncached.txt').write_text('\n'.join(uncached), encoding="utf-8")
+    (out / '.graphify_cached.json').unlink(missing_ok=True)
+(out / '.graphify_uncached.txt').write_text('\n'.join(uncached), encoding="utf-8")
 # Nothing has been dispatched yet, so any chunk file on disk is a leftover from an
 # interrupted run, and Step B3 merges every .graphify_chunk_*.json it finds.
-for stale in Path('graphify-out').glob('.graphify_chunk_*.json'):
+for stale in out.glob('.graphify_chunk_*.json'):
+    if stale.is_symlink():
+        stale.unlink(missing_ok=True)
+        continue
+    if not stale.is_file():
+        raise SystemExit(f"Refusing to remove non-regular chunk path: {stale.name}")
     stale.unlink()
 print(f'Cache: {len(all_files)-len(uncached)} files hit, {len(uncached)} files need extraction')
 '@ | & (Get-Content graphify-out\.graphify_python) -
@@ -324,7 +356,10 @@ Each subagent receives this exact prompt (substitute FILE_LIST, CHUNK_NUM, TOTAL
 CHUNK_PATH must be an **absolute** path — derive it before dispatching:
 ```powershell
 $PROJECT_ROOT = (Get-Location).Path  # cwd — where Part C globs graphify-out\ (NOT .graphify_root/scan dir, #1392)
-# Then for chunk N: $CHUNK_PATH = Join-Path $PROJECT_ROOT "graphify-out\.graphify_chunk_0N.json"
+# Set CHUNK_NUM to the integer assigned in Step B1 (1, 2, ...).
+$CHUNK_NUM = 1  # replace with the actual chunk number
+$CHUNK_NAME = ".graphify_chunk_{0:D2}.json" -f $CHUNK_NUM
+$CHUNK_PATH = Join-Path $PROJECT_ROOT "graphify-out\$CHUNK_NAME"
 ```
 
 Subagent prompt template:
@@ -344,10 +379,20 @@ If same-run retry is supported and appropriate, re-dispatch the affected chunk w
 ```powershell
 @'
 import json
+import os
+import stat
 from pathlib import Path
 
 EXPECTED_CHUNKS = EXPECTED_CHUNKS
+project_root = Path.cwd().resolve()
 out = Path('graphify-out')
+if out.is_symlink():
+    raise SystemExit("Refusing to use symlinked graphify-out")
+if not out.exists():
+    raise SystemExit("graphify-out is missing; rerun Step 1")
+out = out.resolve(strict=True)
+if out.parent != project_root:
+    raise SystemExit("graphify-out resolves outside the project root")
 expected_names = {
     f'.graphify_chunk_{number:02d}.json'
     for number in range(1, EXPECTED_CHUNKS + 1)
@@ -358,16 +403,27 @@ valid = []
 for path in sorted(out.glob('.graphify_chunk_*.json')):
     if path.name not in expected_names:
         print(f'WARNING: removing unexpected chunk file {path.name}')
-        path.unlink(missing_ok=True)
+        if path.is_symlink() or path.is_file():
+            path.unlink(missing_ok=True)
+        else:
+            raise SystemExit(f"Refusing to remove non-regular chunk path: {path.name}")
 
 for number in range(1, EXPECTED_CHUNKS + 1):
     name = f'.graphify_chunk_{number:02d}.json'
     path = out / name
+    if path.is_symlink():
+        path.unlink(missing_ok=True)
+        failed.append((name, 'symlink not allowed'))
+        continue
     if not path.is_file():
-        failed.append((name, 'missing'))
+        failed.append((name, 'missing or not a regular file'))
         continue
     try:
-        data = json.loads(path.read_text(encoding="utf-8"))
+        descriptor = os.open(path, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
+        with os.fdopen(descriptor, "r", encoding="utf-8") as stream:
+            if not stat.S_ISREG(os.fstat(stream.fileno()).st_mode):
+                raise ValueError("chunk must be a regular file")
+            data = json.load(stream)
         if not isinstance(data, dict):
             raise ValueError('root must be a JSON object')
         for field in ('nodes', 'edges'):
@@ -857,6 +913,24 @@ The graph is the map. Your job after the pipeline is to be the guide.
 Before running any subcommand below (`--update`, `--cluster-only`, `query`, `path`, `explain`, `add`), check that `.graphify_python` exists. If it's missing (e.g. user deleted `graphify-out/`), re-resolve the interpreter first:
 
 ```powershell
+$projectRoot = (Resolve-Path .).Path
+$outItem = Get-Item graphify-out -Force -ErrorAction SilentlyContinue
+if ($outItem -and (($outItem.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0)) {
+    throw "Refusing to use reparse-point graphify-out"
+}
+if ($outItem -and -not $outItem.PSIsContainer) {
+    throw "graphify-out exists but is not a directory"
+}
+if (-not $outItem) { New-Item -ItemType Directory -Path graphify-out | Out-Null }
+$resolvedOut = (Resolve-Path graphify-out).Path
+$expectedOut = [IO.Path]::GetFullPath((Join-Path $projectRoot 'graphify-out'))
+if ([IO.Path]::GetFullPath($resolvedOut) -ne $expectedOut) {
+    throw "graphify-out resolves outside the project root"
+}
+$pythonMarker = Get-Item graphify-out\.graphify_python -Force -ErrorAction SilentlyContinue
+if ($pythonMarker -and (($pythonMarker.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0)) {
+    throw "Refusing to read a reparse-point Python interpreter marker"
+}
 if (-not (Test-Path graphify-out\.graphify_python)) {
     $GRAPHIFY_PYTHON = $null
     $graphifyCmd = Get-Command graphify -ErrorAction SilentlyContinue

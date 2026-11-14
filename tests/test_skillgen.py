@@ -1505,3 +1505,42 @@ def test_step4_skill_honors_force_flag_on_shrink(tmp_path, capsys, monkeypatch):
     assert len(persisted5["nodes"]) == 10
     assert persisted5["nodes"][0]["community_name"] == "Test Community"
 
+
+
+def test_chunk_dispatch_paths_use_two_digit_chunk_numbers():
+    for fragment in (
+        "dispatch/agent-tool-disk.md",
+        "dispatch/task-tool-disk.md",
+        "dispatch/task-tool-disk-trae.md",
+        "dispatch/pi-subagents.md",
+        "dispatch/manual-paste.md",
+    ):
+        body = gen._read_fragment(fragment)
+        assert "printf '%02d'" in body
+        assert ".graphify_chunk_0N.json" not in body
+
+    powershell = gen._read_fragment("dispatch/agent-tool-disk-powershell.md")
+    assert '"{0:D2}" -f $CHUNK_NUM' in powershell
+    assert ".graphify_chunk_0N.json" not in powershell
+
+
+def test_shared_chunk_pipeline_rejects_symlinked_paths():
+    core = gen._read_fragment("core/core.md")
+    posix_guard = gen._read_fragment("shell/interpreter-guard-posix.md")
+    powershell_guard = gen._read_fragment("shell/interpreter-guard-powershell.md")
+    assert "out.is_symlink()" in core
+    assert "path.is_symlink()" in core
+    assert "O_NOFOLLOW" in core
+    assert "[ -L graphify-out ]" in posix_guard
+    assert "FileAttributes]::ReparsePoint" in powershell_guard
+
+
+def test_retry_hints_name_host_specific_writers():
+    assert "opencode-mention" in gen._WRITER_AGENT
+    assert "manual-paste" in gen._WRITER_AGENT
+    opencode, _ = _platform_artifacts("opencode")
+    vscode, _ = _platform_artifacts("vscode")
+    assert "OpenCode `@agent` worker" in opencode
+    assert "manually dispatched worker" in vscode
+    assert 'subagent_type="general-purpose"' not in opencode
+    assert 'subagent_type="general-purpose"' not in vscode

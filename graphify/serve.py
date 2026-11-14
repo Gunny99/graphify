@@ -3197,7 +3197,6 @@ def _build_server(graph_path: str):
                         "lease_token": {"type": "string"},
                         "reason": {"type": "string"},
                         "retryable": {"type": "boolean", "default": True},
-                        "coordinator_token": {"type": "string"},
                     },
                     "required": ["task_id", "agent_id", "agent_token", "lease_token", "reason"],
                 },
@@ -3219,8 +3218,11 @@ def _build_server(graph_path: str):
                 description="Cancel pending work and invalidate active leases for a run.",
                 inputSchema={
                     "type": "object",
-                    "properties": {"run_id": {"type": "string"}},
-                    "required": ["run_id"],
+                    "properties": {
+                        "run_id": {"type": "string"},
+                        "coordinator_token": {"type": "string"},
+                    },
+                    "required": ["run_id", "coordinator_token"],
                 },
             ),
         ]
@@ -3586,6 +3588,7 @@ def _build_server(graph_path: str):
         )
 
     def _tool_orchestrator_get_run_status(arguments: dict) -> str:
+        _require_orchestration_coordinator(arguments)
         return _orchestration_json(_orchestration_store().get_run_status(arguments["run_id"]))
 
     def _tool_orchestrator_cancel_run(arguments: dict) -> str:

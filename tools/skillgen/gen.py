@@ -547,6 +547,8 @@ _DEFAULT_WRITER_AGENT = ("general-purpose agent", '`subagent_type="general-purpo
 _WRITER_AGENT = {
     "pi-subagents": ("the `delegate` agent", "the `delegate` agent"),
     "codex-agenttask": ("the Codex `worker` agent", '`agent_type="worker"`'),
+    "opencode-mention": ("an OpenCode `@agent` worker", "the worker's own absolute `CHUNK_PATH`"),
+    "manual-paste": ("a manually dispatched worker", "the worker's chunk-specific absolute `CHUNK_PATH`"),
 }
 
 

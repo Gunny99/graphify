@@ -844,3 +844,31 @@ def test_ziwei_linked_source_hash_comparison_is_case_insensitive():
 
     assert validate_result_envelope(result) is result
 
+
+
+def test_ziwei_unknown_indeterminate_claim_can_be_reviewed_as_insufficient():
+    result = _ziwei_result()
+    claim = result["claims"][0]
+    claim.update({
+        "evidence_basis": "unknown",
+        "assertion_strength": "hedged",
+        "statement": "The available source does not establish this interpretation.",
+        "evidence": [],
+    })
+    result["claims"] = [claim]
+    result["output"]["interpretation_status"] = "indeterminate"
+    result["output"]["interpretations"] = [{
+        "frame": "structure_reading",
+        "question_id": "q:interpretive-outcome",
+        "direction": "indeterminate",
+        "finding": claim["statement"],
+        "claim_id": claim["claim_id"],
+        "assertion_strength": "hedged",
+        "evidence": [],
+    }]
+    result["output"].pop("divergence_reason", None)
+    result["evidence"] = []
+
+    review = _review(verdict="insufficient", status="needs_review")
+    review["claims"][0]["claim_id"] = claim["claim_id"]
+    assert validate_review_envelope(review, result) is review

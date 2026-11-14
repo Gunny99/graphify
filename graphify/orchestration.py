@@ -781,9 +781,17 @@ def validate_result_envelope(value: Any) -> Mapping[str, Any]:
             raise OrchestrationValidationError(f"{path}.material must be a boolean")
         evidence = _objects(claim.get("evidence"), f"{path}.evidence")
         for evidence_index, item in enumerate(evidence):
-            _validate_evidence_ref(item, f"{path}.evidence[{evidence_index}]")
+            evidence_path = f"{path}.evidence[{evidence_index}]"
+            if output.get("domain") == "ziwei_saju":
+                _validate_ziwei_evidence_ref(item, evidence_path)
+            else:
+                _validate_evidence_ref(item, evidence_path)
     for index, evidence in enumerate(_objects(result.get("evidence"), "result.evidence")):
-        _validate_evidence_ref(evidence, f"result.evidence[{index}]")
+        evidence_path = f"result.evidence[{index}]"
+        if output.get("domain") == "ziwei_saju":
+            _validate_ziwei_evidence_ref(evidence, evidence_path)
+        else:
+            _validate_evidence_ref(evidence, evidence_path)
     if output.get("domain") == "ziwei_saju":
         validate_ziwei_saju_result(output, claims)
     _strings(result.get("uncertainties"), "result.uncertainties")
@@ -848,9 +856,30 @@ def validate_review_envelope(value: Any, result: Mapping[str, Any]) -> Mapping[s
             )
         evidence = _objects(claim_review.get("evidence"), f"{path}.evidence")
         for evidence_index, item in enumerate(evidence):
-            _validate_evidence_ref(item, f"{path}.evidence[{evidence_index}]")
-        if claim_review.get("verdict") == "supported" and not evidence:
-            raise OrchestrationValidationError(f"{path}: supported verdict requires verifier evidence")
+            evidence_path = f"{path}.evidence[{evidence_index}]"
+            if result["output"].get("domain") == "ziwei_saju":
+                _validate_ziwei_evidence_ref(item, evidence_path)
+            else:
+                _validate_evidence_ref(item, evidence_path)
+        if claim_review.get("verdict") == "supported":
+            if not evidence:
+                raise OrchestrationValidationError(f"{path}: supported verdict requires verifier evidence")
+            if result["output"].get("domain") == "ziwei_saju":
+                original_evidence = submitted[claim_id].get("evidence", [])
+                original_keys = {
+                    _ziwei_evidence_identity(item)
+                    for item in original_evidence
+                    if isinstance(item, Mapping)
+                }
+                review_keys = {
+                    _ziwei_evidence_identity(item)
+                    for item in evidence
+                    if isinstance(item, Mapping)
+                }
+                if not original_keys.intersection(review_keys):
+                    raise OrchestrationValidationError(
+                        f"{path}: supported verdict evidence must overlap the claim's original source, location, and file hash"
+                    )
     for claim_id, claim in submitted.items():
         if claim.get("material") and claim.get("claim_type") in {"factual", "inference"} and claim_id not in seen:
             raise OrchestrationValidationError(f"material claim {claim_id} has no independent review verdict")
@@ -1012,6 +1041,10 @@ def result_meets_quality_gate(
         and (
             metrics["hallucination_rate"] is None
             or metrics["hallucination_rate"] < hallucination_max
+        )
+        and (
+            metrics["verification_failure_rate"] is None
+            or metrics["verification_failure_rate"] < hallucination_max
         )
     )
 

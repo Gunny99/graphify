@@ -8,8 +8,9 @@ For each chunk of uncached files (20-25 per chunk), resolve a unique absolute ou
 
 ```bash
 PROJECT_ROOT=$(pwd)  # cwd — where Step B3 runs
-# For chunk N (zero-padded to two digits):
-CHUNK_PATH="${PROJECT_ROOT}/graphify-out/.graphify_chunk_0N.json"
+# Set CHUNK_NUM to the integer assigned in Step B1 (1, 2, ...).
+CHUNK_NUM=1  # replace with the actual chunk number
+CHUNK_PATH="${PROJECT_ROOT}/graphify-out/.graphify_chunk_$(printf '%02d' "$CHUNK_NUM").json"
 ```
 
 Give the subagent the extraction prompt below with FILE_LIST, CHUNK_NUM, TOTAL_CHUNKS, DEEP_MODE, and that chunk's CHUNK_PATH substituted. When it returns, paste its JSON response and write it to the same chunk file so Step B3 can collect it:
