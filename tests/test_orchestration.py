@@ -1058,7 +1058,9 @@ def test_ziwei_nonmaterial_claims_may_omit_domain_evidence_metadata():
         "statement": "This note is retained for context only.",
         "claim_type": "opinion",
         "material": False,
-        "evidence": [],
+        # Non-material context may use the shared evidence shape without
+        # being forced through the domain-specific original-text schema.
+        "evidence": [_evidence()],
     })
     assert validate_result_envelope(result) is result
 
