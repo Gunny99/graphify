@@ -6,7 +6,8 @@ Before dispatching, resolve the project working directory — the directory cont
 
 ```bash
 # Set CHUNK_NUM to the integer assigned in Step B1 (1, 2, ...).
-CHUNK_PATH="$(python -c 'import sys; from pathlib import Path; root=Path.cwd().resolve(); out=root / "graphify-out"; assert not out.is_symlink(), "graphify-out must not be a symlink"; out.mkdir(exist_ok=True); out=out.resolve(strict=True); assert out.parent == root, "graphify-out resolves outside the project root"; number=int(sys.argv[1]); assert number > 0, "chunk number must be positive"; target=out / f".graphify_chunk_{number:02d}.json"; assert not target.is_symlink(), "chunk output must not be a symlink"; print(target)' "$CHUNK_NUM")"
+GRAPHIFY_PYTHON="$(cat graphify-out/.graphify_python)"
+CHUNK_PATH="$("$GRAPHIFY_PYTHON" -c 'import sys; from pathlib import Path; root=Path.cwd().resolve(); out=root / "graphify-out"; assert not out.is_symlink(), "graphify-out must not be a symlink"; out.mkdir(exist_ok=True); out=out.resolve(strict=True); assert out.parent == root, "graphify-out resolves outside the project root"; number=int(sys.argv[1]); assert number > 0, "chunk number must be positive"; target=out / f".graphify_chunk_{number:02d}.json"; assert not target.is_symlink(), "chunk output must not be a symlink"; print(target)' "$CHUNK_NUM")"
 ```
 
 Run the command separately for each chunk and substitute that chunk's resulting absolute `CHUNK_PATH` into its worker prompt.
