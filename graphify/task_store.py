@@ -616,6 +616,28 @@ class TaskStore:
             total += float(_decode(row["review_json"])["usage"]["direct_cost"])
         return total
 
+    def _get_task_actual_cost(self, con: sqlite3.Connection, task_id: str) -> float:
+        """Sum actual generation and review costs attributable to one logical task."""
+        total = 0.0
+        result_rows = con.execute(
+            "SELECT result_json FROM results WHERE task_id=?",
+            (task_id,),
+        ).fetchall()
+        for row in result_rows:
+            total += float(_decode(row["result_json"])["usage"]["direct_cost"])
+        review_rows = con.execute(
+            """
+            SELECT rv.review_json
+            FROM reviews rv
+            JOIN results rs ON rs.result_id=rv.result_id
+            WHERE rs.task_id=?
+            """,
+            (task_id,),
+        ).fetchall()
+        for row in review_rows:
+            total += float(_decode(row["review_json"])["usage"]["direct_cost"])
+        return total
+
     def claim_task(self, agent_id: str, *, lease_seconds: int = 300) -> dict[str, Any] | None:
         """Claim the cheapest eligible task lease for this agent, atomically."""
         if not isinstance(lease_seconds, int) or isinstance(lease_seconds, bool) or not 30 <= lease_seconds <= 3600:
@@ -807,7 +829,12 @@ class TaskStore:
                     task_budget = task["cost_budget"]
                     if task_budget["currency"] != run["cost_policy"]["currency"]:
                         task["last_failure"] = "task_cost_budget_currency_mismatch"
-                    elif own_unreported + expected > float(task_budget["max_total"]):
+                    elif (
+                        self._get_task_actual_cost(con, row["task_id"])
+                        + own_unreported
+                        + expected
+                        > float(task_budget["max_total"])
+                    ):
                         task["last_failure"] = "task_cost_budget_exceeded"
                     else:
                         task.pop("last_failure", None)
