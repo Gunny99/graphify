@@ -122,6 +122,7 @@ def _validate_cost_profile(value: Any, path: str) -> Mapping[str, Any]:
     _string(profile.get("currency"), f"{path}.currency")
     for key in (
         "input_cost_per_million_tokens",
+        "cached_input_cost_per_million_tokens",
         "output_cost_per_million_tokens",
         "verification_cost_per_task",
         "expected_retry_cost_per_task",
@@ -221,7 +222,7 @@ def validate_task_graph(tasks: Sequence[Mapping[str, Any]]) -> None:
     if isinstance(tasks, (str, bytes)) or not isinstance(tasks, Sequence):
         raise OrchestrationValidationError("tasks must be a sequence of task objects")
     by_id: dict[str, Mapping[str, Any]] = {}
-    for index, item in enumerate(tasks):
+    for item in tasks:
         task = validate_task_envelope(item)
         task_id = str(task["task_id"])
         if task_id in by_id:
@@ -357,7 +358,7 @@ def compute_claim_metrics(
     review: Mapping[str, Any],
 ) -> dict[str, Any]:
     """Compute claim metrics from review verdicts; never trust agent-supplied percentages."""
-    verdicts = {str(item["claim_id"]): item["verdict"] for item in review["claims"]}
+    review_by_id = {str(item["claim_id"]): item for item in review["claims"]}
     material = [
         claim for claim in result["claims"]
         if claim["material"] and claim["claim_type"] in {"factual", "inference"}
@@ -366,12 +367,12 @@ def compute_claim_metrics(
     counts = {"supported": 0, "contradicted": 0, "insufficient": 0, "unreviewed": 0}
     evidence_count = 0
     for claim in material:
-        verdict = verdicts.get(str(claim["claim_id"]))
-        if verdict is None:
+        reviewed = review_by_id.get(str(claim["claim_id"]))
+        if reviewed is None:
             counts["unreviewed"] += 1
         else:
-            counts[verdict] += 1
-        if claim.get("evidence"):
+            counts[reviewed["verdict"]] += 1
+        if claim.get("evidence") or (reviewed and reviewed.get("evidence")):
             evidence_count += 1
     return {
         "total_material_claims": total,
@@ -402,17 +403,61 @@ def quality_profile_qualifies(
     )
 
 
+
+def result_meets_quality_gate(
+    result: Mapping[str, Any],
+    review: Mapping[str, Any],
+    quality_profile: Mapping[str, Any],
+    *,
+    accuracy_target: float = 0.99,
+    hallucination_max: float = 0.01,
+) -> bool:
+    """Gate a result on independent claim review AND an independently measured model profile."""
+    validate_result_envelope(result)
+    validate_review_envelope(review, result)
+    if review.get("status") != "accepted":
+        return False
+    if not quality_profile_qualifies(
+        quality_profile,
+        accuracy_target=accuracy_target,
+        hallucination_max=hallucination_max,
+    ):
+        return False
+    metrics = compute_claim_metrics(result, review)
+    return (
+        metrics["review_complete"]
+        and metrics["supported_claims"] == metrics["total_material_claims"]
+        and metrics["contradicted_claims"] == 0
+        and metrics["insufficient_claims"] == 0
+        and metrics["evidence_coverage"] == 1.0
+        and (
+            metrics["accuracy"] is None
+            or metrics["accuracy"] > accuracy_target
+        )
+        and (
+            metrics["hallucination_rate"] is None
+            or metrics["hallucination_rate"] < hallucination_max
+        )
+    )
+
 def estimate_end_to_end_cost(
     cost_profile: Mapping[str, Any],
     input_tokens: int,
     output_tokens: int,
+    *,
+    cached_input_tokens: int = 0,
 ) -> float:
     """Estimate generation plus verifier/retry/escalation/orchestration cost."""
     _validate_cost_profile(cost_profile, "cost_profile")
     inputs = _integer(input_tokens, "input_tokens")
     outputs = _integer(output_tokens, "output_tokens")
+    cached = _integer(cached_input_tokens, "cached_input_tokens")
+    if cached > inputs:
+        raise OrchestrationValidationError("cached_input_tokens cannot exceed input_tokens")
+    uncached = inputs - cached
     generation = (
-        inputs * float(cost_profile["input_cost_per_million_tokens"])
+        uncached * float(cost_profile["input_cost_per_million_tokens"])
+        + cached * float(cost_profile["cached_input_cost_per_million_tokens"])
         + outputs * float(cost_profile["output_cost_per_million_tokens"])
     ) / 1_000_000
     return generation + sum(float(cost_profile[key]) for key in (
@@ -431,6 +476,7 @@ def rank_qualified_agents(
     currency: str,
     estimated_input_tokens: int,
     estimated_output_tokens: int,
+    estimated_cached_input_tokens: int = 0,
     accuracy_target: float = 0.99,
     hallucination_max: float = 0.01,
 ) -> list[dict[str, Any]]:
@@ -439,7 +485,7 @@ def rank_qualified_agents(
     _string(domain, "domain")
     _string(currency, "currency")
     ranked: list[dict[str, Any]] = []
-    for index, value in enumerate(agents):
+    for value in agents:
         agent = validate_agent_profile(value)
         if agent["status"] != "active":
             continue
@@ -457,7 +503,10 @@ def rank_qualified_agents(
         if cost_profile["currency"] != currency:
             continue
         total = estimate_end_to_end_cost(
-            cost_profile, estimated_input_tokens, estimated_output_tokens
+            cost_profile,
+            estimated_input_tokens,
+            estimated_output_tokens,
+            cached_input_tokens=estimated_cached_input_tokens,
         )
         ranked.append({
             "agent_id": agent["agent_id"],
