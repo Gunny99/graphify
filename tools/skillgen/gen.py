@@ -544,7 +544,10 @@ def _core_to_powershell(body: str) -> str:
 # Step B3's re-run hints name the agent that can write chunk files. A dispatch
 # variant whose host has no `general-purpose` agent names its own (#4494).
 _DEFAULT_WRITER_AGENT = ("general-purpose agent", '`subagent_type="general-purpose"`')
-_WRITER_AGENT = {"pi-subagents": ("the `delegate` agent", "the `delegate` agent")}
+_WRITER_AGENT = {
+    "pi-subagents": ("the `delegate` agent", "the `delegate` agent"),
+    "codex-agenttask": ("the Codex `worker` agent", '`agent_type="worker"`'),
+}
 
 
 def _render_core(platform: Platform) -> str:
