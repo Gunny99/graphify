@@ -329,6 +329,17 @@ def test_execution_strategy_defaults_to_single_session_and_only_parallelizes_dis
     )
     assert deadline_exploration["strategy"] == "read_only_exploration"
 
+    one_slot_exploration = choose_execution_strategy(
+        task_type="implementation",
+        independent_workstreams=3,
+        read_only_exploration_needed=True,
+        context_pressure_high=True,
+        estimated_single_cost=1.0,
+        estimated_parallel_total_cost=0.9,
+        max_parallel_agents=1,
+    )
+    assert one_slot_exploration["strategy"] == "single_agent"
+
 
 def test_execution_plan_rejects_overlapping_parallel_write_sets():
     from graphify.orchestration import validate_execution_plan
