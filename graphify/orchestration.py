@@ -9,6 +9,7 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from datetime import datetime
 import math
+import re
 from typing import Any
 
 
@@ -419,6 +420,29 @@ def validate_task_graph(tasks: Sequence[Mapping[str, Any]]) -> None:
 
 
 
+def _write_path_parts(value: str, path: str) -> tuple[str, ...]:
+    """Normalize a project-relative write path for overlap checks."""
+    if value != value.strip() or not value:
+        raise OrchestrationValidationError(f"{path} must be a non-empty project-relative path")
+    if value.startswith(("/", "~")) or "\\" in value or re.match(r"^[A-Za-z]:", value):
+        raise OrchestrationValidationError(f"{path} must be a project-relative POSIX path")
+    parts = []
+    for part in value.split("/"):
+        if part in {"", "."}:
+            continue
+        if part == "..":
+            raise OrchestrationValidationError(f"{path} cannot contain a parent path segment")
+        parts.append(part)
+    if not parts:
+        raise OrchestrationValidationError(f"{path} must identify a file or directory")
+    return tuple(parts)
+
+
+def _write_paths_overlap(left: tuple[str, ...], right: tuple[str, ...]) -> bool:
+    shorter, longer = (left, right) if len(left) <= len(right) else (right, left)
+    return longer[:len(shorter)] == shorter
+
+
 def validate_execution_plan(
     run: Mapping[str, Any],
     tasks: Sequence[Mapping[str, Any]],
@@ -465,7 +489,7 @@ def validate_execution_plan(
         return
 
     if strategy == "parallel_independent":
-        seen: set[str] = set()
+        seen: list[tuple[str, tuple[str, ...], str]] = []
         for task in tasks:
             task_input = task["input"]
             if task["depends_on"]:
@@ -481,12 +505,18 @@ def validate_execution_plan(
                 raise OrchestrationValidationError(
                     "parallel implementation tasks require explicit write_set declarations"
                 )
-            overlap = seen.intersection(write_set)
-            if overlap:
-                raise OrchestrationValidationError(
-                    f"parallel task write sets overlap: {sorted(overlap)}"
+            for write_path in write_set:
+                parts = _write_path_parts(
+                    write_path, f"task {task['task_id']}.input.write_set"
                 )
-            seen.update(write_set)
+                for prior_task_id, prior_parts, prior_path in seen:
+                    if _write_paths_overlap(parts, prior_parts):
+                        raise OrchestrationValidationError(
+                            "parallel task write sets overlap after path normalization: "
+                            f"task {task['task_id']} {write_path!r} conflicts with "
+                            f"task {prior_task_id} {prior_path!r}"
+                        )
+                seen.append((str(task["task_id"]), parts, write_path))
         return
 
 def validate_agent_profile(value: Any) -> Mapping[str, Any]:

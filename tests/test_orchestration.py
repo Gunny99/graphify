@@ -360,6 +360,45 @@ def test_execution_plan_rejects_overlapping_parallel_write_sets():
         validate_execution_plan(run, [first, second])
 
 
+@pytest.mark.parametrize(
+    "left,right",
+    [("src/a.py", "./src/a.py"), ("src/", "src/a.py"), ("src//a.py", "src/a.py")],
+)
+def test_execution_plan_normalizes_and_checks_parent_write_paths(left, right):
+    from graphify.orchestration import validate_execution_plan
+
+    run = {
+        "execution_policy": {
+            "strategy": "parallel_independent",
+            "max_parallel_agents": 2,
+            "write_conflicts_checked": True,
+        }
+    }
+    first, second = _task("task-1"), _task("task-2")
+    first["input"]["write_set"] = [left]
+    second["input"]["write_set"] = [right]
+    with pytest.raises(OrchestrationValidationError, match="overlap after path normalization"):
+        validate_execution_plan(run, [first, second])
+
+
+@pytest.mark.parametrize("write_path", ["../secret.txt", "/etc/passwd", "src\\\\file.py"])
+def test_execution_plan_rejects_non_project_relative_write_paths(write_path):
+    from graphify.orchestration import validate_execution_plan
+
+    run = {
+        "execution_policy": {
+            "strategy": "parallel_independent",
+            "max_parallel_agents": 2,
+            "write_conflicts_checked": True,
+        }
+    }
+    first, second = _task("task-1"), _task("task-2")
+    first["input"]["write_set"] = [write_path]
+    second["input"]["write_set"] = ["other/file.py"]
+    with pytest.raises(OrchestrationValidationError, match="project-relative|parent path"):
+        validate_execution_plan(run, [first, second])
+
+
 def test_task_graph_rejects_unknown_dependencies_and_cycles():
     first = _task("task-1")
     second = _task("task-2", ["task-1"])
