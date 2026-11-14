@@ -190,7 +190,21 @@ def validate_task_envelope(value: Any) -> Mapping[str, Any]:
         _string(task.get(key), f"task.{key}")
     if task.get("task_type") not in TASK_TYPES:
         raise OrchestrationValidationError(f"task.task_type must be one of {sorted(TASK_TYPES)}")
-    _object(task.get("input"), "task.input")
+    task_input = _object(task.get("input"), "task.input")
+    for key in (
+        "estimated_input_tokens",
+        "estimated_output_tokens",
+        "estimated_cached_input_tokens",
+    ):
+        if key in task_input:
+            _integer(task_input[key], f"task.input.{key}")
+    if (
+        task_input.get("estimated_cached_input_tokens", 0)
+        > task_input.get("estimated_input_tokens", 0)
+    ):
+        raise OrchestrationValidationError(
+            "estimated_cached_input_tokens cannot exceed estimated_input_tokens"
+        )
     _objects(task.get("context_refs"), "task.context_refs")
     dependencies = _strings(task.get("depends_on"), "task.depends_on")
     if task.get("task_id") in dependencies:
