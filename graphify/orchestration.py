@@ -132,7 +132,7 @@ def _validate_ziwei_evidence_ref(value: Any, path: str) -> Mapping[str, Any]:
     """Validate a traceable original-text citation for the ziwei_saju domain."""
     evidence = _object(value, path)
     for key in ("source_id", "source_type", "uri", "location", "excerpt", "source_text_status"):
-        _string(evidence.get(key), f"{path}.{key}", allow_empty=(key == "excerpt"))
+        _string(evidence.get(key), f"{path}.{key}")
     has_edition = isinstance(evidence.get("edition"), str) and bool(evidence["edition"].strip())
     has_variant = isinstance(evidence.get("variant"), str) and bool(evidence["variant"].strip())
     if not (has_edition or has_variant):
