@@ -186,7 +186,7 @@ def validate_task_envelope(value: Any) -> Mapping[str, Any]:
     """Validate a versioned, independently claimable task."""
     task = _object(value, "task")
     _schema_version(task, "task")
-    for key in ("task_id", "run_id", "role", "objective"):
+    for key in ("task_id", "run_id", "role", "domain", "objective"):
         _string(task.get(key), f"task.{key}")
     if task.get("task_type") not in TASK_TYPES:
         raise OrchestrationValidationError(f"task.task_type must be one of {sorted(TASK_TYPES)}")
