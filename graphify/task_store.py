@@ -330,10 +330,13 @@ class TaskStore:
             status = "queued"
         elif any(status == "submitted" for status in statuses):
             status = "awaiting_review"
+        elif any(status in {"failed", "rejected", "blocked"} for status in statuses):
+            # A terminally failed branch makes full run acceptance impossible.
+            # Keep active/runnable work ahead of this check, but do not let an
+            # unrelated needs_review branch mask an unrecoverable failure.
+            status = "failed"
         elif any(status == "needs_review" for status in statuses):
             status = "provisional"
-        elif any(status in {"failed", "rejected", "blocked"} for status in statuses):
-            status = "failed"
         elif statuses and all(status == "cancelled" for status in statuses):
             status = "cancelled"
         else:

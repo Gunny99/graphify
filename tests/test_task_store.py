@@ -586,6 +586,50 @@ def test_insufficient_review_without_an_alternate_verifier_becomes_provisional(t
     assert status["run"]["status"] == "provisional"
 
 
+def test_terminal_failure_is_not_masked_by_an_unresolved_review(tmp_path):
+    store = TaskStore(tmp_path / "orchestrator.sqlite3")
+    producer = _agent(
+        "producer", "producer-provider", "producer-model", max_concurrency=2
+    )
+    verifier = _agent(
+        "verifier", "verifier-provider", "verifier-model", role="verifier"
+    )
+    _register(store, producer)
+    _register(store, verifier)
+
+    unresolved = _task("unresolved")
+    failed = _task("failed")
+    unresolved["input"]["write_set"] = ["src/unresolved.py"]
+    failed["input"]["write_set"] = ["src/failed.py"]
+    store.create_run(
+        _run(strategy="parallel_independent", max_parallel_agents=2),
+        [unresolved, failed],
+    )
+
+    first = store.claim_task("producer")
+    second = store.claim_task("producer")
+    assert first is not None and first["task_id"] == "unresolved"
+    assert second is not None and second["task_id"] == "failed"
+
+    result = _result("unresolved", producer)
+    store.submit_result(result, first["lease_token"])
+    verification = store.claim_task("verifier")
+    assert verification is not None
+    review = _review(result, verifier, review_task_id=verification["task_id"])
+    review["status"] = "needs_review"
+    review["claims"][0]["verdict"] = "insufficient"
+    store.submit_review(review, verification["lease_token"])
+
+    status = store.fail_task(
+        "failed", "producer", second["lease_token"],
+        "permanent independent-branch failure", retryable=False,
+    )
+    states = {task["task_id"]: task["status"] for task in status["tasks"]}
+    assert states["unresolved"] == "needs_review"
+    assert states["failed"] == "failed"
+    assert status["run"]["status"] == "failed"
+
+
 def test_task_that_cannot_fit_run_budget_is_failed_instead_of_left_queued(tmp_path):
     store = TaskStore(tmp_path / "orchestrator.sqlite3")
     expensive = _agent(
