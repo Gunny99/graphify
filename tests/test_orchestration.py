@@ -535,32 +535,48 @@ def _ziwei_result() -> dict:
             {
                 "frame": "structure_reading",
                 "finding": "The structural frame finds an obstruction.",
+                "claim_id": "ziwei-structure-claim",
                 "assertion_strength": "definite",
                 "evidence": [source],
             },
             {
                 "frame": "decade_triad_frame",
                 "finding": "The decade-triad frame finds a different emphasis.",
+                "claim_id": "ziwei-decade-claim",
                 "assertion_strength": "definite",
                 "evidence": [source],
             },
         ],
         "divergence_reason": "The two named interpretive frames inspect different scopes.",
     }
-    result["claims"] = [{
-        "claim_id": "ziwei-claim-1",
-        "statement": "The output differs by interpretive frame.",
-        "claim_type": "inference",
-        "material": True,
-        "evidence_basis": "derived",
-        "assertion_strength": "definite",
-        "derivation_steps": [
-            "Apply the structural frame to the cited configuration.",
-            "Apply the decade-triad frame to its own stated scope.",
-            "Preserve the distinct findings instead of collapsing them.",
-        ],
-        "evidence": [source],
-    }]
+    result["claims"] = [
+        {
+            "claim_id": "ziwei-structure-claim",
+            "statement": "The structural frame finds an obstruction.",
+            "claim_type": "inference",
+            "material": True,
+            "evidence_basis": "derived",
+            "assertion_strength": "definite",
+            "derivation_steps": [
+                "Apply the structural frame to the cited configuration.",
+                "Trace the resulting obstruction to the cited original passage.",
+            ],
+            "evidence": [source],
+        },
+        {
+            "claim_id": "ziwei-decade-claim",
+            "statement": "The decade-triad frame finds a different emphasis.",
+            "claim_type": "inference",
+            "material": True,
+            "evidence_basis": "derived",
+            "assertion_strength": "definite",
+            "derivation_steps": [
+                "Apply the decade-triad frame to its stated scope.",
+                "Trace the resulting emphasis to the cited original passage.",
+            ],
+            "evidence": [source],
+        },
+    ]
     result["evidence"] = [source]
     return result
 
@@ -625,7 +641,8 @@ def test_ziwei_saju_rejects_divergence_without_distinct_named_frames_or_reason()
         validate_result_envelope(result)
 
     result = _ziwei_result()
-    result["output"]["interpretations"][1]["finding"] = result["output"]["interpretations"][0]["finding"]
+    result["claims"][1]["statement"] = result["claims"][0]["statement"]
+    result["output"]["interpretations"][1]["finding"] = result["claims"][1]["statement"]
     with pytest.raises(OrchestrationValidationError, match="distinct frame findings"):
         validate_result_envelope(result)
 
@@ -635,14 +652,19 @@ def test_ziwei_unknown_claim_cannot_be_marked_supported():
     result["claims"][0].update({
         "evidence_basis": "unknown",
         "assertion_strength": "hedged",
+        "statement": "The available source does not establish this interpretation.",
         "evidence": [],
     })
+    result["output"]["interpretations"][0]["finding"] = result["claims"][0]["statement"]
     result["output"]["interpretation_status"] = "indeterminate"
+    result["output"]["interpretations"] = result["output"]["interpretations"][:1]
     for interpretation in result["output"]["interpretations"]:
         interpretation["evidence"] = []
         interpretation["assertion_strength"] = "hedged"
+    result["claims"] = result["claims"][:1]
+    result["output"]["interpretations"] = result["output"]["interpretations"][:1]
     review = _review()
-    review["claims"][0]["claim_id"] = "ziwei-claim-1"
+    review["claims"][0]["claim_id"] = "ziwei-structure-claim"
     with pytest.raises(OrchestrationValidationError, match="unknown ziwei_saju"):
         validate_review_envelope(review, result)
 
@@ -662,14 +684,14 @@ def test_ziwei_saju_supports_single_frame_and_requires_true_convergence():
     result["output"]["interpretation_status"] = "single_frame"
     result["output"]["interpretations"] = result["output"]["interpretations"][:1]
     result["output"].pop("divergence_reason")
-    result["claims"] = []
-    result["evidence"] = []
+    result["claims"] = result["claims"][:1]
     assert validate_result_envelope(result) is result
 
     result = _ziwei_result()
     result["output"]["interpretation_status"] = "convergent"
     result["output"]["interpretations"][1]["finding"] = result["output"]["interpretations"][0]["finding"]
-    result["claims"][0]["statement"] = "Both frames produce the same structural finding."
+    result["claims"][1]["statement"] = result["claims"][0]["statement"]
+    result["output"]["interpretations"][1]["finding"] = result["claims"][1]["statement"]
     result["output"].pop("divergence_reason")
     assert validate_result_envelope(result) is result
 
@@ -686,4 +708,17 @@ def test_ziwei_saju_rejects_definite_findings_based_only_on_hedged_sources():
         item["evidence"] = [_ziwei_evidence(assertion="hedged")]
         item["assertion_strength"] = "definite"
     with pytest.raises(OrchestrationValidationError, match="findings based only on hedged"):
+        validate_result_envelope(result)
+
+
+
+def test_ziwei_saju_findings_must_link_to_independently_reviewed_claims():
+    result = _ziwei_result()
+    result["output"]["interpretations"][0].pop("claim_id")
+    with pytest.raises(OrchestrationValidationError, match="claim_id"):
+        validate_result_envelope(result)
+
+    result = _ziwei_result()
+    result["output"]["interpretations"][0]["finding"] = "An extra unreviewed interpretation."
+    with pytest.raises(OrchestrationValidationError, match="must match its independently reviewed claim"):
         validate_result_envelope(result)
