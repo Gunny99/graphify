@@ -1972,7 +1972,66 @@ def _reenter_main() -> None:
 
 
 def dispatch_command(cmd: str) -> None:
-    if cmd == "provider":
+    if cmd == "agent":
+        import json as _json
+        import secrets as _secrets
+        from graphify.task_store import TaskStore, TaskStoreError
+
+        args = sys.argv[2:]
+        subcmd = args[0] if args else ""
+        if subcmd == "register":
+            profile_path = next((arg for arg in args[1:] if not arg.startswith("-")), "")
+            if not profile_path:
+                print("Usage: graphify agent register <trusted-profile.json> [--graph graph.json]", file=sys.stderr)
+                sys.exit(1)
+            graph_path = Path("graphify-out/graph.json")
+            if "--graph" in args[1:]:
+                index = args.index("--graph")
+                if index + 1 >= len(args):
+                    print("Error: --graph requires a path.", file=sys.stderr)
+                    sys.exit(1)
+                graph_path = Path(args[index + 1])
+            try:
+                profile = _json.loads(Path(profile_path).read_text(encoding="utf-8"))
+                if not isinstance(profile, dict):
+                    raise ValueError("profile root must be an object")
+                if "auth_token" in profile or "_auth_token_hash" in profile:
+                    raise ValueError("profile files must not supply auth_token or auth_token_hash")
+                token = _secrets.token_urlsafe(36)
+                profile["auth_token"] = token
+                store = TaskStore(Path(graph_path).resolve().parent / "orchestrator.sqlite3")
+                saved = store.register_agent(profile, trusted_profile=True)
+            except (OSError, ValueError, TaskStoreError) as exc:
+                print(f"Agent registration failed: {exc}", file=sys.stderr)
+                sys.exit(1)
+            print(f"Registered agent: {saved['agent_id']} ({saved['provider']}/{saved['model']})")
+            print("One-time agent token (copy it into that agent's MCP client config now):")
+            print(token)
+            print("The token is stored only as a hash in the local task database.")
+        elif subcmd == "list":
+            graph_path = Path("graphify-out/graph.json")
+            if "--graph" in args:
+                index = args.index("--graph")
+                if index + 1 >= len(args):
+                    print("Error: --graph requires a path.", file=sys.stderr)
+                    sys.exit(1)
+                graph_path = Path(args[index + 1])
+            store = TaskStore(graph_path.resolve().parent / "orchestrator.sqlite3")
+            for agent in store.list_agents():
+                quality = ", ".join(
+                    f"{item['role']}/{item['domain']}"
+                    for item in agent["quality_profiles"]
+                )
+                print(
+                    f"{agent['agent_id']}  {agent['provider']}/{agent['model']} "
+                    f"[{agent['status']}] capabilities={','.join(agent['capabilities'])} "
+                    f"quality={quality}"
+                )
+        else:
+            print("Usage: graphify agent [register <trusted-profile.json>|list] [--graph graph.json]", file=sys.stderr)
+            sys.exit(1)
+
+    elif cmd == "provider":
         from graphify.llm import _custom_providers_path, BACKENDS
         import json as _json
         subcmd = sys.argv[2] if len(sys.argv) > 2 else ""
