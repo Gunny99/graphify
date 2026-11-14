@@ -15,9 +15,9 @@ After all agents are dispatched, collect results sequentially in memory:
 result = wait_agent(handle); close_agent(handle)   # repeat per handle
 ```
 
-Collect each result in memory and associate it with the chunk number used for dispatch. Validate each response as one JSON object with list-valued `nodes` and `edges`; `hyperedges` may be omitted or a list. Empty lists are valid extraction results.
+Collect each result in memory and associate it with the chunk number used for dispatch. Validate each response as one JSON object with object-valued `nodes` and `edges` lists; `hyperedges` may be omitted or a list of objects; `coverage` must be an object mapping string file paths to nonnegative integer line counts (booleans are not integers for this check); and `input_tokens` and `output_tokens` must be nonnegative integers. Empty `nodes` and `edges` lists are valid extraction results.
 
-Only persist a result after it passes validation. Write each valid result separately to its matching `graphify-out/.graphify_chunk_NN.json` file, using JSON serialization and the trusted chunk number. Preserve its `nodes`, `edges`, `hyperedges`, `input_tokens`, and `output_tokens` values. Read every written file back and verify that it parses and retains the required fields.
+Only persist a result after it passes validation. Write each valid result separately to its matching `graphify-out/.graphify_chunk_NN.json` file, using JSON serialization and the trusted chunk number. Preserve its `nodes`, `edges`, `hyperedges`, `coverage`, `input_tokens`, and `output_tokens` values. Read every written file back and verify that it parses and retains the required fields.
 
 If a subagent fails, returns no result or invalid JSON, or its result cannot be persisted and read back, report the affected chunk number and leave that chunk's expected file absent. Do not invent an empty success result, reuse another chunk's data, or write a partial placeholder. **Continue to shared Step B3 with the valid chunk files**: the common collector applies the same missing/failed-chunk policy on every host, merges completed chunks when within its failure threshold, and leaves omitted files unstamped so the next `--update` can retry them. If the common threshold is exceeded, Step B3 stops before Part C.
 
