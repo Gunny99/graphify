@@ -175,6 +175,12 @@ def validate_ziwei_saju_result(
     if not interpretations:
         raise OrchestrationValidationError("ziwei_saju requires at least one interpretation frame")
 
+    claim_by_id = {
+        str(claim.get("claim_id")): claim
+        for claim in claims
+        if isinstance(claim, Mapping) and isinstance(claim.get("claim_id"), str)
+    }
+    frame_claim_ids: dict[str, str] = {}
     frames: set[str] = set()
     for index, interpretation in enumerate(interpretations):
         path = f"result.output.interpretations[{index}]"
@@ -183,6 +189,12 @@ def validate_ziwei_saju_result(
             raise OrchestrationValidationError(f"duplicate ziwei_saju interpretation frame: {frame}")
         frames.add(frame)
         finding = _string(interpretation.get("finding"), f"{path}.finding")
+        claim_id = _string(interpretation.get("claim_id"), f"{path}.claim_id")
+        if claim_id not in claim_by_id:
+            raise OrchestrationValidationError(
+                f"{path}.claim_id does not reference a result claim"
+            )
+        frame_claim_ids[frame] = claim_id
         assertion_strength = interpretation.get("assertion_strength")
         if assertion_strength not in ZIWEI_SOURCE_ASSERTIONS:
             raise OrchestrationValidationError(
@@ -281,6 +293,36 @@ def validate_ziwei_saju_result(
         ):
             raise OrchestrationValidationError(
                 f"{path}: claims based only on hedged source assertions must remain hedged"
+            )
+
+    # The user-visible finding must be the exact claim that receives an
+    # independent verdict. This prevents unreviewed prose from being smuggled
+    # alongside otherwise verified claims.
+    for interpretation in interpretations:
+        frame = str(interpretation["frame"])
+        claim_id = frame_claim_ids[frame]
+        claim = claim_by_id[claim_id]
+        if claim.get("material") is not True or claim.get("claim_type") not in {"factual", "inference"}:
+            raise OrchestrationValidationError(
+                f"interpretation frame {frame!r} must reference a material factual/inference claim"
+            )
+        if str(interpretation["finding"]).strip() != str(claim.get("statement", "")).strip():
+            raise OrchestrationValidationError(
+                f"interpretation frame {frame!r} finding must match its independently reviewed claim statement"
+            )
+        finding_hashes = {
+            item.get("content_hash")
+            for item in interpretation.get("evidence", [])
+            if isinstance(item, Mapping)
+        }
+        claim_hashes = {
+            item.get("content_hash")
+            for item in claim.get("evidence", [])
+            if isinstance(item, Mapping)
+        }
+        if finding_hashes and not finding_hashes.intersection(claim_hashes):
+            raise OrchestrationValidationError(
+                f"interpretation frame {frame!r} evidence must overlap its linked claim evidence"
             )
     return output
 
