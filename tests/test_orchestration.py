@@ -534,6 +534,8 @@ def _ziwei_result() -> dict:
         "interpretations": [
             {
                 "frame": "structure_reading",
+                "question_id": "q:interpretive-outcome",
+                "direction": "inauspicious",
                 "finding": "The structural frame finds an obstruction.",
                 "claim_id": "ziwei-structure-claim",
                 "assertion_strength": "definite",
@@ -541,6 +543,8 @@ def _ziwei_result() -> dict:
             },
             {
                 "frame": "decade_triad_frame",
+                "question_id": "q:interpretive-outcome",
+                "direction": "auspicious",
                 "finding": "The decade-triad frame finds a different emphasis.",
                 "claim_id": "ziwei-decade-claim",
                 "assertion_strength": "definite",
@@ -641,9 +645,8 @@ def test_ziwei_saju_rejects_divergence_without_distinct_named_frames_or_reason()
         validate_result_envelope(result)
 
     result = _ziwei_result()
-    result["claims"][1]["statement"] = result["claims"][0]["statement"]
-    result["output"]["interpretations"][1]["finding"] = result["claims"][1]["statement"]
-    with pytest.raises(OrchestrationValidationError, match="distinct frame findings"):
+    result["output"]["interpretations"][1]["direction"] = "inauspicious"
+    with pytest.raises(OrchestrationValidationError, match="disagree on question direction"):
         validate_result_envelope(result)
 
 
@@ -689,16 +692,16 @@ def test_ziwei_saju_supports_single_frame_and_requires_true_convergence():
 
     result = _ziwei_result()
     result["output"]["interpretation_status"] = "convergent"
-    result["output"]["interpretations"][1]["finding"] = result["output"]["interpretations"][0]["finding"]
-    result["claims"][1]["statement"] = result["claims"][0]["statement"]
-    result["output"]["interpretations"][1]["finding"] = result["claims"][1]["statement"]
+    # Different prose may still represent the same direction for the same question.
+    result["output"]["interpretations"][1]["direction"] = "inauspicious"
     result["output"].pop("divergence_reason")
     assert validate_result_envelope(result) is result
 
     result = _ziwei_result()
     result["output"]["interpretation_status"] = "convergent"
+    result["output"]["interpretations"][1]["question_id"] = "q:another-question"
     result["output"].pop("divergence_reason")
-    with pytest.raises(OrchestrationValidationError, match="same frame finding"):
+    with pytest.raises(OrchestrationValidationError, match="same question_id"):
         validate_result_envelope(result)
 
 
@@ -721,4 +724,24 @@ def test_ziwei_saju_findings_must_link_to_independently_reviewed_claims():
     result = _ziwei_result()
     result["output"]["interpretations"][0]["finding"] = "An extra unreviewed interpretation."
     with pytest.raises(OrchestrationValidationError, match="must match its independently reviewed claim"):
+        validate_result_envelope(result)
+
+
+
+def test_ziwei_saju_convergence_uses_question_direction_not_finding_wording():
+    result = _ziwei_result()
+    result["output"]["interpretation_status"] = "convergent"
+    result["output"]["interpretations"][0]["direction"] = "character"
+    result["output"]["interpretations"][1]["direction"] = "character"
+    result["output"].pop("divergence_reason")
+    # The two findings intentionally retain different wording.
+    assert result["output"]["interpretations"][0]["finding"] != result["output"]["interpretations"][1]["finding"]
+    assert validate_result_envelope(result) is result
+
+
+def test_ziwei_saju_divergence_requires_same_question_and_distinct_directions():
+    result = _ziwei_result()
+    result["output"]["interpretations"][1]["direction"] = "inauspicious"
+    result["output"]["interpretations"][1]["question_id"] = "q:another-question"
+    with pytest.raises(OrchestrationValidationError, match="same question_id"):
         validate_result_envelope(result)
