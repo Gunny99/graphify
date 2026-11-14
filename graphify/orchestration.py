@@ -133,6 +133,18 @@ def _validate_ziwei_evidence_ref(value: Any, path: str) -> Mapping[str, Any]:
     evidence = _object(value, path)
     for key in ("source_id", "source_type", "uri", "location", "excerpt", "source_text_status"):
         _string(evidence.get(key), f"{path}.{key}")
+    uri = str(evidence["uri"])
+    if (
+        uri != uri.strip()
+        or uri.startswith(("/", "~"))
+        or "\\" in uri
+        or "://" in uri
+        or re.match(r"^[A-Za-z][A-Za-z0-9+.-]*:", uri) is not None
+        or any(part in {"", ".", ".."} for part in uri.split("/"))
+    ):
+        raise OrchestrationValidationError(
+            f"{path}.uri must be a repository-relative POSIX path without schemes, roots, or dot segments"
+        )
     has_edition = isinstance(evidence.get("edition"), str) and bool(evidence["edition"].strip())
     has_variant = isinstance(evidence.get("variant"), str) and bool(evidence["variant"].strip())
     if not (has_edition or has_variant):
@@ -230,6 +242,7 @@ def validate_ziwei_saju_result(
         if isinstance(claim, Mapping) and isinstance(claim.get("claim_id"), str)
     }
     frame_claim_ids: dict[str, str] = {}
+    claimed_frame_ids: set[str] = set()
     frames: set[str] = set()
     question_ids: set[str] = set()
     directions: set[str] = set()
@@ -270,6 +283,11 @@ def validate_ziwei_saju_result(
             raise OrchestrationValidationError(
                 f"{path}.claim_id does not reference a result claim"
             )
+        if claim_id in claimed_frame_ids:
+            raise OrchestrationValidationError(
+                f"{path}.claim_id must be unique to its interpretation frame"
+            )
+        claimed_frame_ids.add(claim_id)
         frame_claim_ids[frame] = claim_id
         assertion_strength = interpretation.get("assertion_strength")
         if assertion_strength not in ZIWEI_SOURCE_ASSERTIONS:
@@ -358,11 +376,25 @@ def validate_ziwei_saju_result(
                 raise OrchestrationValidationError(
                     f"{path}: unknown evidence_basis cannot contain supporting evidence"
                 )
+            if "derivation_steps" in claim:
+                raise OrchestrationValidationError(
+                    f"{path}: unknown evidence_basis cannot include derivation_steps"
+                )
             if assertion_strength != "hedged":
                 raise OrchestrationValidationError(
                     f"{path}: unknown evidence_basis must be hedged, not stated as definite"
                 )
             continue
+
+        if basis == "explicit_source":
+            if claim.get("claim_type") != "factual":
+                raise OrchestrationValidationError(
+                    f"{path}: explicit_source claims must use claim_type='factual'"
+                )
+            if "derivation_steps" in claim:
+                raise OrchestrationValidationError(
+                    f"{path}: explicit_source claims cannot include derivation_steps"
+                )
 
         if not evidence:
             raise OrchestrationValidationError(
@@ -382,9 +414,6 @@ def validate_ziwei_saju_result(
                 raise OrchestrationValidationError(
                     f"{path}: derived claims must use claim_type='inference'"
                 )
-        elif "derivation_steps" in claim:
-            _strings(claim["derivation_steps"], f"{path}.derivation_steps")
-
         # A hedged statement in every cited source cannot be strengthened into
         # a definite claim merely by paraphrasing it.
         must_remain_hedged = (
@@ -752,6 +781,10 @@ def validate_execution_plan(
     if strategy in {"single_agent", "single_with_review"}:
         if max_workers != 1:
             raise OrchestrationValidationError("single-session strategies require one worker slot")
+        if len(tasks) != 1:
+            raise OrchestrationValidationError(
+                f"{strategy} requires exactly one main work task"
+            )
         return
 
     if not 2 <= len(tasks) <= max_workers:

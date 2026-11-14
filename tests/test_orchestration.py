@@ -983,3 +983,68 @@ def test_ziwei_envelope_rejects_raw_birth_and_direct_personal_fields():
     result["claims"][0]["private"] = {"resident_registration_number": "000000-0000000"}
     with pytest.raises(OrchestrationValidationError, match="prohibited raw personal-data"):
         validate_result_envelope(result)
+
+
+
+def test_ziwei_frames_cannot_reuse_one_reviewed_claim():
+    result = _ziwei_result()
+    result["output"]["interpretations"][1]["claim_id"] = "ziwei-structure-claim"
+    result["output"]["interpretations"][1]["finding"] = result["claims"][0]["statement"]
+    result["claims"] = result["claims"][:1]
+    with pytest.raises(OrchestrationValidationError, match="claim_id must be unique"):
+        validate_result_envelope(result)
+
+
+@pytest.mark.parametrize(
+    "uri",
+    [
+        "https://example.invalid/source.txt",
+        "/etc/passwd",
+        "~/private/source.txt",
+        "../private/source.txt",
+        "library/../private/source.txt",
+        "./source.txt",
+        r"library\\private\\source.txt",
+        "C:/private/source.txt",
+    ],
+)
+def test_ziwei_source_uri_must_be_repository_relative(uri):
+    result = _ziwei_result()
+    result["claims"][0]["evidence"][0]["uri"] = uri
+    with pytest.raises(OrchestrationValidationError, match="repository-relative POSIX path"):
+        validate_result_envelope(result)
+
+
+def test_ziwei_explicit_source_claims_are_factual_and_not_derived():
+    result = _ziwei_result()
+    claim = result["claims"][0]
+    claim["evidence_basis"] = "explicit_source"
+    claim["claim_type"] = "factual"
+    claim.pop("derivation_steps")
+    assert validate_result_envelope(result) is result
+
+    result = _ziwei_result()
+    claim = result["claims"][0]
+    claim["evidence_basis"] = "explicit_source"
+    claim.pop("derivation_steps")
+    with pytest.raises(OrchestrationValidationError, match="claim_type='factual'"):
+        validate_result_envelope(result)
+
+    result = _ziwei_result()
+    claim = result["claims"][0]
+    claim["evidence_basis"] = "explicit_source"
+    claim["claim_type"] = "factual"
+    claim["derivation_steps"] = []
+    with pytest.raises(OrchestrationValidationError, match="cannot include derivation_steps"):
+        validate_result_envelope(result)
+
+
+def test_ziwei_unknown_claim_cannot_claim_derivation_steps():
+    result = _ziwei_result()
+    claim = result["claims"][0]
+    claim["evidence_basis"] = "unknown"
+    claim["assertion_strength"] = "hedged"
+    claim["evidence"] = []
+    claim["derivation_steps"] = ["Unsupported derivation"]
+    with pytest.raises(OrchestrationValidationError, match="unknown evidence_basis cannot include"):
+        validate_result_envelope(result)

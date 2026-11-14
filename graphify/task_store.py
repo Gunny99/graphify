@@ -260,6 +260,38 @@ class TaskStore:
             ),
         )
 
+    def _mark_verification_parent_needs_review(
+        self,
+        con: sqlite3.Connection,
+        verification_task: Mapping[str, Any],
+        reason: str,
+    ) -> None:
+        """Keep an unverified source result provisional when verification ends."""
+        parent_task_id = verification_task.get("parent_task_id")
+        if not isinstance(parent_task_id, str) or not parent_task_id:
+            return
+        parent_row = con.execute(
+            "SELECT * FROM tasks WHERE task_id=?", (parent_task_id,)
+        ).fetchone()
+        if parent_row is None or parent_row["status"] not in {"submitted", "needs_review"}:
+            return
+        parent_task = _decode(parent_row["task_json"])
+        parent_task["verification_failure"] = {
+            "verification_task_id": verification_task.get("task_id"),
+            "reason": reason,
+        }
+        self._set_task(con, parent_row, parent_task, "needs_review")
+        self._event(
+            con,
+            run_id=parent_row["run_id"],
+            task_id=parent_task_id,
+            event_type="verification_unavailable",
+            payload={
+                "verification_task_id": verification_task.get("task_id"),
+                "reason": reason,
+            },
+        )
+
     def _refresh_run_status(self, con: sqlite3.Connection, run_id: str) -> str:
         row = con.execute(
             "SELECT run_json FROM runs WHERE run_id=?", (run_id,)
@@ -272,18 +304,30 @@ class TaskStore:
         actual_cost = self._get_actual_cost(con, run_id)
         reserved_cost = self._get_reserved_cost(con, run_id)
         max_total = float(run["cost_policy"]["max_total"])
-        statuses = [
-            item["status"]
-            for item in con.execute("SELECT status FROM tasks WHERE run_id=?", (run_id,))
-        ]
+        task_rows = con.execute(
+            "SELECT task_id, task_json, status FROM tasks WHERE run_id=?", (run_id,)
+        ).fetchall()
+        statuses = [item["status"] for item in task_rows]
+        status_by_task = {item["task_id"]: item["status"] for item in task_rows}
+        has_runnable_queued = any(
+            item["status"] == "queued"
+            and all(
+                status_by_task.get(dependency) == "accepted"
+                for dependency in _decode(item["task_json"]).get("depends_on", [])
+            )
+            for item in task_rows
+        )
         if actual_cost + reserved_cost > max_total:
             status = "failed"
             run["failure_reason"] = "run_cost_budget_exceeded"
         elif statuses and all(status == "accepted" for status in statuses):
             status = "accepted"
-        elif any(status in {"queued", "leased"} for status in statuses):
-            # Keep independent branches running even when another branch has failed.
-            status = "running" if any(item == "leased" for item in statuses) else "queued"
+        elif any(item == "leased" for item in statuses):
+            status = "running"
+        elif has_runnable_queued:
+            # Keep eligible independent branches running while unresolved
+            # dependencies remain visible as submitted/needs_review.
+            status = "queued"
         elif any(status == "submitted" for status in statuses):
             status = "awaiting_review"
         elif any(status == "needs_review" for status in statuses):
@@ -322,6 +366,10 @@ class TaskStore:
                 task["input"]["failed_agent_ids"] = sorted(failed_agents)
             task.pop("estimated_cost_reserved", None)
             self._set_task(con, row, task, status)
+            if status == "failed" and task.get("task_type") == "verification":
+                self._mark_verification_parent_needs_review(
+                    con, task, "verification lease expired after all attempts"
+                )
             self._event(
                 con,
                 run_id=row["run_id"],
@@ -1091,6 +1139,8 @@ class TaskStore:
                 task["input"]["failed_agent_ids"] = sorted(failed_agents)
             task.pop("estimated_cost_reserved", None)
             self._set_task(con, row, task, new_status)
+            if new_status == "failed" and task.get("task_type") == "verification":
+                self._mark_verification_parent_needs_review(con, task, reason)
             self._event(
                 con,
                 run_id=row["run_id"],
