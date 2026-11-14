@@ -777,12 +777,25 @@ def rank_qualified_agents(
     estimated_cached_input_tokens: int = 0,
     accuracy_target: float = 0.99,
     hallucination_max: float = 0.01,
+    quality_equivalence_tolerance: float = 0.001,
 ) -> list[dict[str, Any]]:
-    """Rank only qualified agents by expected full-task cost, cheapest first."""
+    """Choose the cheapest model only inside a measured same-quality cohort.
+
+    Candidates must meet the strict run threshold and be evaluated on the same
+    benchmark/evaluation set/evaluator version. The chosen candidate must also
+    be within the explicit non-inferiority tolerance of the cohort's best
+    accuracy lower bound and best hallucination upper bound.
+    """
     _string(role, "role")
     _string(domain, "domain")
     _string(currency, "currency")
-    ranked: list[dict[str, Any]] = []
+    tolerance = _number(
+        quality_equivalence_tolerance,
+        "quality_equivalence_tolerance",
+        minimum=0.0,
+        maximum=0.01,
+    )
+    qualified: list[dict[str, Any]] = []
     for value in agents:
         agent = validate_agent_profile(value)
         if agent["status"] != "active":
@@ -800,8 +813,46 @@ def rank_qualified_agents(
         cost_profile = agent["cost_profile"]
         if cost_profile["currency"] != currency:
             continue
+        qualified.append({"agent": agent, "profile": profile, "cost_profile": cost_profile})
+
+    if not qualified:
+        return []
+
+    cohorts: dict[tuple[str, str, str, float], list[dict[str, Any]]] = {}
+    for item in qualified:
+        profile = item["profile"]
+        cohort_key = (
+            profile["benchmark_id"],
+            profile["evaluation_set_hash"],
+            profile["evaluator_version"],
+            float(profile["confidence_level"]),
+        )
+        cohorts.setdefault(cohort_key, []).append(item)
+
+    # Cross-benchmark scores are not directly comparable. Use the largest
+    # common cohort; if only one qualified model is represented, don't pretend
+    # it was compared against models evaluated on a different set.
+    cohort = max(
+        cohorts.values(),
+        key=lambda group: (
+            len(group),
+            sum(int(item["profile"]["sample_size"]) for item in group),
+            max(str(item["profile"]["evaluated_at"]) for item in group),
+        ),
+    )
+    best_accuracy = max(float(item["profile"]["accuracy_lower_bound"]) for item in cohort)
+    best_hallucination = min(float(item["profile"]["hallucination_upper_bound"]) for item in cohort)
+
+    ranked: list[dict[str, Any]] = []
+    for item in cohort:
+        profile = item["profile"]
+        if float(profile["accuracy_lower_bound"]) < best_accuracy - tolerance:
+            continue
+        if float(profile["hallucination_upper_bound"]) > best_hallucination + tolerance:
+            continue
+        agent = item["agent"]
         total = estimate_end_to_end_cost(
-            cost_profile,
+            item["cost_profile"],
             estimated_input_tokens,
             estimated_output_tokens,
             cached_input_tokens=estimated_cached_input_tokens,
