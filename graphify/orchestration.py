@@ -211,6 +211,10 @@ def validate_ziwei_saju_result(
             raise OrchestrationValidationError(
                 f"{path}.assertion_strength must be one of {sorted(ZIWEI_SOURCE_ASSERTIONS)}"
             )
+        if interpretation_status == "indeterminate" and assertion_strength != "hedged":
+            raise OrchestrationValidationError(
+                f"{path}: indeterminate findings must remain hedged"
+            )
         evidence = _objects(interpretation.get("evidence"), f"{path}.evidence")
         if interpretation_status != "indeterminate" and not evidence:
             raise OrchestrationValidationError(
@@ -233,6 +237,12 @@ def validate_ziwei_saju_result(
                 f"{path}: an interpretation without source evidence must remain hedged"
             )
 
+    # A result envelope represents one question; callers must emit separate
+    # envelopes instead of combining unrelated questions under one status.
+    if len(question_ids) != 1:
+        raise OrchestrationValidationError(
+            "all ziwei_saju interpretation frames must answer the same question_id"
+        )
     if interpretation_status == "single_frame" and len(frames) != 1:
         raise OrchestrationValidationError("single_frame requires exactly one interpretation frame")
     if interpretation_status in {"convergent", "divergent"}:
@@ -329,6 +339,10 @@ def validate_ziwei_saju_result(
         frame = str(interpretation["frame"])
         claim_id = frame_claim_ids[frame]
         claim = claim_by_id[claim_id]
+        if interpretation.get("assertion_strength") != claim.get("assertion_strength"):
+            raise OrchestrationValidationError(
+                f"interpretation frame {frame!r} assertion_strength must match its linked claim"
+            )
         if claim.get("material") is not True or claim.get("claim_type") not in {"factual", "inference"}:
             raise OrchestrationValidationError(
                 f"interpretation frame {frame!r} must reference a material factual/inference claim"
@@ -347,7 +361,9 @@ def validate_ziwei_saju_result(
             for item in claim.get("evidence", [])
             if isinstance(item, Mapping)
         }
-        if finding_hashes and not finding_hashes.intersection(claim_hashes):
+        if bool(finding_hashes) != bool(claim_hashes) or (
+            finding_hashes and not finding_hashes.intersection(claim_hashes)
+        ):
             raise OrchestrationValidationError(
                 f"interpretation frame {frame!r} evidence must overlap its linked claim evidence"
             )
