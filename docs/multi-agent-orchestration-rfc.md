@@ -78,6 +78,7 @@ Every task is an independently claimable unit of work.
   "parent_task_id": null,
   "task_type": "research|analysis|implementation|verification|integration",
   "role": "evidence_researcher",
+  "domain": "technical",
   "objective": "Find primary-source support for the specified claims",
   "input": {},
   "context_refs": [],
