@@ -221,6 +221,11 @@ def test_run_envelope_requires_strict_quality_targets_and_cost_rule():
         "run_id": "run-1",
         "request": "Research and verify the API behaviour",
         "status": "queued",
+        "execution_policy": {
+            "strategy": "single_with_review",
+            "max_parallel_agents": 1,
+            "read_only": False,
+        },
         "quality_policy": {
             "accuracy_target": 0.9901,
             "hallucination_max": 0.0099,
