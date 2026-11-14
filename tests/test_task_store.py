@@ -108,14 +108,21 @@ def _run(
     }
 
 
-def _task(task_id: str, run_id: str = "run-1", *, depends_on=None, estimate=1_000):
+def _task(
+    task_id: str,
+    run_id: str = "run-1",
+    *,
+    depends_on=None,
+    estimate=1_000,
+    domain="technical",
+):
     return {
         "schema_version": 1,
         "task_id": task_id,
         "run_id": run_id,
         "task_type": "research",
         "role": "researcher",
-        "domain": "technical",
+        "domain": domain,
         "objective": f"Research {task_id}",
         "input": {
             "question": "What is supported by the source?",
