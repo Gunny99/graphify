@@ -629,6 +629,7 @@ def test_ziwei_unknown_claim_cannot_be_marked_supported():
     for interpretation in result["output"]["interpretations"]:
         interpretation["evidence"] = []
     review = _review()
+    review["claims"][0]["claim_id"] = "ziwei-claim-1"
     with pytest.raises(OrchestrationValidationError, match="unknown ziwei_saju"):
         validate_review_envelope(review, result)
 
