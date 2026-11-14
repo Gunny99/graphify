@@ -341,7 +341,7 @@ def validate_review_envelope(value: Any, result: Mapping[str, Any]) -> Mapping[s
     validate_result_envelope(result)
     review = _object(value, "review")
     _schema_version(review, "review")
-    for key in ("review_id", "run_id", "task_id", "result_id"):
+    for key in ("review_id", "run_id", "task_id", "result_id", "review_task_id"):
         _string(review.get(key), f"review.{key}")
     if (
         review["run_id"] != result["run_id"]
