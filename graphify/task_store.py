@@ -331,8 +331,12 @@ class TaskStore:
             raise TaskStoreError(
                 "agent registration with pricing and quality profiles requires a trusted local operator"
             )
-        profile = validate_agent_profile(value)
+        profile = dict(validate_agent_profile(value))
         agent_id = str(profile["agent_id"])
+        auth_token = profile.pop("auth_token", None)
+        if not isinstance(auth_token, str) or len(auth_token) < 24:
+            raise TaskStoreError("trusted agent registration requires an auth_token of at least 24 characters")
+        profile["_auth_token_hash"] = _token_hash(auth_token)
         now = _utc_now()
         with self._transaction() as con:
             active = con.execute(
@@ -344,7 +348,10 @@ class TaskStore:
             ).fetchone()
             if existing and active:
                 previous = _decode(existing["profile_json"])
-                immutable_keys = ("provider", "model", "model_version", "cost_profile", "quality_profiles")
+                immutable_keys = (
+                    "provider", "model", "model_version", "cost_profile",
+                    "quality_profiles", "_auth_token_hash",
+                )
                 if any(previous[key] != profile[key] for key in immutable_keys):
                     raise TaskStoreError(
                         "cannot change model identity, pricing, or quality profile while this agent owns leases"
@@ -367,6 +374,49 @@ class TaskStore:
                 (agent_id, _json(saved), saved["status"], registered_at, now),
             )
             return saved
+
+    def authenticate_agent(self, agent_id: str, auth_token: str) -> dict[str, Any]:
+        """Authenticate an MCP client against a locally registered agent token."""
+        agent_id = _string(agent_id, "agent_id")
+        auth_token = _string(auth_token, "agent_token")
+        with self._transaction() as con:
+            row = con.execute(
+                "SELECT profile_json FROM agents WHERE agent_id=?", (agent_id,)
+            ).fetchone()
+            if row is None:
+                raise TaskLeaseError("agent authentication failed")
+            profile = _decode(row["profile_json"])
+            stored = str(profile.get("_auth_token_hash") or "")
+            supplied = _token_hash(auth_token)
+            if not stored or not secrets.compare_digest(stored, supplied):
+                raise TaskLeaseError("agent authentication failed")
+            return {
+                "agent_id": profile["agent_id"],
+                "provider": profile["provider"],
+                "model": profile["model"],
+                "model_version": profile["model_version"],
+                "status": profile["status"],
+            }
+
+    def list_agents(self) -> list[dict[str, Any]]:
+        """Return registered agent identities and capability labels, never token hashes."""
+        with self._connect() as con:
+            rows = con.execute(
+                "SELECT profile_json FROM agents ORDER BY agent_id"
+            ).fetchall()
+        result = []
+        for row in rows:
+            profile = _decode(row["profile_json"])
+            result.append({
+                "agent_id": profile["agent_id"],
+                "provider": profile["provider"],
+                "model": profile["model"],
+                "model_version": profile["model_version"],
+                "capabilities": profile["capabilities"],
+                "status": profile["status"],
+                "quality_profiles": profile["quality_profiles"],
+            })
+        return result
 
     def create_run(
         self,
