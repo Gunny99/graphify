@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+
 from datetime import datetime, timezone
 import math
 import pytest
@@ -668,4 +670,201 @@ def test_single_session_strategy_rejects_multiple_main_tasks(tmp_path, strategy)
         store.create_run(
             _run(strategy=strategy),
             [_task("task-1"), _task("task-2")],
+        )
+
+
+
+def test_failed_result_retry_reserves_only_unspent_cost(tmp_path):
+    store = TaskStore(tmp_path / "orchestrator.sqlite3")
+    agent = _agent(
+        "budget-agent", "provider", "model",
+        input_cost=100.0, cached_cost=0.0, output_cost=100.0,
+    )
+    _register(store, agent)
+    task = _task("task-1")
+    task["input"]["estimated_input_tokens"] = 1_000_000
+    task["input"]["estimated_output_tokens"] = 1_000_000
+    task["input"]["estimated_cached_input_tokens"] = 0
+    task["cost_budget"]["max_total"] = 300.0
+    store.create_run(_run(max_total=205.0, strategy="single_agent"), [task])
+
+    claimed = store.claim_task("budget-agent")
+    assert claimed is not None
+    original_reserve = claimed["estimated_cost_reserved"]
+    failed_result = _result("task-1", agent)
+    failed_result["status"] = "failed"
+    failed_result["usage"].update({
+        "input_tokens": 100_000,
+        "output_tokens": 0,
+        "cached_input_tokens": 0,
+    })
+    status = store.submit_result(failed_result, claimed["lease_token"])
+
+    actual = status["total_direct_cost"]
+    reserved = status["reserved_cost"]
+    assert status["tasks"][0]["status"] == "queued"
+    assert status["run"]["status"] == "queued"
+    assert reserved == pytest.approx(max(0.0, original_reserve - actual))
+    assert actual + reserved <= 205.0
+
+
+def test_insufficient_review_retry_reserves_only_unspent_verification_cost(tmp_path):
+    store = TaskStore(tmp_path / "orchestrator.sqlite3")
+    producer = _agent("producer", "producer-provider", "producer-model")
+    verifier1 = _agent(
+        "verifier-1", "verifier-provider-1", "verifier-model-1",
+        role="verifier", input_cost=0.1, cached_cost=0.01, output_cost=0.2,
+    )
+    verifier2 = _agent(
+        "verifier-2", "verifier-provider-2", "verifier-model-2",
+        role="verifier", input_cost=0.2, cached_cost=0.02, output_cost=0.4,
+    )
+    _register(store, producer)
+    _register(store, verifier1)
+    _register(store, verifier2)
+    store.create_run(_run(), [_task("task-1")])
+
+    producer_lease = store.claim_task("producer")
+    assert producer_lease is not None
+    result = _result("task-1", producer)
+    store.submit_result(result, producer_lease["lease_token"])
+
+    verification = store.claim_task("verifier-1")
+    assert verification is not None
+    original_reserve = verification["estimated_cost_reserved"]
+    review = _review(result, verifier1, review_task_id=verification["task_id"])
+    review["status"] = "needs_review"
+    review["claims"][0]["verdict"] = "insufficient"
+    actual_review_cost = TaskStore._generation_cost(verifier1["cost_profile"], review["usage"])
+
+    store.submit_review(review, verification["lease_token"])
+    with store._connect() as con:
+        row = con.execute(
+            "SELECT task_json FROM tasks WHERE task_id=?",
+            (verification["task_id"],),
+        ).fetchone()
+    retry_task = json.loads(row["task_json"])
+    assert retry_task["status"] == "queued"
+    assert retry_task["estimated_cost_reserved"] == pytest.approx(
+        max(0.0, original_reserve - actual_review_cost)
+    )
+
+
+@pytest.mark.parametrize("final_source_status", ["submitted", "needs_review"])
+def test_agent_profile_is_immutable_while_result_awaits_verification(
+    tmp_path, final_source_status
+):
+    store = TaskStore(tmp_path / "orchestrator.sqlite3")
+    producer = _agent("producer", "producer-provider", "producer-model")
+    producer_token = _register(store, producer)
+    verifier = _agent("verifier", "verifier-provider", "verifier-model", role="verifier")
+    _register(store, verifier)
+    store.create_run(_run(), [_task("task-1")])
+
+    claimed = store.claim_task("producer")
+    assert claimed is not None
+    result = _result("task-1", producer)
+    store.submit_result(result, claimed["lease_token"])
+
+    if final_source_status == "needs_review":
+        verification = store.claim_task("verifier")
+        assert verification is not None
+        review = _review(result, verifier, review_task_id=verification["task_id"])
+        review["status"] = "needs_review"
+        review["claims"][0]["verdict"] = "insufficient"
+        status = store.submit_review(review, verification["lease_token"])
+        source = next(item for item in status["tasks"] if item["task_id"] == "task-1")
+        assert source["status"] == "needs_review"
+
+    changed = dict(producer)
+    changed["model_version"] = "2"
+    changed["auth_token"] = producer_token
+    with pytest.raises(TaskStoreError, match="pending verification results"):
+        store.register_agent(changed, trusted_profile=True)
+
+
+
+def test_result_cannot_adopt_an_existing_task_as_its_verification_task(tmp_path):
+    store = TaskStore(tmp_path / "orchestrator.sqlite3")
+    producer = _agent("producer", "producer-provider", "producer-model")
+    _register(store, producer)
+    store.create_run(_run(), [_task("task-1")])
+    claimed = store.claim_task("producer")
+    assert claimed is not None
+    store.create_run(
+        _run("run-2", strategy="single_agent"),
+        [_task("verification::collision", "run-2")],
+    )
+    result = _result("task-1", producer, result_id="collision")
+    with pytest.raises(TaskStoreError, match="verification task ID collision"):
+        store.submit_result(result, claimed["lease_token"])
+    status = store.get_run_status("run-1")
+    assert status["tasks"][0]["status"] == "leased"
+    with store._connect() as con:
+        assert con.execute(
+            "SELECT COUNT(*) FROM results WHERE result_id='collision'"
+        ).fetchone()[0] == 0
+
+
+def test_ziwei_failed_attempt_can_be_submitted_without_interpretation_frames(tmp_path):
+    store = TaskStore(tmp_path / "orchestrator.sqlite3")
+    agent = _agent("ziwei-agent", "provider", "model")
+    agent["quality_profiles"].append(_quality(domain="ziwei_saju"))
+    _register(store, agent)
+    task = _task("ziwei-task", domain="ziwei_saju")
+    store.create_run(_run(strategy="single_agent"), [task])
+    claimed = store.claim_task("ziwei-agent")
+    assert claimed is not None
+    failed_result = _result("ziwei-task", agent)
+    failed_result["status"] = "failed"
+    failed_result["output"] = {
+        "domain": "ziwei_saju",
+        "failure_reason": "source decoding failed",
+    }
+    failed_result["claims"] = []
+    failed_result["evidence"] = []
+    status = store.submit_result(failed_result, claimed["lease_token"])
+    assert status["tasks"][0]["status"] == "queued"
+    assert status["run"]["status"] == "queued"
+
+
+@pytest.mark.parametrize(
+    ("first_path", "second_path"),
+    [
+        ("src/a.py", "./src/a.py"),
+        ("src/a.py", "src//a.py"),
+        ("src/", "src/a.py"),
+        ("src", "src/nested/b.py"),
+        ("src/a.py", "src/a.py/child"),
+    ],
+)
+def test_parallel_write_sets_reject_normalized_and_ancestor_conflicts(
+    tmp_path, first_path, second_path
+):
+    store = TaskStore(tmp_path / "orchestrator.sqlite3")
+    first = _task("task-1")
+    second = _task("task-2")
+    first["input"]["write_set"] = [first_path]
+    second["input"]["write_set"] = [second_path]
+    with pytest.raises(OrchestrationValidationError, match="write sets overlap after path normalization"):
+        store.create_run(
+            _run(strategy="parallel_independent", max_parallel_agents=2),
+            [first, second],
+        )
+
+
+@pytest.mark.parametrize(
+    "unsafe_path",
+    ["../outside.py", "/etc/passwd", r"src\outside.py", "C:/outside.py"],
+)
+def test_parallel_write_sets_reject_non_repository_paths(tmp_path, unsafe_path):
+    store = TaskStore(tmp_path / "orchestrator.sqlite3")
+    first = _task("task-1")
+    second = _task("task-2")
+    first["input"]["write_set"] = [unsafe_path]
+    second["input"]["write_set"] = ["src/safe.py"]
+    with pytest.raises(OrchestrationValidationError, match="safe repository-relative POSIX path"):
+        store.create_run(
+            _run(strategy="parallel_independent", max_parallel_agents=2),
+            [first, second],
         )

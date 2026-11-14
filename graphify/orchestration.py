@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 from datetime import datetime
+from pathlib import PurePosixPath
 import math
 import re
 from typing import Any
@@ -360,6 +361,8 @@ def validate_ziwei_saju_result(
 
     for index, claim in enumerate(claims):
         path = f"result.claims[{index}]"
+        if claim.get("material") is not True:
+            continue
         basis = claim.get("evidence_basis")
         if basis not in ZIWEI_EVIDENCE_BASES:
             raise OrchestrationValidationError(
@@ -770,6 +773,45 @@ def validate_task_graph(tasks: Sequence[Mapping[str, Any]]) -> None:
 
 
 
+def _normalized_write_set(value: Any, path: str) -> list[str]:
+    """Canonicalize repository-relative paths before checking write conflicts."""
+    raw_paths = _strings(value, path)
+    normalized: list[str] = []
+    for index, raw_path in enumerate(raw_paths):
+        item_path = f"{path}[{index}]"
+        if (
+            raw_path != raw_path.strip()
+            or raw_path.startswith(("/", "~"))
+            or "\\" in raw_path
+            or "://" in raw_path
+            or re.match(r"^[A-Za-z]:", raw_path) is not None
+            or ".." in raw_path.split("/")
+        ):
+            raise OrchestrationValidationError(
+                f"{item_path} must be a safe repository-relative POSIX path"
+            )
+        canonical = PurePosixPath(raw_path).as_posix()
+        if canonical in {"", "."} or canonical.startswith("../"):
+            raise OrchestrationValidationError(
+                f"{item_path} must identify a path inside the repository"
+            )
+        normalized.append(canonical)
+    if len(normalized) != len(set(normalized)):
+        raise OrchestrationValidationError(
+            f"{path} contains duplicate paths after normalization"
+        )
+    return normalized
+
+
+def _write_paths_overlap(left: str, right: str) -> bool:
+    """Files/directories conflict when equal or when one contains the other."""
+    return (
+        left == right
+        or left.startswith(right.rstrip("/") + "/")
+        or right.startswith(left.rstrip("/") + "/")
+    )
+
+
 def validate_execution_plan(
     run: Mapping[str, Any],
     tasks: Sequence[Mapping[str, Any]],
@@ -825,15 +867,23 @@ def validate_execution_plan(
                 raise OrchestrationValidationError(
                     "parallel implementation tasks cannot share mutable state"
                 )
-            write_set = _strings(task_input.get("write_set"), f"task {task['task_id']}.input.write_set")
+            write_set = _normalized_write_set(
+                task_input.get("write_set"),
+                f"task {task['task_id']}.input.write_set",
+            )
             if not write_set:
                 raise OrchestrationValidationError(
                     "parallel implementation tasks require explicit write_set declarations"
                 )
-            overlap = seen.intersection(write_set)
-            if overlap:
+            conflicts = sorted({
+                (existing, current)
+                for existing in seen
+                for current in write_set
+                if _write_paths_overlap(existing, current)
+            })
+            if conflicts:
                 raise OrchestrationValidationError(
-                    f"parallel task write sets overlap: {sorted(overlap)}"
+                    f"parallel task write sets overlap after path normalization: {conflicts}"
                 )
             seen.update(write_set)
         return
@@ -896,7 +946,7 @@ def validate_result_envelope(value: Any) -> Mapping[str, Any]:
         evidence = _objects(claim.get("evidence"), f"{path}.evidence")
         for evidence_index, item in enumerate(evidence):
             evidence_path = f"{path}.evidence[{evidence_index}]"
-            if output.get("domain") == "ziwei_saju":
+            if output.get("domain") == "ziwei_saju" and claim.get("material") is True:
                 _validate_ziwei_evidence_ref(item, evidence_path)
             else:
                 _validate_evidence_ref(item, evidence_path)
@@ -908,7 +958,12 @@ def validate_result_envelope(value: Any) -> Mapping[str, Any]:
             _validate_evidence_ref(evidence, evidence_path)
     if output.get("domain") == "ziwei_saju":
         _reject_ziwei_personal_fields(result, "result")
-        validate_ziwei_saju_result(output, claims)
+        if result["status"] == "submitted":
+            validate_ziwei_saju_result(output, claims)
+        elif any(claim.get("material") is True for claim in claims):
+            raise OrchestrationValidationError(
+                "failed ziwei_saju attempts cannot carry material claims"
+            )
     _strings(result.get("uncertainties"), "result.uncertainties")
     usage = _object(result.get("usage"), "result.usage")
     for key in ("input_tokens", "output_tokens", "cached_input_tokens"):

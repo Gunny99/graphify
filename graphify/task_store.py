@@ -407,7 +407,16 @@ class TaskStore:
             existing = con.execute(
                 "SELECT profile_json FROM agents WHERE agent_id=?", (agent_id,)
             ).fetchone()
-            if existing and active:
+            pending_reviews = con.execute(
+                """
+                SELECT COUNT(*)
+                FROM results AS result
+                JOIN tasks AS task ON task.task_id = result.task_id
+                WHERE result.agent_id = ? AND task.status IN ('submitted', 'needs_review')
+                """,
+                (agent_id,),
+            ).fetchone()[0]
+            if existing and (active or pending_reviews):
                 previous = _decode(existing["profile_json"])
                 immutable_keys = (
                     "provider", "model", "model_version", "cost_profile",
@@ -415,7 +424,7 @@ class TaskStore:
                 )
                 if any(previous[key] != profile[key] for key in immutable_keys):
                     raise TaskStoreError(
-                        "cannot change model identity, pricing, or quality profile while this agent owns leases"
+                        "cannot change model identity, pricing, or quality profile while this agent has active leases or pending verification results"
                     )
             registered_at = (
                 _decode(existing["profile_json"]).get("registered_at") if existing else None
@@ -906,10 +915,15 @@ class TaskStore:
         """Create a verifier-only task bound to one immutable result."""
         verification_id = f"verification::{result['result_id']}"
         existing = con.execute(
-            "SELECT task_id FROM tasks WHERE task_id=?", (verification_id,)
+            "SELECT 1 FROM tasks WHERE task_id=?", (verification_id,)
         ).fetchone()
         if existing:
-            return verification_id
+            # Never adopt a caller-created task as a verifier task. Task IDs are
+            # globally unique, and a crafted collision could otherwise point a
+            # submitted result at an unrelated task in this or another run.
+            raise TaskStoreError(
+                f"verification task ID collision: {verification_id}"
+            )
         run_row = con.execute(
             "SELECT run_json FROM runs WHERE run_id=?", (run_id,)
         ).fetchone()
@@ -1027,6 +1041,15 @@ class TaskStore:
                 )
             if task["task_type"] == "verification":
                 raise TaskStoreError("verification tasks must use submit_review, not submit_result")
+            result_domain = result["output"].get("domain")
+            if result_domain is not None and result_domain != task["domain"]:
+                raise TaskStoreError(
+                    f"result domain {result_domain!r} does not match task domain {task['domain']!r}"
+                )
+            if task["domain"] == "ziwei_saju" and result_domain != "ziwei_saju":
+                raise TaskStoreError(
+                    "ziwei_saju tasks require result.output.domain='ziwei_saju'"
+                )
             if result["run_id"] != row["run_id"] or int(result["attempt"]) != int(row["attempt"]):
                 raise TaskStoreError("result run_id or attempt does not match the active task lease")
             run_row = con.execute(
@@ -1057,6 +1080,13 @@ class TaskStore:
                     failed_agents = set(task["input"].get("failed_agent_ids", []))
                     failed_agents.add(agent_id)
                     task["input"]["failed_agent_ids"] = sorted(failed_agents)
+                    task["estimated_cost_reserved"] = max(
+                        0.0,
+                        float(task.get("estimated_cost_reserved", 0.0))
+                        - float(result["usage"]["direct_cost"]),
+                    )
+                else:
+                    task.pop("estimated_cost_reserved", None)
                 task.pop("result_id", None)
             else:
                 material_claims = [
@@ -1369,6 +1399,11 @@ class TaskStore:
                     source_task["review_id"] = review_id
                     self._set_task(con, task_row, source_task, "rejected")
                 elif attempts_left and ranked_verifiers:
+                    review_task["estimated_cost_reserved"] = max(
+                        0.0,
+                        float(review_task.get("estimated_cost_reserved", 0.0))
+                        - float(review["usage"]["direct_cost"]),
+                    )
                     self._set_task(con, review_task_row, review_task, "queued")
                     source_task["review_id"] = review_id
                     self._set_task(con, task_row, source_task, "needs_review")

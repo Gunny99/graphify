@@ -1048,3 +1048,70 @@ def test_ziwei_unknown_claim_cannot_claim_derivation_steps():
     claim["derivation_steps"] = ["Unsupported derivation"]
     with pytest.raises(OrchestrationValidationError, match="unknown evidence_basis cannot include"):
         validate_result_envelope(result)
+
+
+
+def test_ziwei_nonmaterial_claims_may_omit_domain_evidence_metadata():
+    result = _ziwei_result()
+    result["claims"].append({
+        "claim_id": "editorial-note",
+        "statement": "This note is retained for context only.",
+        "claim_type": "opinion",
+        "material": False,
+        "evidence": [],
+    })
+    assert validate_result_envelope(result) is result
+
+
+def test_ziwei_failed_attempt_does_not_require_interpretation_frames():
+    result = _ziwei_result()
+    result["status"] = "failed"
+    result["output"] = {
+        "domain": "ziwei_saju",
+        "failure_reason": "source passage could not be decoded",
+    }
+    result["claims"] = []
+    result["evidence"] = []
+    assert validate_result_envelope(result) is result
+
+
+def test_ziwei_unknown_material_claim_can_coexist_but_keeps_review_unresolved():
+    result = _ziwei_result()
+    result["claims"].append({
+        "claim_id": "unreadable-passage",
+        "statement": "The O22 passage could not be decoded.",
+        "claim_type": "factual",
+        "material": True,
+        "evidence_basis": "unknown",
+        "assertion_strength": "hedged",
+        "evidence": [],
+    })
+    assert validate_result_envelope(result) is result
+
+    review = _review(status="needs_review")
+    review["claims"] = [
+        {
+            "claim_id": "ziwei-structure-claim",
+            "verdict": "supported",
+            "evidence": [_ziwei_evidence()],
+            "notes": "Verified independently.",
+        },
+        {
+            "claim_id": "ziwei-decade-claim",
+            "verdict": "supported",
+            "evidence": [_ziwei_evidence()],
+            "notes": "Verified independently.",
+        },
+        {
+            "claim_id": "unreadable-passage",
+            "verdict": "insufficient",
+            "evidence": [],
+            "notes": "The source passage remains unreadable.",
+        },
+    ]
+    assert validate_review_envelope(review, result) is review
+
+    review["status"] = "accepted"
+    review["claims"][-1]["verdict"] = "supported"
+    with pytest.raises(OrchestrationValidationError, match="unknown ziwei_saju claim cannot receive a supported verdict"):
+        validate_review_envelope(review, result)

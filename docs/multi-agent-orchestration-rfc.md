@@ -143,7 +143,7 @@ Required fields:
 
 A capability match is necessary but not sufficient: a model must also have a current quality profile that qualifies for the task's domain and quality tier.
 
-Before creating queue tasks, call `choose_execution_strategy`. A `single_agent` or `single_with_review` run has one main work task; the latter may create one separate verifier task after implementation. Exploration tasks must be read-only and independent. Parallel implementation tasks must have no dependencies, no shared mutable state, and explicit pairwise-disjoint `write_set` declarations. The store rejects a plan that does not match its declared strategy.
+Before creating queue tasks, call `choose_execution_strategy`. A `single_agent` or `single_with_review` run has one main work task; the latter may create one separate verifier task after implementation. Exploration tasks must be read-only and independent. Parallel implementation tasks must have no dependencies, no shared mutable state, and explicit pairwise-disjoint `write_set` declarations. The store rejects a plan that does not match its declared strategy. Normalize paths as repository-relative POSIX paths before conflict checks: remove redundant separators and `.` segments, reject absolute/drive-qualified paths, URI schemes, backslashes, and `..` segments, and treat equal or ancestor/descendant paths as overlapping (for example, `src/` conflicts with `src/module.py`).
 
 ### Claim and evidence
 
@@ -302,11 +302,11 @@ The `ziwei_saju` adapter keeps domain semantics inside the result payload; it do
 
 ### Claim evidence and source wording
 
-Each material domain claim must carry:
+Each material domain claim must carry: Non-material contextual claims still follow the common claim envelope but are exempt from domain-specific evidence-basis, assertion-strength, and derivation-step requirements; they cannot be linked from interpretation frames.
 - `evidence_basis`: `explicit_source | derived | unknown`.
 - `assertion_strength`: `definite | hedged`, describing how strongly the final claim itself is stated.
 - `evidence`: original-source references with `source_id`, `source_type`, repository-relative `uri`, `location`, full source-file `content_hash` (`sha256:<64 hex>), verbatim `excerpt`, bibliographic `edition`, optional `variant`, `source_assertion` (`definite | hedged`), and `source_text_status` (for example, OCR/collation status).
-- `derivation_steps`: required for `evidence_basis=derived`; derived claims use `claim_type=inference`. For `explicit_source`, `claim_type` must be `factual` and `derivation_steps` must be absent. For `unknown`, `derivation_steps` must be absent; its `claim_type` remains a semantic classification, but the claim stays hedged/unconfirmed and cannot receive a `supported` verdict.
+- `derivation_steps`: required for `evidence_basis=derived`; derived claims use `claim_type=inference`. For `explicit_source`, `claim_type` must be `factual` and `derivation_steps` must be absent. For `unknown`, `derivation_steps` must be absent; its `claim_type` remains a semantic classification, but the claim stays hedged/unconfirmed and cannot receive a `supported` verdict. An unknown material claim may coexist with determinate claims in the same result, but the result remains unresolved/provisional until that material claim is independently established; do not discard the unreadable passage or label it contradicted.
 
 The `uri` field is a canonical repository-relative POSIX path, not a general URL: schemes, absolute/home-rooted paths, backslashes, empty path components, and `.`/`..` segments are rejected. `unknown` claims carry no supporting evidence and must remain hedged/unconfirmed. A source author's hedged wording is recorded as `source_assertion=hedged`; it is not a model-generated estimate. The `ziwei_saju` validator rejects `estimated` as an evidence basis because this domain's governing specification does not permit model-invented estimated coefficients or assumptions. A claim supported only by hedged source assertions cannot be upgraded to a definite statement. A `derived` claim must remain hedged when **any** premise evidence is hedged, even when another cited premise is definite. The result output must identify both the interpretation engine (`engine_hash` or `engine_version`) and the governing rule specification (`spec_hash` or `spec_version`). Do not include raw birth date/time, resident-registration or social-security numbers, or direct personal contact identifiers in the envelope; pass only the minimum redacted inputs needed for reproducibility.
 
@@ -341,11 +341,11 @@ The currently described 63 regression cases do not establish the >99% accuracy /
 ## Lease, retry, and idempotency rules
 
 - A task claim creates a random lease token and expiry. Only that agent/token pair may heartbeat, submit, or fail the task.
-- A lease expiry re-queues the task only while attempts and budget remain; the old lease token becomes invalid.
+- A lease expiry re-queues the task only while attempts and budget remain; the old lease token becomes invalid. When a failed generation or verification attempt is re-queued, its reservation is reduced by the actual cost already recorded for that attempt; the run budget counts actual spend plus only the unspent reservation.
 - Result submission is idempotent by task/attempt/result ID. Replaying a completed submission must not duplicate state transitions or costs.
 - A worker cannot claim a task whose dependencies are incomplete, whose capability set does not match, or whose task budget/deadline has expired.
 - Every automatic retry is bounded by `max_attempts`, task cost budget, and run cost budget. No unbounded self-spawning or recursive delegation.
-- A run is accepted only after all required tasks are accepted and the final quality gate passes.
+- A run is accepted only after all required tasks are accepted and the final quality gate passes. A queued task whose dependency is `needs_review` remains dormant and unclaimable; when no other work is runnable, the run is `provisional`, not `queued` or `failed`. If the dependency is later accepted, the downstream task becomes eligible without recreating the run.
 - An explicit `rejected` review or a `contradicted` verdict is terminal rejection. An `insufficient` verdict is unresolved evidence, not proof of contradiction: keep the source task `needs_review` and the run `provisional` when no eligible independent verifier remains. Requeue only when a different fresh, eligible verifier is available and the attempt budget remains.
 
 ## Initial MCP contract
