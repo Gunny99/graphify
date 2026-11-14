@@ -727,12 +727,6 @@ class TaskStore:
                 raise TaskStoreError("result currency does not match the run cost policy")
             if agent_profile["cost_profile"]["currency"] != run["cost_policy"]["currency"]:
                 raise TaskStoreError("registered agent pricing currency does not match the run")
-            # Direct costs are server-calculated from trusted pricing, not agent-reported.
-            result["usage"]["direct_cost"] = self._generation_cost(
-                agent_profile["cost_profile"], result["usage"]
-            )
-            result["usage"]["pricing_source"] = agent_profile["cost_profile"]["pricing_source"]
-            encoded = _json(result)
             try:
                 con.execute(
                     """
@@ -812,26 +806,10 @@ class TaskStore:
             return self._run_status_in_transaction(con, row["run_id"])
 
     def submit_review(self, value: Mapping[str, Any]) -> dict[str, Any]:
-        """Store a verifier decision and advance the task only when both quality gates pass."""
+        """Store an independent review; a needs_review result may receive a new verifier."""
         review_id = str(_string(value.get("review_id"), "review.review_id"))
         result_id = str(_string(value.get("result_id"), "review.result_id"))
         with self._transaction() as con:
-            existing = con.execute(
-                "SELECT review_json FROM reviews WHERE review_id=?", (review_id,)
-            ).fetchone()
-            if existing:
-                if existing["review_json"] != _json(value):
-                    raise TaskStoreError("review_id already exists with different content")
-                existing_result = con.execute(
-                    "SELECT task_id FROM results WHERE result_id=?", (result_id,)
-                ).fetchone()
-                if existing_result is None:
-                    raise TaskNotFoundError(f"result not found: {result_id}")
-                task_row = con.execute(
-                    "SELECT run_id FROM tasks WHERE task_id=?", (existing_result["task_id"],)
-                ).fetchone()
-                return self._run_status_in_transaction(con, task_row["run_id"])
-
             result_row = con.execute(
                 "SELECT task_id, agent_id, result_json FROM results WHERE result_id=?",
                 (result_id,),
@@ -840,6 +818,7 @@ class TaskStore:
                 raise TaskNotFoundError(f"result not found: {result_id}")
             result = _decode(result_row["result_json"])
             review = validate_review_envelope(value, result)
+
             task_row = con.execute(
                 "SELECT * FROM tasks WHERE task_id=?", (result_row["task_id"],)
             ).fetchone()
@@ -847,6 +826,7 @@ class TaskStore:
                 raise TaskNotFoundError(f"task not found: {result_row['task_id']}")
             if task_row["status"] not in {"submitted", "needs_review"}:
                 raise TaskStoreError(f"task cannot be reviewed in state {task_row['status']}")
+
             run_row = con.execute(
                 "SELECT run_json FROM runs WHERE run_id=?", (task_row["run_id"],)
             ).fetchone()
@@ -855,6 +835,7 @@ class TaskStore:
             run = _decode(run_row["run_json"])
             if review["usage"]["currency"] != run["cost_policy"]["currency"]:
                 raise TaskStoreError("review currency does not match the run cost policy")
+
             producer_row = con.execute(
                 "SELECT profile_json FROM agents WHERE agent_id=?", (result_row["agent_id"],)
             ).fetchone()
@@ -874,6 +855,24 @@ class TaskStore:
                 verifier_cost_profile, review["usage"]
             )
             review["usage"]["pricing_source"] = verifier_cost_profile["pricing_source"]
+            encoded = _json(review)
+
+            # Idempotent replay is checked AFTER server-side pricing normalization.
+            existing = con.execute(
+                "SELECT review_json, result_id FROM reviews WHERE review_id=?", (review_id,)
+            ).fetchone()
+            if existing:
+                if existing["review_json"] != encoded or existing["result_id"] != result_id:
+                    raise TaskStoreError("review_id already exists with different content")
+                return self._run_status_in_transaction(con, task_row["run_id"])
+
+            previous_verifier = con.execute(
+                "SELECT 1 FROM reviews WHERE result_id=? AND reviewer_agent_id=?",
+                (result_id, verifier_id),
+            ).fetchone()
+            if previous_verifier:
+                raise TaskStoreError("this verifier has already reviewed this result")
+
             quality_ok = result_meets_quality_gate(
                 result,
                 review,
@@ -894,14 +893,14 @@ class TaskStore:
                 )
             else:
                 task.pop("estimated_cost_reserved", None)
+
             con.execute(
                 """
                 INSERT INTO reviews(review_id, result_id, reviewer_agent_id, review_json, created_at)
                 VALUES (?, ?, ?, ?, ?)
                 """,
-                (review_id, result_id, verifier_id, _json(review), _utc_now()),
+                (review_id, result_id, verifier_id, encoded, _utc_now()),
             )
-            task = _decode(task_row["task_json"])
             task["review_id"] = review_id
             self._set_task(con, task_row, task, new_status)
             self._event(
