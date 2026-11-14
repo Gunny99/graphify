@@ -110,7 +110,8 @@ class TaskStore:
             con.close()
 
     def _initialize(self) -> None:
-        with self._connect() as con:
+        con = self._connect()
+        try:
             con.execute("PRAGMA journal_mode = WAL")
             con.execute("PRAGMA synchronous = NORMAL")
             version = int(con.execute("PRAGMA user_version").fetchone()[0])
@@ -188,6 +189,8 @@ class TaskStore:
                 """
             )
             con.execute("PRAGMA user_version = 1")
+        finally:
+            con.close()
 
     @staticmethod
     def _event(
@@ -686,19 +689,7 @@ class TaskStore:
         result_id = str(result["result_id"])
         task_id = str(result["task_id"])
         agent_id = str(result["agent"]["agent_id"])
-        encoded = _json(result)
         with self._transaction() as con:
-            existing = con.execute(
-                "SELECT result_json FROM results WHERE result_id=?", (result_id,)
-            ).fetchone()
-            if existing:
-                if existing["result_json"] != encoded:
-                    raise TaskStoreError("result_id already exists with different content")
-                return self._run_status_in_transaction(con, str(result["run_id"]))
-            row = self._owned_lease(con, task_id, agent_id, lease_token)
-            task = _decode(row["task_json"])
-            if result["run_id"] != row["run_id"] or int(result["attempt"]) != int(row["attempt"]):
-                raise TaskStoreError("result run_id or attempt does not match the active task lease")
             agent_row = con.execute(
                 "SELECT profile_json FROM agents WHERE agent_id=?", (agent_id,)
             ).fetchone()
@@ -708,6 +699,24 @@ class TaskStore:
             for key in ("provider", "model", "model_version"):
                 if result["agent"][key] != agent_profile[key]:
                     raise TaskStoreError(f"result agent identity does not match registered {key}")
+            if agent_profile["cost_profile"]["currency"] != result["usage"]["currency"]:
+                raise TaskStoreError("result currency does not match the registered agent pricing")
+            result["usage"]["direct_cost"] = self._generation_cost(
+                agent_profile["cost_profile"], result["usage"]
+            )
+            result["usage"]["pricing_source"] = agent_profile["cost_profile"]["pricing_source"]
+            encoded = _json(result)
+            existing = con.execute(
+                "SELECT result_json, task_id FROM results WHERE result_id=?", (result_id,)
+            ).fetchone()
+            if existing:
+                if existing["result_json"] != encoded or existing["task_id"] != task_id:
+                    raise TaskStoreError("result_id already exists with different content")
+                return self._run_status_in_transaction(con, str(result["run_id"]))
+            row = self._owned_lease(con, task_id, agent_id, lease_token)
+            task = _decode(row["task_json"])
+            if result["run_id"] != row["run_id"] or int(result["attempt"]) != int(row["attempt"]):
+                raise TaskStoreError("result run_id or attempt does not match the active task lease")
             run_row = con.execute(
                 "SELECT run_json FROM runs WHERE run_id=?", (row["run_id"],)
             ).fetchone()
@@ -937,10 +946,17 @@ class TaskStore:
                 (run_id,),
             )
         ]
+        actual_cost = self._get_actual_cost(con, run_id)
+        reserved_cost = self._get_reserved_cost(con, run_id)
         return {
             "run": run,
             "tasks": tasks,
-            "total_direct_cost": self._get_actual_cost(con, run_id),
+            "total_direct_cost": actual_cost,
+            "reserved_cost": reserved_cost,
+            "budget_remaining": max(
+                0.0,
+                float(run["cost_policy"]["max_total"]) - actual_cost - reserved_cost,
+            ),
             "currency": run["cost_policy"]["currency"],
         }
 
