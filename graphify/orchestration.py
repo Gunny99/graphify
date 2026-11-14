@@ -433,7 +433,7 @@ def validate_execution_plan(
         main_tasks = [task for task in tasks if not task["depends_on"]]
         if len(main_tasks) != 1:
             raise OrchestrationValidationError(
-                f"{strategy} requires exactly one independent main work task; "
+                f"{strategy} requires exactly one main work task with no dependencies; "
                 "all additional tasks must depend on that task graph"
             )
         return
