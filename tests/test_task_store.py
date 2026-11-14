@@ -316,7 +316,7 @@ def test_expected_cost_is_reserved_across_concurrent_leases(tmp_path):
     first_task["input"]["write_set"] = ["src/one.py"]
     second_task["input"]["write_set"] = ["src/two.py"]
     store.create_run(
-        _run(max_total=1.2, strategy="parallel_independent", max_parallel_agents=2),
+        _run(max_total=0.5, strategy="parallel_independent", max_parallel_agents=2),
         [first_task, second_task],
     )
     first = store.claim_task("agent-1")
