@@ -191,7 +191,7 @@ Every material external factual claim must include evidence. A verifier must che
 
 Quality is certified from a held-out, independently labelled evaluation set, stratified by task type and domain. Use one-sided 95% exact binomial confidence bounds (Clopper-Pearson) for the accuracy and hallucination rates. As a reference point, zero observed errors in 299 independent evaluated claims gives a one-sided 95% upper bound below 1%; correlated claims from one document or one task do not count as 299 independent observations. Increase the sample when errors occur or when observations are clustered.
 
-A result may be labelled `certified` only when the applicable evaluation profile meets both statistical targets and the run's claims pass evidence verification. Otherwise:
+A result may be labelled `certified` only when both the producing model's and the independent verifier's applicable evaluation profiles meet both statistical targets and the run's claims pass evidence verification. Otherwise:
 - use `provisional` when the content is useful but the statistical target is not yet demonstrated;
 - use `needs_review` when evidence is missing, sources conflict, or the independent verifier disagrees;
 - use `rejected` when the result contains unsupported/contradicted material claims or fails its output contract.
