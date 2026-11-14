@@ -29,7 +29,7 @@ A task may use one focused independent review after the main implementation (`si
 
 Use multiple agents only in these exceptions:
 
-1. **Read-only exploration:** a large codebase or document corpus would otherwise overwhelm the main context. Explorers receive non-overlapping search questions, have no write tools, and return concise findings with file/line/source references. The main session remains the only writer.
+1. **Read-only exploration:** a large codebase or document corpus would otherwise overwhelm the main context. Explorers receive non-overlapping search questions, have no write tools, and return concise findings with file/line/source references. The main session remains the only writer. Any material factual/inference claims in explorer results still require the normal independent-verification task; read-only access does not lower the evidence standard.
 2. **Independent parallel work:** at least two workstreams are genuinely independent, have no dependency ordering, do not share mutable state, and have disjoint file write sets. Parallel execution is allowed only when the expected total cost is no higher than the single-session estimate, or a hard deadline makes the verified latency reduction necessary.
 3. **Independent review:** after the main work is complete, one separate reviewer checks implementation, security, edge cases, and tests. Additional reviewers are not spawned automatically; a second reviewer is an escalation only when the first review identifies a material dispute or confidence remains insufficient.
 
