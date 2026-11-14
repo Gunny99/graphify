@@ -31,7 +31,7 @@ RESULT_STATUSES = frozenset({"submitted", "failed"})
 CLAIM_TYPES = frozenset({"factual", "inference", "recommendation", "opinion"})
 ZIWEI_EVIDENCE_BASES = frozenset({"explicit_source", "derived", "unknown"})
 ZIWEI_SOURCE_ASSERTIONS = frozenset({"definite", "hedged"})
-ZIWEI_INTERPRETATION_STATUSES = frozenset({"convergent", "divergent", "indeterminate"})
+ZIWEI_INTERPRETATION_STATUSES = frozenset({"single_frame", "convergent", "divergent", "indeterminate"})
 REVIEW_VERDICTS = frozenset({"supported", "contradicted", "insufficient"})
 REVIEW_STATUSES = frozenset({"accepted", "provisional", "needs_review", "rejected"})
 EXECUTION_STRATEGIES = frozenset({
@@ -183,21 +183,46 @@ def validate_ziwei_saju_result(
             raise OrchestrationValidationError(f"duplicate ziwei_saju interpretation frame: {frame}")
         frames.add(frame)
         finding = _string(interpretation.get("finding"), f"{path}.finding")
+        assertion_strength = interpretation.get("assertion_strength")
+        if assertion_strength not in ZIWEI_SOURCE_ASSERTIONS:
+            raise OrchestrationValidationError(
+                f"{path}.assertion_strength must be one of {sorted(ZIWEI_SOURCE_ASSERTIONS)}"
+            )
         evidence = _objects(interpretation.get("evidence"), f"{path}.evidence")
         if interpretation_status != "indeterminate" and not evidence:
             raise OrchestrationValidationError(
                 f"{path}.evidence is required for a determinate interpretation"
             )
-        for evidence_index, item in enumerate(evidence):
+        validated_evidence = [
             _validate_ziwei_evidence_ref(item, f"{path}.evidence[{evidence_index}]")
+            for evidence_index, item in enumerate(evidence)
+        ]
+        if (
+            validated_evidence
+            and all(item["source_assertion"] == "hedged" for item in validated_evidence)
+            and assertion_strength != "hedged"
+        ):
+            raise OrchestrationValidationError(
+                f"{path}: findings based only on hedged source assertions must remain hedged"
+            )
+        if not validated_evidence and assertion_strength != "hedged":
+            raise OrchestrationValidationError(
+                f"{path}: an interpretation without source evidence must remain hedged"
+            )
 
+    findings = {str(item["finding"]).strip() for item in interpretations}
+    if interpretation_status == "single_frame" and len(frames) != 1:
+        raise OrchestrationValidationError("single_frame requires exactly one interpretation frame")
     if interpretation_status in {"convergent", "divergent"} and len(frames) < 2:
         raise OrchestrationValidationError(
             f"{interpretation_status} requires at least two distinct interpretation frames"
         )
+    if interpretation_status == "convergent" and len(findings) != 1:
+        raise OrchestrationValidationError(
+            "convergent interpretations must preserve the same frame finding"
+        )
     if interpretation_status == "divergent":
         _string(output.get("divergence_reason"), "result.output.divergence_reason")
-        findings = {str(item["finding"]).strip() for item in interpretations}
         if len(findings) < 2:
             raise OrchestrationValidationError(
                 "divergent interpretations must preserve distinct frame findings"
@@ -643,7 +668,7 @@ def validate_result_envelope(value: Any) -> Mapping[str, Any]:
         _string(agent.get(key), f"result.agent.{key}")
     if result.get("status") not in RESULT_STATUSES:
         raise OrchestrationValidationError(f"result.status must be one of {sorted(RESULT_STATUSES)}")
-    _object(result.get("output"), "result.output")
+    output = _object(result.get("output"), "result.output")
     claims = _objects(result.get("claims"), "result.claims")
     claim_ids: set[str] = set()
     for index, claim in enumerate(claims):
