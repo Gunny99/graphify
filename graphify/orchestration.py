@@ -397,6 +397,71 @@ def validate_task_graph(tasks: Sequence[Mapping[str, Any]]) -> None:
         raise OrchestrationValidationError("task dependency graph contains a cycle")
 
 
+
+def validate_execution_plan(
+    run: Mapping[str, Any],
+    tasks: Sequence[Mapping[str, Any]],
+) -> None:
+    """Validate that the declared strategy matches the actual task topology."""
+    policy = run["execution_policy"]
+    strategy = policy["strategy"]
+    max_workers = int(policy["max_parallel_agents"])
+    if strategy in {"single_agent", "single_with_review"}:
+        if max_workers != 1:
+            raise OrchestrationValidationError("single-session strategies require one worker slot")
+        return
+
+    if not 2 <= len(tasks) <= max_workers:
+        raise OrchestrationValidationError(
+            f"{strategy} requires 2..{max_workers} tasks"
+        )
+
+    if strategy == "read_only_exploration":
+        for task in tasks:
+            task_input = task["input"]
+            if task_input.get("read_only") is not True:
+                raise OrchestrationValidationError(
+                    "all exploration tasks must declare input.read_only=true"
+                )
+            if task_input.get("write_set"):
+                raise OrchestrationValidationError(
+                    "read-only exploration tasks cannot declare write_set"
+                )
+            if "read_only" not in task["required_capabilities"]:
+                raise OrchestrationValidationError(
+                    "read-only exploration requires read_only capability"
+                )
+            if task["depends_on"]:
+                raise OrchestrationValidationError(
+                    "read-only exploration tasks must be independent"
+                )
+        return
+
+    if strategy == "parallel_independent":
+        seen: set[str] = set()
+        for task in tasks:
+            task_input = task["input"]
+            if task["depends_on"]:
+                raise OrchestrationValidationError(
+                    "parallel implementation tasks cannot have dependencies"
+                )
+            if task_input.get("shared_state_required") is True:
+                raise OrchestrationValidationError(
+                    "parallel implementation tasks cannot share mutable state"
+                )
+            write_set = _strings(task_input.get("write_set"), f"task {task['task_id']}.input.write_set")
+            if not write_set:
+                raise OrchestrationValidationError(
+                    "parallel implementation tasks require explicit write_set declarations"
+                )
+            overlap = seen.intersection(write_set)
+            if overlap:
+                raise OrchestrationValidationError(
+                    f"parallel task write sets overlap: {sorted(overlap)}"
+                )
+            seen.update(write_set)
+        return
+
 def validate_agent_profile(value: Any) -> Mapping[str, Any]:
     """Validate an agent identity, capability, cost, and evaluation profile."""
     agent = _object(value, "agent")
