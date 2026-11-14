@@ -78,6 +78,11 @@ def _run(run_id: str = "run-1", *, max_total: float = 5.0) -> dict:
         "run_id": run_id,
         "request": "Verify the stated behaviour from primary sources.",
         "status": "queued",
+        "execution_policy": {
+            "strategy": "single_with_review",
+            "max_parallel_agents": 1,
+            "read_only": False,
+        },
         "quality_policy": {
             "accuracy_target": 0.9901,
             "hallucination_max": 0.0099,
