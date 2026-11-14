@@ -1238,12 +1238,56 @@ def test_extraction_spec_writes_chunk_path_when_dispatch_passes_one():
         core = _platform_artifacts(key)[0]
         spec = _platform_artifacts(key)[1]["extraction-spec.md"]
         if "CHUNK_PATH must be an **absolute** path" in core:
+            b2 = core.split("**Step B2", 1)[1].split("**Step B3", 1)[0]
+            assert "CHUNK_PATH" in b2, f"[{key}] dispatch does not pass a chunk output path"
             assert "and CHUNK_PATH)" in spec, f"[{key}] spec omits CHUNK_PATH from its substitutions"
             assert spec.rstrip().endswith("CHUNK_PATH\n```"), (
                 f"[{key}] spec never tells the subagent to write its JSON to CHUNK_PATH"
             )
         if "return the JSON inline" in core:
             assert "CHUNK_PATH" not in spec, f"[{key}] spec asks for a CHUNK_PATH the dispatch never passes"
+
+
+def test_b3_preflight_removes_invalid_chunks_and_stops_when_more_than_half_fail(
+    tmp_path, capsys, monkeypatch
+):
+    """Malformed files must be removed before B3.5/merge; missing chunks count too."""
+    import json
+
+    monkeypatch.chdir(tmp_path)
+    core, _ = _platform_artifacts("claude")
+    source = _substituted(_step_body(core, "EXPECTED_CHUNKS = EXPECTED_CHUNKS"), tmp_path)
+    out = tmp_path / "graphify-out"
+
+    valid = {
+        "nodes": [{"id": "n1"}],
+        "edges": [],
+        "hyperedges": [],
+        "input_tokens": 3,
+        "output_tokens": 2,
+        "coverage": {"docs/one.md": 5},
+    }
+    (out / ".graphify_chunk_01.json").write_text(json.dumps(valid), encoding="utf-8")
+    (out / ".graphify_chunk_02.json").write_text("{not-json", encoding="utf-8")
+    (out / ".graphify_chunk_99.json").write_text(json.dumps(valid), encoding="utf-8")
+
+    # Two of three expected chunks fail (one malformed, one missing): stop.
+    failing = source.replace("EXPECTED_CHUNKS = EXPECTED_CHUNKS", "EXPECTED_CHUNKS = 3")
+    with pytest.raises(SystemExit) as exc:
+        exec(compile(failing, "step-b3-preflight", "exec"), {"__name__": "__main__"})
+    assert exc.value.code == 1
+    output = capsys.readouterr().out
+    assert "2 of 3 chunks are missing or invalid" in output
+    assert not (out / ".graphify_chunk_02.json").exists()
+    assert not (out / ".graphify_chunk_99.json").exists()
+    assert (out / ".graphify_chunk_01.json").exists()
+
+    # Exactly half missing is recoverable: retain the good chunk for B3.
+    passing = source.replace("EXPECTED_CHUNKS = EXPECTED_CHUNKS", "EXPECTED_CHUNKS = 2")
+    exec(compile(passing, "step-b3-preflight", "exec"), {"__name__": "__main__"})
+    output = capsys.readouterr().out
+    assert "1 of 2 chunks are missing or invalid" in output
+    assert (out / ".graphify_chunk_01.json").exists()
 
 
 def test_core_bounds_semantic_chunks_by_lines_as_well_as_file_count():

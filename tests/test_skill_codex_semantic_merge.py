@@ -25,13 +25,13 @@ def _python_blocks(body: str, start: str, end: str) -> list[str]:
     return sources
 
 
-def _run(source: str, *, cwd: Path, corpus: Path, spec: Path) -> None:
+def _run(source: str, *, cwd: Path, corpus: Path, spec: Path, expected_chunks: int = 2) -> None:
     # Since #4762 the blocks read the scan root from the trusted .graphify_root
     # sidecar instead of a substituted INPUT_PATH literal; simulate Step 1's write.
     out = cwd / "graphify-out"
     out.mkdir(parents=True, exist_ok=True)
     (out / ".graphify_root").write_text(corpus.as_posix(), encoding="utf-8")
-    source = source.replace("SPEC_PATH", spec.as_posix())
+    source = source.replace("SPEC_PATH", spec.as_posix()).replace("EXPECTED_CHUNKS", str(expected_chunks))
     subprocess.run([sys.executable, "-c", source], cwd=cwd, check=True,
                    capture_output=True, text=True)
 
@@ -56,7 +56,7 @@ def test_codex_chunk_results_survive_b3_merge_cache_and_all_cached_rerun(tmp_pat
     part_c = _python_blocks(skill, "#### Part C", "\n### ")[:1]
     # Step B3.5 (the partial-read coverage check from #3987) sits between the
     # B3 merge and Part C, so the sliced range holds four blocks, not three.
-    assert len(b0) == 1 and len(b3) == 4 and len(part_c) == 1
+    assert len(b0) == 1 and len(b3) == 5 and len(part_c) == 1
 
     corpus = tmp_path / "corpus"
     corpus.mkdir()
@@ -86,6 +86,7 @@ def test_codex_chunk_results_survive_b3_merge_cache_and_all_cached_rerun(tmp_pat
             "hyperedges": [],
             "input_tokens": 11,
             "output_tokens": 5,
+            "coverage": {docs[0].as_posix(): 1},
         },
         {
             "nodes": [{"id": "semantic_two", "label": "Two", "source_file": docs[1].as_posix()}],
@@ -93,6 +94,7 @@ def test_codex_chunk_results_survive_b3_merge_cache_and_all_cached_rerun(tmp_pat
             "hyperedges": [],
             "input_tokens": 13,
             "output_tokens": 7,
+            "coverage": {docs[1].as_posix(): 1},
         },
     ]
     for index, chunk in enumerate(chunks, start=1):
@@ -100,7 +102,7 @@ def test_codex_chunk_results_survive_b3_merge_cache_and_all_cached_rerun(tmp_pat
             json.dumps(chunk), encoding="utf-8")
 
     for source in b3 + part_c:
-        _run(source, cwd=tmp_path, corpus=corpus, spec=spec)
+        _run(source, cwd=tmp_path, corpus=corpus, spec=spec, expected_chunks=2)
 
     semantic = json.loads((out / ".graphify_semantic.json").read_text(encoding="utf-8"))
     assert {node["id"] for node in semantic["nodes"]} == {"semantic_one", "semantic_two"}
@@ -115,7 +117,7 @@ def test_codex_chunk_results_survive_b3_merge_cache_and_all_cached_rerun(tmp_pat
     # Cache writes from B3 must serve the next run without B2, while B0 removes
     # any chunks left by the preceding run before the empty B3 merge.
     for source in b0 + b3 + part_c:
-        _run(source, cwd=tmp_path, corpus=corpus, spec=spec)
+        _run(source, cwd=tmp_path, corpus=corpus, spec=spec, expected_chunks=0)
     assert not list(out.glob(".graphify_chunk_*.json"))
     extraction = json.loads((out / ".graphify_extract.json").read_text(encoding="utf-8"))
     assert {node["id"] for node in extraction["nodes"]} == {

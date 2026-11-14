@@ -232,14 +232,83 @@ Both bounds matter. The line bound is not only about the 2000-line Read cap: a s
 
 **Step B3 - Collect, cache, and merge**
 
-Wait for all subagents. For each result:
-- Check that `graphify-out/.graphify_chunk_NN.json` exists on disk — this is the success signal
-- If the file exists and contains valid JSON with `nodes` and `edges`, include it and save to cache
-- If the file is missing, the subagent was likely dispatched as read-only (Explore type) — print a warning: "chunk N missing from disk — subagent may have been read-only. Re-run with @@WRITER_AGENT@@." Do not silently skip.
-- If a subagent failed or returned invalid JSON, print a warning and skip that chunk - do not abort
+Wait for all dispatched workers before collecting results. Use the exact number of chunks created in Step B1 as `EXPECTED_CHUNKS` below; use `0` when B2 was skipped because every semantic file was cached. Do not estimate this count from the files that happen to exist — missing files must count as failures.
 
-If more than half the chunks failed or are missing, stop and tell the user to re-run and ensure @@WRITER_AGENT_ARG@@ is used.
+The preflight below is authoritative. It checks every expected chunk filename, removes invalid or unexpected temporary chunk files so later merge steps cannot crash on malformed JSON, and counts missing/invalid chunks. A chunk is valid only when it contains object-valued nodes and edges as lists, optional hyperedges as a list, coverage as a string-to-nonnegative-integer object, and nonnegative integer token counts. Empty node/edge lists are valid results.
 
+If more than half the expected chunks are missing or invalid, the command exits with an error. **Stop the pipeline immediately in that case** — do not run Step B3.5, write semantic cache entries, or continue to Part C. If half or fewer failed, continue using only the valid chunk files; files belonging to failed chunks remain uncached and will be retried by the next `--update`.
+
+```bash
+$(cat graphify-out/.graphify_python) -c "
+import json
+from pathlib import Path
+
+EXPECTED_CHUNKS = EXPECTED_CHUNKS
+out = Path('graphify-out')
+expected_names = {
+    f'.graphify_chunk_{number:02d}.json'
+    for number in range(1, EXPECTED_CHUNKS + 1)
+}
+failed = []
+valid = []
+
+for path in sorted(out.glob('.graphify_chunk_*.json')):
+    if path.name not in expected_names:
+        print(f'WARNING: removing unexpected chunk file {path.name}')
+        path.unlink(missing_ok=True)
+
+for number in range(1, EXPECTED_CHUNKS + 1):
+    name = f'.graphify_chunk_{number:02d}.json'
+    path = out / name
+    if not path.is_file():
+        failed.append((name, 'missing'))
+        continue
+    try:
+        data = json.loads(path.read_text(encoding=\"utf-8\"))
+        if not isinstance(data, dict):
+            raise ValueError('root must be a JSON object')
+        for field in ('nodes', 'edges'):
+            if not isinstance(data.get(field), list):
+                raise ValueError(f'{field} must be a list')
+            if any(not isinstance(item, dict) for item in data[field]):
+                raise ValueError(f'every {field} item must be an object')
+        if not isinstance(data.get('hyperedges', []), list):
+            raise ValueError('hyperedges must be a list when present')
+        if any(not isinstance(item, dict) for item in data.get('hyperedges', [])):
+            raise ValueError('every hyperedge must be an object')
+        coverage = data.get('coverage')
+        if not isinstance(coverage, dict):
+            raise ValueError('coverage must be an object')
+        if any(
+            not isinstance(source, str)
+            or not isinstance(count, int)
+            or isinstance(count, bool)
+            or count < 0
+            for source, count in coverage.items()
+        ):
+            raise ValueError('coverage must map file paths to nonnegative integer line counts')
+        for field in ('input_tokens', 'output_tokens'):
+            value = data.get(field)
+            if not isinstance(value, int) or isinstance(value, bool) or value < 0:
+                raise ValueError(f'{field} must be a nonnegative integer')
+    except Exception as exc:
+        failed.append((name, str(exc)))
+        path.unlink(missing_ok=True)
+    else:
+        valid.append(name)
+
+if failed:
+    print(f'WARNING: {len(failed)} of {EXPECTED_CHUNKS} chunks are missing or invalid:')
+    for name, reason in failed:
+        print(f'  {name}: {reason}')
+    if EXPECTED_CHUNKS and len(failed) * 2 > EXPECTED_CHUNKS:
+        print('ERROR: more than half the chunks failed; stop before cache or Part C.')
+        raise SystemExit(1)
+    print(f'Continuing with {len(valid)} valid chunk(s); failed source files remain uncached for --update retry.')
+else:
+    print(f'Chunk preflight OK: {len(valid)} of {EXPECTED_CHUNKS} expected chunk(s) are valid.')
+"
+```
 **Step B3.5 - Verify each reported file was actually read to its end**
 
 A subagent that only read the first Read call's worth of a long file still writes a well-formed chunk, so "chunk file exists and parses" is not evidence of coverage. Compare each file's self-reported `coverage` against its real length:
@@ -279,7 +348,7 @@ else:
 
 Tell the user which files came up short and what was lost (the line counts are printed above). The nodes already extracted for those files are kept - they are still true - but the file is cached as partial and left unstamped in the manifest below, so the next `--update` re-dispatches it and replace-on-re-extract swaps the partial node set for a complete one. This is the same mechanism the library path uses for a truncated LLM response (#933, #1950), so both paths now recover instead of silently keeping a half-read file forever. A file a subagent did not report at all is not counted as partial - there is nothing to compare against - which is why the prompt rule in `references/extraction-spec.md` asks for the count in the first place.
 
-Merge all chunk files into `.graphify_semantic_new.json`. **After each Agent call completes, read the real token counts from the Agent tool result's `usage` field and write them back into the chunk JSON before merging** — the chunk JSON itself always has placeholder zeros. Then run:
+Merge all valid chunk files into `.graphify_semantic_new.json`. If the host exposes per-worker token usage metadata, copy the actual counts into that worker's chunk file before merging. Otherwise preserve the validated `input_tokens` and `output_tokens` values returned in the chunk JSON; never invent usage numbers. Then run:
 ```bash
 $(cat graphify-out/.graphify_python) -c "
 import json, glob
