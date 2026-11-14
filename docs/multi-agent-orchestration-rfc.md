@@ -211,7 +211,10 @@ The user's target is:
 
 Definitions:
 - **Accuracy** = independently verified correct material factual claims / all material factual claims evaluated.
-- **Hallucination rate** = unsupported, fabricated, or source-contradicted material factual claims / all material factual claims evaluated.
+- **Hallucination rate** = fabricated or source-contradicted material factual claims / all material factual claims evaluated.
+- **Insufficient rate** = material claims the verifier cannot establish as supported or contradicted / all material factual claims evaluated.
+- **Unreviewed rate** = material claims without an independent verdict / all material factual claims evaluated.
+- **Verification-failure rate** = contradicted + insufficient + unreviewed material claims / all material factual claims evaluated. This conservative rate is a release gate, not a claim that every unresolved statement is a proven hallucination.
 - **Evidence coverage** = material factual claims with traceable, relevant evidence / all material factual claims.
 
 Every material external factual claim must include evidence. A verifier must check both that the source exists and that it supports the specific claim. A citation that merely mentions the same topic is insufficient.
