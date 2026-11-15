@@ -435,8 +435,8 @@ class TaskStore:
         with self._transaction() as con:
             row = self._owned_lease(con, task_id, agent_id, lease_token)
             task = _decode(row["task_json"])
-            if error is not None and not isinstance(error, str):
-                raise ValueError("error must be a string when provided")
+            if not isinstance(progress_token, str) or not progress_token.strip():
+                raise ValueError("progress_token is required; submit a stable artifact or state fingerprint")
             previous = con.execute(
                 """
                 SELECT payload_json FROM events
