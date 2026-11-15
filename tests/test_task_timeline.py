@@ -85,9 +85,18 @@ def test_record_span_appends_to_existing_event_ledger_and_is_filterable(tmp_path
     )
     assert len(events) == 1
     assert events[0]["event_id"] == span["event_id"]
-    assert events[0]["payload"]["duration_ms"] == 2000.0
-    assert events[0]["payload"]["attributes"]["test_count"] == 12
-    assert events[0]["payload"]["started_at"] == "2026-11-15T00:00:00+00:00"
+    assert "payload" not in events[0]
+    assert events[0]["summary"]["name"] == "targeted-tests"
+
+    details = store.list_events(
+        "timeline-run",
+        task_id="timeline-task",
+        event_type="span_completed",
+        include_payload=True,
+    )
+    assert details[0]["payload"]["duration_ms"] == 2000.0
+    assert details[0]["payload"]["attributes"]["test_count"] == 12
+    assert details[0]["payload"]["started_at"] == "2026-11-15T00:00:00+00:00"
 
 
 def test_timeline_supports_cursor_time_range_and_limit(tmp_path):
@@ -189,3 +198,27 @@ def test_span_rejects_freeform_labels_and_non_object_attributes(tmp_path):
             finished_at="2026-11-15T00:00:01Z",
             attributes=["not", "an", "object"],
         )
+
+
+def test_timeline_compact_default_does_not_surface_raw_event_payload(tmp_path):
+    store = _store(tmp_path)
+    store._event_for_test = None
+    with store._transaction() as con:
+        store._event(
+            con,
+            run_id="timeline-run",
+            event_type="external_tool_event",
+            payload={"prompt": "secret source text", "status": "completed"},
+        )
+    compact = store.list_events("timeline-run", event_type="external_tool_event")
+    assert compact == [
+        {
+            "event_id": compact[0]["event_id"],
+            "run_id": "timeline-run",
+            "task_id": None,
+            "agent_id": None,
+            "event_type": "external_tool_event",
+            "created_at": compact[0]["created_at"],
+            "summary": {"status": "completed"},
+        }
+    ]
