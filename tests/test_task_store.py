@@ -1228,3 +1228,60 @@ def test_duplicate_workflow_redesign_fails_closed(tmp_path):
     )
     assert rejected["run"]["status"] == "failed"
     assert rejected["tasks"][0]["status"] == "failed"
+
+
+def test_loop_trip_pauses_run_and_revokes_other_worker_leases(tmp_path):
+    store_path = tmp_path / "orchestrator.sqlite3"
+    store = TaskStore(store_path)
+    worker_a = _agent("worker-a", "provider-a", "model-a", max_concurrency=1)
+    worker_b = _agent("worker-b", "provider-b", "model-b", max_concurrency=1)
+    _register(store, worker_a)
+    _register(store, worker_b)
+
+    first = _task("parallel-a")
+    second = _task("parallel-b")
+    first["input"]["write_set"] = ["src/a.py"]
+    second["input"]["write_set"] = ["src/b.py"]
+    store.create_run(
+        _run(strategy="parallel_independent", max_parallel_agents=2),
+        [first, second],
+    )
+    lease_a = store.claim_task("worker-a")
+    lease_b = store.claim_task("worker-b")
+    assert lease_a is not None and lease_b is not None
+    assert lease_a["task_id"] == "parallel-a"
+    assert lease_b["task_id"] == "parallel-b"
+
+    for _ in range(3):
+        decision = store.observe_workflow_step(
+            "parallel-a",
+            "worker-a",
+            lease_a["lease_token"],
+            "rerun same failing test",
+            error="AssertionError: unchanged",
+            progress_token="same-artifact",
+        )
+    assert decision["task_status"] == "needs_redesign"
+    paused = store.get_run_status("run-1")
+    assert paused["run"]["status"] == "needs_redesign"
+    assert {task["status"] for task in paused["tasks"]} == {"needs_redesign", "queued"}
+
+    # The other worker's old lease was revoked too; the paused Run cannot dispatch.
+    with pytest.raises(TaskLeaseError, match="not leased"):
+        store.heartbeat_task(
+            "parallel-b", "worker-b", lease_b["lease_token"], lease_seconds=300
+        )
+    assert store.claim_task("worker-b") is None
+
+    resumed = store.redesign_task(
+        "run-1",
+        "parallel-a",
+        strategy="inspect-import-graph",
+        hypothesis="the test resolves a shadow module from a different path",
+        rationale="a changed import hypothesis is required after three unchanged attempts",
+    )
+    assert resumed["run"]["status"] == "queued"
+    new_a = store.claim_task("worker-a")
+    assert new_a is not None and new_a["task_id"] == "parallel-a"
+    new_b = store.claim_task("worker-b")
+    assert new_b is not None and new_b["task_id"] == "parallel-b"
