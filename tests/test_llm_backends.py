@@ -2370,3 +2370,15 @@ def test_openai_adapter_preserves_nonstandard_finish_reason(monkeypatch):
     )
 
     assert result["finish_reason"] == "content_filter"
+
+
+def test_exception_normalizer_rewraps_existing_backend_causes_without_cycles():
+    original = llm.RateLimited("provider throttle", retry_after=0.5)
+    wrapped = RuntimeError("provider wrapper")
+    wrapped.__cause__ = original
+
+    normalized = llm._normalize_backend_exception(wrapped)
+
+    assert isinstance(normalized, llm.RateLimited)
+    assert normalized is not original
+    assert normalized.retry_after == 0.5
