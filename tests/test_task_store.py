@@ -1140,3 +1140,91 @@ def test_task_budget_counts_reported_cost_from_failed_attempts(tmp_path):
             "SELECT task_json FROM tasks WHERE task_id='task-1'"
         ).fetchone()
     assert json.loads(row["task_json"])["last_failure"] == "task_cost_budget_exceeded"
+
+
+def test_repeated_workflow_steps_pause_task_and_require_a_new_redesign(tmp_path):
+    store_path = tmp_path / "orchestrator.sqlite3"
+    store = TaskStore(store_path)
+    worker = _agent("loop-worker", "loop-provider", "loop-model")
+    _register(store, worker)
+    store.create_run(_run(strategy="single_agent"), [_task("loop-task")])
+    claimed = store.claim_task("loop-worker")
+    assert claimed is not None
+
+    observations = []
+    for _ in range(3):
+        observations.append(
+            store.observe_workflow_step(
+                "loop-task",
+                "loop-worker",
+                claimed["lease_token"],
+                "rerun the same failing test",
+                error="AssertionError: unchanged output",
+                progress_token="artifact-sha256-unchanged",
+            )
+        )
+    assert observations[0]["may_continue"] is True
+    assert observations[1]["may_continue"] is True
+    assert observations[2]["may_continue"] is False
+    assert observations[2]["task_status"] == "needs_redesign"
+    paused = store.get_run_status("run-1")
+    assert paused["run"]["status"] == "needs_redesign"
+    assert paused["tasks"][0]["status"] == "needs_redesign"
+
+    # The old lease is revoked as soon as the guard trips.
+    with pytest.raises(TaskLeaseError, match="not leased"):
+        store.observe_workflow_step(
+            "loop-task",
+            "loop-worker",
+            claimed["lease_token"],
+            "try again",
+        )
+
+    # Guard counters survive a TaskStore re-open; no process-local cache is required.
+    reopened = TaskStore(store_path)
+    resumed = reopened.redesign_task(
+        "run-1",
+        "loop-task",
+        strategy="inspect-test-fixture-and-import-path",
+        hypothesis="the test runner is loading a stale fixture path",
+        rationale="the same assertion failed three times without an artifact change",
+    )
+    assert resumed["run"]["status"] == "queued"
+    assert resumed["tasks"][0]["status"] == "queued"
+    task_row = reopened.get_run_status("run-1")["tasks"][0]
+    assert task_row["attempt"] == 1
+
+    next_claim = reopened.claim_task("loop-worker")
+    assert next_claim is not None
+    assert next_claim["attempt"] == 2
+    assert next_claim["input"]["workflow_strategy"] == "inspect-test-fixture-and-import-path"
+
+
+def test_duplicate_workflow_redesign_fails_closed(tmp_path):
+    store = TaskStore(tmp_path / "orchestrator.sqlite3")
+    worker = _agent("duplicate-worker", "duplicate-provider", "duplicate-model")
+    _register(store, worker)
+    task = _task("duplicate-task")
+    original_hypothesis = task["objective"]
+    store.create_run(_run(strategy="single_agent"), [task])
+    claimed = store.claim_task("duplicate-worker")
+    assert claimed is not None
+    for _ in range(3):
+        result = store.observe_workflow_step(
+            "duplicate-task",
+            "duplicate-worker",
+            claimed["lease_token"],
+            "repeat unchanged step",
+            progress_token="same",
+        )
+    assert result["task_status"] == "needs_redesign"
+
+    rejected = store.redesign_task(
+        "run-1",
+        "duplicate-task",
+        strategy="single_agent",
+        hypothesis=original_hypothesis,
+        rationale="retry the original plan",
+    )
+    assert rejected["run"]["status"] == "failed"
+    assert rejected["tasks"][0]["status"] == "failed"
