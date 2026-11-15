@@ -2107,3 +2107,31 @@ def test_claude_cli_never_shadows_a_configured_api_key(monkeypatch):
     monkeypatch.setenv("GEMINI_API_KEY", "gemini-key")
 
     assert llm.detect_backend() == "gemini"
+
+
+def test_structured_and_text_calls_share_backend_adapter_contract(monkeypatch):
+    calls = []
+
+    class _RecordingAdapter:
+        def call(self, request, context):
+            calls.append((request, context))
+            return llm.LLMResult(
+                text='{"nodes":[{"id":"a","label":"A"}],"edges":[],"hyperedges":[]}',
+                input_tokens=11,
+                output_tokens=7,
+                model=context.model,
+                stop_reason="stop",
+            )
+
+    monkeypatch.setitem(llm._BACKEND_ADAPTERS, "claude", _RecordingAdapter())
+    monkeypatch.setattr(llm, "_get_backend_api_key", lambda _backend: "test-key")
+
+    graph = llm._call_claude("test-key", "claude-sonnet-4-6", "source text")
+    text = llm._call_llm("name this community", backend="claude")
+
+    assert graph["nodes"] == [{"id": "a", "label": "A"}]
+    assert graph["input_tokens"] == 11
+    assert text.startswith('{"nodes"')
+    assert [request.response_format for request, _ in calls] == ["graph_json", "text"]
+    assert calls[0][0].system_prompt is not None
+    assert calls[1][0].system_prompt is None
