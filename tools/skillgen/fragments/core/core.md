@@ -221,6 +221,8 @@ else:
 # Nothing has been dispatched yet, so any chunk file on disk is a leftover from an
 # interrupted run, and Step B3 merges every .graphify_chunk_*.json it finds.
 for stale in out.glob('.graphify_chunk_*.json'):
+    if stale.name == '.graphify_chunk_manifest.json':
+        continue
     if stale.is_symlink():
         stale.unlink(missing_ok=True)  # unlink only the link itself
         continue
@@ -291,6 +293,8 @@ failed = []
 valid = []
 
 for path in sorted(out.glob('.graphify_chunk_*.json')):
+    if path.name == '.graphify_chunk_manifest.json':
+        continue
     if path.name not in expected_names:
         print(f'WARNING: removing unexpected chunk file {path.name}')
         if path.is_symlink() or path.is_file():
@@ -375,7 +379,10 @@ if manifest_path.is_symlink() or not manifest_path.is_file():
 manifest = json.loads(manifest_path.read_text(encoding=\"utf-8\"))
 if not isinstance(manifest, dict):
     raise SystemExit('Chunk manifest must be a JSON object')
-chunks = sorted(glob.glob('graphify-out/.graphify_chunk_*.json'))
+chunks = sorted(
+    path for path in glob.glob('graphify-out/.graphify_chunk_*.json')
+    if Path(path).name != '.graphify_chunk_manifest.json'
+)
 expected_names = {f'.graphify_chunk_{key}.json' for key in manifest}
 actual_names = {Path(path).name for path in chunks}
 if not actual_names.issubset(expected_names):
@@ -448,7 +455,10 @@ $(cat graphify-out/.graphify_python) -c "
 import json, glob
 from pathlib import Path
 
-chunks = sorted(glob.glob('graphify-out/.graphify_chunk_*.json'))
+chunks = sorted(
+    path for path in glob.glob('graphify-out/.graphify_chunk_*.json')
+    if Path(path).name != '.graphify_chunk_manifest.json'
+)
 all_nodes, all_edges, all_hyperedges = [], [], []
 total_in, total_out = 0, 0
 for c in chunks:
