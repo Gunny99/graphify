@@ -116,6 +116,8 @@ def test_mcp_exposes_authenticated_timeline_record_and_query(tmp_path, monkeypat
     by_name = {tool.name: tool for tool in tools}
     assert "orchestrator_record_span" in by_name
     assert "orchestrator_list_events" in by_name
+    assert "orchestrator_observe_step" in by_name
+    assert "orchestrator_redesign_task" in by_name
     assert "coordinator_token" in by_name["orchestrator_list_events"].inputSchema["required"]
 
     arguments = {
@@ -163,3 +165,99 @@ def test_mcp_timeline_tools_require_coordinator_token(tmp_path, monkeypatch):
         {"run_id": "some-run", "coordinator_token": "wrong-secret"},
     ))
     assert "Coordinator authentication failed" in result[0].text
+
+
+def test_mcp_loop_guard_revokes_lease_until_coordinator_redesign(tmp_path, monkeypatch):
+    _install_fake_mcp(monkeypatch)
+    monkeypatch.setenv("GRAPHIFY_ORCHESTRATOR_TOKEN", "test-coordinator-token")
+    graph_path = tmp_path / "graphify-out" / "graph.json"
+    graph_path.parent.mkdir(parents=True)
+    graph_path.write_text(
+        json.dumps({"directed": False, "multigraph": False, "graph": {}, "nodes": [], "links": []}),
+        encoding="utf-8",
+    )
+    store = TaskStore(graph_path.parent / "orchestrator.sqlite3")
+    _make_run(store)
+    agent_token = "test-agent-auth-token-with-more-than-24-chars"
+    store.register_agent(
+        {
+            "schema_version": 1,
+            "agent_id": "mcp-loop-worker",
+            "provider": "test-provider",
+            "model": "test-model",
+            "model_version": "1",
+            "protocol": "mcp",
+            "capabilities": ["implementation"],
+            "max_concurrency": 1,
+            "status": "active",
+            "allowed_data_scopes": ["project:demo"],
+            "cost_profile": {
+                "currency": "USD",
+                "input_cost_per_million_tokens": 0.2,
+                "cached_input_cost_per_million_tokens": 0.02,
+                "output_cost_per_million_tokens": 0.5,
+                "verification_cost_per_task": 0.03,
+                "expected_retry_cost_per_task": 0.04,
+                "expected_escalation_cost_per_task": 0.05,
+                "orchestration_cost_per_task": 0.01,
+                "pricing_source": "test-prices",
+                "effective_at": "2026-11-15T00:00:00Z",
+            },
+            "quality_profiles": [
+                {
+                    "role": "implementer",
+                    "domain": "technical",
+                    "benchmark_id": "test-benchmark",
+                    "evaluation_set_hash": "sha256:test-set",
+                    "evaluator_version": "test-evaluator",
+                    "sample_size": 500,
+                    "confidence_level": 0.95,
+                    "accuracy_lower_bound": 0.995,
+                    "hallucination_upper_bound": 0.005,
+                    "evaluated_at": "2026-11-15T00:00:00Z",
+                }
+            ],
+            "registered_at": "2026-11-15T00:00:00Z",
+            "updated_at": "2026-11-15T00:00:00Z",
+            "auth_token": agent_token,
+        },
+        trusted_profile=True,
+    )
+    claimed = store.claim_task("mcp-loop-worker")
+    assert claimed is not None
+
+    from graphify.serve import _build_server
+
+    server = _build_server(str(graph_path))
+    observed = []
+    for _ in range(3):
+        response = asyncio.run(server.call_handler(
+            "orchestrator_observe_step",
+            {
+                "task_id": claimed["task_id"],
+                "agent_id": "mcp-loop-worker",
+                "agent_token": agent_token,
+                "lease_token": claimed["lease_token"],
+                "action": "repeat the same test command",
+                "error": "AssertionError: output unchanged",
+                "progress_token": "same-artifact-hash",
+            },
+        ))
+        observed.append(json.loads(response[0].text))
+    assert observed[-1]["task_status"] == "needs_redesign"
+    assert observed[-1]["may_continue"] is False
+
+    redesigned = asyncio.run(server.call_handler(
+        "orchestrator_redesign_task",
+        {
+            "run_id": "mcp-timeline-run",
+            "task_id": claimed["task_id"],
+            "strategy": "inspect-test-import-resolution",
+            "hypothesis": "the test imports a stale module path",
+            "rationale": "the previous command repeated without changing the artifact",
+            "coordinator_token": "test-coordinator-token",
+        },
+    ))
+    payload = json.loads(redesigned[0].text)
+    assert payload["run"]["status"] == "queued"
+    assert payload["tasks"][0]["status"] == "queued"
