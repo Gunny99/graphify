@@ -1668,13 +1668,6 @@ class _OpenAICompatibleAdapter:
 
         if not context.base_url:
             raise ValueError(f"OpenAI-compatible backend {backend!r} has no base_url")
-        retries = _resolve_max_retries()
-        if (
-            backend == "ollama"
-            and request.response_format == "graph_json"
-            and not os.environ.get("GRAPHIFY_MAX_RETRIES", "").strip()
-        ):
-            retries = 0
         client = OpenAI(
             api_key=context.api_key,
             base_url=context.base_url,
