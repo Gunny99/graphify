@@ -85,14 +85,14 @@ def test_redesign_budget_is_bounded():
         hypothesis="different diagnosis",
         rationale="change intervention",
     )
-    assert guard.observe("same").status == "redesign"
+    decision = guard.observe("same")
+    assert decision.status == "stop"
+    assert "redesign_budget_exhausted" in decision.reasons
     assert not guard.propose_redesign(
         strategy="third",
         hypothesis="third hypothesis",
         rationale="still blocked",
     )
-    assert guard.observe("same").status == "stop"
-    assert "redesign_budget_exhausted" in guard.observe("same").reasons
 
 
 @pytest.mark.parametrize("value", [0, -1, True, 1.5])
