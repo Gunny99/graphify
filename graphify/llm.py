@@ -15,6 +15,8 @@ import time
 from collections.abc import Callable, Iterator, Mapping
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, replace
+from datetime import datetime, timezone
+from email.utils import parsedate_to_datetime
 from pathlib import Path
 from typing import Protocol
 
@@ -501,7 +503,8 @@ def _resolve_max_retries(default: int = 6) -> int:
     strict per-org concurrency/RPM caps (e.g. Moonshot/kimi), where a parallel run
     429s and the chunk is then dropped — incomplete graph plus console spam (#1523).
     A higher cap lets a rate-limited chunk wait out the window instead of failing.
-    Honour GRAPHIFY_MAX_RETRIES; 0 is allowed (disable retries)."""
+    Honour GRAPHIFY_MAX_RETRIES; 0 is allowed (disable retries). The shared
+    adapter dispatcher owns these retries; provider SDK retry loops are disabled."""
     raw = os.environ.get("GRAPHIFY_MAX_RETRIES", "").strip()
     if raw:
         try:
@@ -966,6 +969,35 @@ class BackendAdapter(Protocol):
     """Transport interface shared by graph extraction and text callers."""
 
     def call(self, request: LLMRequest, context: BackendContext) -> LLMResult: ...
+
+
+
+class BackendError(RuntimeError):
+    """Base class for failures normalized across model providers."""
+
+
+class RateLimited(BackendError):
+    """Provider rejected a request because of rate or throughput limits."""
+
+    def __init__(self, message: str, *, retry_after: float | None = None):
+        super().__init__(message)
+        self.retry_after = retry_after
+
+
+class AuthenticationError(BackendError):
+    """Credentials or provider permissions were rejected."""
+
+
+class ContextWindowExceeded(BackendError):
+    """A request exceeded the model's accepted context window."""
+
+
+class TransientBackendError(BackendError):
+    """A temporary provider or transport failure that is safe to retry."""
+
+
+class BackendTimeout(TransientBackendError):
+    """A provider or CLI invocation timed out."""
 
 
 def _is_vision_image(path: Path) -> bool:
@@ -1647,7 +1679,7 @@ class _OpenAICompatibleAdapter:
             api_key=context.api_key,
             base_url=context.base_url,
             timeout=_resolve_api_timeout(),
-            max_retries=retries,
+            max_retries=0,
             **({"default_headers": dict(request.extra_headers)} if request.extra_headers else {}),
         )
         messages: list[dict] = []
@@ -1720,7 +1752,7 @@ class _AnthropicAdapter:
             api_key=context.api_key,
             base_url=context.base_url,
             timeout=_resolve_api_timeout(),
-            max_retries=_resolve_max_retries(),
+            max_retries=0,
         )
         kwargs: dict = {
             "model": context.model,
@@ -1910,7 +1942,7 @@ class _BedrockAdapter:
             config=botocore.config.Config(
                 read_timeout=_resolve_api_timeout(),
                 connect_timeout=10,
-                retries={"max_attempts": _resolve_max_retries() + 1, "mode": "adaptive"},
+                retries={"total_max_attempts": 1, "mode": "standard"},
             ),
         )
         kwargs: dict = {
@@ -1951,14 +1983,40 @@ _BACKEND_ADAPTERS: dict[str, BackendAdapter] = {
 
 
 def _invoke_backend_request(request: LLMRequest, context: BackendContext) -> LLMResult:
-    """Dispatch one call and enforce the normalized adapter result."""
+    """Dispatch once through the shared, bounded transient-error retry policy.
+
+    SDK retry loops are disabled. This dispatcher owns transient retries for
+    both graph extraction and text-only requests. Context-window errors pass
+    through to extraction's bisection policy; auth/configuration errors do not
+    retry.
+    """
     adapter = _BACKEND_ADAPTERS.get(context.backend, _OPENAI_COMPAT_ADAPTER)
-    result = adapter.call(request, context)
-    if not isinstance(result, LLMResult):
-        raise TypeError(f"backend adapter returned {type(result).__name__}, expected LLMResult")
-    if not isinstance(result.text, str):
-        raise TypeError("backend adapter returned non-text response content")
-    return result
+    max_retries = _resolve_max_retries()
+    for attempt in range(max_retries + 1):
+        try:
+            result = adapter.call(request, context)
+            if not isinstance(result, LLMResult):
+                raise TypeError(
+                    f"backend adapter returned {type(result).__name__}, expected LLMResult"
+                )
+            if not isinstance(result.text, str):
+                raise TypeError("backend adapter returned non-text response content")
+            return result
+        except Exception as exc:
+            normalized = _normalize_backend_exception(exc)
+            if not isinstance(normalized, (RateLimited, TransientBackendError)) or attempt >= max_retries:
+                if normalized is exc:
+                    raise
+                raise normalized from exc
+            retry_after = getattr(normalized, "retry_after", None)
+            delay = retry_after if retry_after is not None else min(2 ** attempt, 30)
+            print(
+                f"[graphify] {context.backend} {type(normalized).__name__}; "
+                f"retry {attempt + 1}/{max_retries} in {delay:g}s",
+                file=sys.stderr,
+            )
+            time.sleep(delay)
+    raise AssertionError("unreachable")
 
 
 def _graph_result_from_response(response: LLMResult, backend: str) -> dict:
@@ -2211,8 +2269,13 @@ def _azure_client(api_key: str, endpoint: str):
                 timeout_s = v
         except ValueError:
             pass
-    return AzureOpenAI(api_key=api_key, azure_endpoint=endpoint, api_version=api_version, timeout=timeout_s,
-                       max_retries=_resolve_max_retries())
+    return AzureOpenAI(
+        api_key=api_key,
+        azure_endpoint=endpoint,
+        api_version=api_version,
+        timeout=timeout_s,
+        max_retries=0,
+    )
 
 
 def _call_azure(
@@ -2528,6 +2591,129 @@ _CONTEXT_EXCEEDED_MARKERS = (
 )
 
 
+
+def _exception_chain(exc: BaseException):
+    """Yield an exception and its explicit/implicit causes without looping."""
+    seen: set[int] = set()
+    current: BaseException | None = exc
+    while current is not None and id(current) not in seen:
+        seen.add(id(current))
+        yield current
+        current = current.__cause__ or current.__context__
+
+
+def _exception_status_code(exc: BaseException) -> int | None:
+    response = getattr(exc, "response", None)
+    for value in (
+        getattr(exc, "status_code", None),
+        getattr(response, "status_code", None),
+        getattr(response, "status", None),
+    ):
+        try:
+            if value is not None:
+                return int(value)
+        except (TypeError, ValueError):
+            continue
+    return None
+
+
+def _exception_error_code(exc: BaseException) -> str:
+    response = getattr(exc, "response", None)
+    if isinstance(response, dict):
+        error = response.get("Error")
+        if isinstance(error, dict) and error.get("Code") is not None:
+            return str(error["Code"]).lower()
+    for attr in ("code", "error_code"):
+        value = getattr(exc, attr, None)
+        if value is not None:
+            return str(value).lower()
+    return ""
+
+
+def _retry_after_seconds(exc: BaseException) -> float | None:
+    """Read Retry-After from SDK/AWS errors as seconds or an HTTP date."""
+    for item in _exception_chain(exc):
+        response = getattr(item, "response", None)
+        headers = getattr(response, "headers", None)
+        if headers is None:
+            headers = getattr(item, "headers", None)
+        if not isinstance(headers, Mapping):
+            continue
+        raw = next(
+            (value for key, value in headers.items() if str(key).lower() == "retry-after"),
+            None,
+        )
+        if raw is None:
+            continue
+        try:
+            seconds = float(raw)
+        except (TypeError, ValueError):
+            try:
+                when = parsedate_to_datetime(str(raw))
+                if when.tzinfo is None:
+                    when = when.replace(tzinfo=timezone.utc)
+                seconds = (when - datetime.now(timezone.utc)).total_seconds()
+            except (TypeError, ValueError, OverflowError):
+                continue
+        if seconds >= 0:
+            return min(seconds, 300.0)
+    return None
+
+
+def _is_timeout_exception(exc: BaseException) -> bool:
+    if isinstance(exc, subprocess.TimeoutExpired):
+        return True
+    name = type(exc).__name__.lower()
+    return "timeout" in name or "timedout" in name
+
+
+def _normalize_backend_exception(exc: Exception) -> Exception:
+    """Normalize SDK/CLI errors; leave unknown programming errors untouched."""
+    chain = list(_exception_chain(exc))
+    existing = next((item for item in chain if isinstance(item, BackendError)), None)
+    if existing is not None:
+        return existing
+
+    messages = " ".join(str(item) for item in chain).lower()
+    names = " ".join(type(item).__name__.lower() for item in chain)
+    codes = " ".join(_exception_error_code(item) for item in chain)
+    statuses = [_exception_status_code(item) for item in chain]
+    status = next((value for value in statuses if value is not None), None)
+    combined = f"{names} {codes} {messages}"
+
+    if any(marker in messages for marker in _CONTEXT_EXCEEDED_MARKERS):
+        return ContextWindowExceeded(str(exc))
+
+    rate_markers = (
+        "ratelimit", "rate_limit", "rate limit", "too many requests",
+        "throttl", "provisionedthroughputexceeded", "requestlimitexceeded",
+    )
+    if status == 429 or any(marker in combined for marker in rate_markers):
+        return RateLimited(str(exc), retry_after=_retry_after_seconds(exc))
+
+    auth_markers = (
+        "authenticationerror", "permissiondenied", "unauthorized",
+        "invalidapikey", "invalidclienttokenid", "accessdenied",
+        "access denied", "invalid api key", "authentication failed",
+    )
+    if status in (401, 403) or any(marker in combined for marker in auth_markers):
+        return AuthenticationError(str(exc))
+
+    if any(_is_timeout_exception(item) for item in chain):
+        return BackendTimeout(str(exc))
+
+    transient_markers = (
+        "apiconnectionerror", "internalservererror", "serviceunavailable",
+        "modelnotready", "temporarily unavailable", "connection reset",
+        "connection aborted", "server disconnected",
+    )
+    if status in (408, 409, 425) or (status is not None and 500 <= status <= 599) or any(
+        marker in combined for marker in transient_markers
+    ):
+        return TransientBackendError(str(exc))
+    return exc
+
+
 def _looks_like_context_exceeded(exc: BaseException) -> bool:
     """Heuristically classify an exception as a context-window overflow.
 
@@ -2538,12 +2724,16 @@ def _looks_like_context_exceeded(exc: BaseException) -> bool:
     SDK class. False positives are cheap (we'll re-extract on halves and
     likely recover); false negatives are expensive (chunk fails entirely).
     """
+    if isinstance(exc, ContextWindowExceeded):
+        return True
     msg = str(exc).lower()
     return any(marker in msg for marker in _CONTEXT_EXCEEDED_MARKERS)
 
 
 def _looks_like_timeout(exc: BaseException) -> bool:
-    """Classify an exception as a recognized subprocess or SDK timeout."""
+    """Classify a normalized backend or raw subprocess/SDK timeout."""
+    if isinstance(exc, BackendTimeout):
+        return True
     types: list[type[BaseException]] = [subprocess.TimeoutExpired]
     try:
         import openai
