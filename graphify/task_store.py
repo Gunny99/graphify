@@ -1269,11 +1269,11 @@ class TaskStore:
                     )
                     task["verification_task_id"] = verification_id
                     task.pop("estimated_cost_reserved", None)
-                task.pop("estimated_generation_cost_reserved", None)
+                    task.pop("estimated_generation_cost_reserved", None)
                     new_status = "submitted"
                 else:
                     task.pop("estimated_cost_reserved", None)
-                task.pop("estimated_generation_cost_reserved", None)
+                    task.pop("estimated_generation_cost_reserved", None)
                     new_status = "accepted"
             self._set_task(con, row, task, new_status)
             self._event(
