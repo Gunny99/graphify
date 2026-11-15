@@ -332,7 +332,7 @@ Grounded in the current source snapshot:
 - `TaskStore.record_span()` now records content-free stage/task timing metadata in the same event ledger; active-vs-wait attribution and automatic span emission across every host remain open.
 - `WorkflowLoopGuard` now fingerprints repeated actions/errors and unchanged progress, persists state in the event ledger, and pauses the whole Run for redesign. The MCP contract requires a progress fingerprint, but automatic calls from all existing skill/CLI/host execution paths remain open.
 - `querylog.py` is opt-in query logging, not a task execution timeline; it should not be repurposed to hold prompts or source bodies.
-- `serve.py` now routes every MCP orchestration operation through `graphify.workflow.RunController`; CLI, skill-host, and direct backend entry points still need to adopt the same application boundary.
+- `serve.py` routes every MCP orchestration operation through `graphify.workflow.RunController`; `graphify agent register/list` also use that facade. Other CLI commands, generated skill-host workflows, direct LLM backend calls, and Graphify product-stage entry points are still being migrated.
 - The skill generator already uses a core plus references, but host-specific fragments and generated artifacts can drift unless canonical contracts and consistency tests own the policy.
 - `llm.py` has a direct API path, while skill-driven host execution is a separate route; both need one internal request/result/retry contract.
 - Current reviewer workflows exist for structured claims; code review needs the same frozen-artifact, finding, disposition, and cycle-limit semantics.
@@ -357,7 +357,7 @@ These references support the reliability principles, not Graphify-specific imple
 - [~] P1 MCP exposure: `orchestrator_record_span`, `orchestrator_list_events`, `orchestrator_observe_step`, `orchestrator_redesign_task`.
 - [ ] P1 automatic instrumentation from every host skill, CLI/backend and task execution boundary; workers must currently call the new progress-report tool.
 - [ ] P1 execute focused and full regression tests on the exact head SHA. Tests were added/updated but have not been run in this environment; the PR currently has no check runs.
-- [~] P2 initial `RunController` application boundary: all MCP orchestration handlers now route through `graphify.workflow.RunController`, while `TaskStore` remains the transactional ledger. CLI, skill-host, backend, and Graphify domain-pipeline callers are not yet migrated.
+- [~] P2 initial `RunController` application boundary: all MCP orchestration handlers and `graphify agent register/list` now route through `graphify.workflow.RunController`, while `TaskStore` remains the transactional ledger. Other CLI commands, generated host workflows, direct backend paths, and Graphify domain-pipeline callers are not yet migrated.
 - [ ] P2 extend the same controller boundary to CLI, skill hosts, backend execution, and Graphify domain stages; remove direct state-transition bypasses.
 - [ ] P3 adapter convergence, one retry/deadline owner and contract tests.
 - [ ] P4 frozen-artifact independent code reviewer and adjudication.
