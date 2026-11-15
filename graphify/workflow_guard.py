@@ -40,7 +40,7 @@ class GuardDecision:
 
     @property
     def needs_redesign(self) -> bool:
-        return self.status in {"redesign", "stop"}
+        return self.status == "redesign"
 
 
 def _normalize(value: Any) -> str:
@@ -146,15 +146,18 @@ class WorkflowLoopGuard:
 
         action_key = _fingerprint(action)
         self._actions[action_key] += 1
+        current_error_repeats = 0
         if error is not None:
             error_type = type(error).__name__ if isinstance(error, BaseException) else "Error"
             error_text = str(error) if isinstance(error, BaseException) else error
-            self._errors[_fingerprint(f"{error_type}: {_normalize(error_text)}")] += 1
+            error_key = _fingerprint(f"{error_type}: {_normalize(error_text)}")
+            self._errors[error_key] += 1
+            current_error_repeats = self._errors[error_key]
 
         reasons = []
         if self._actions[action_key] >= self.repeated_action_limit:
             reasons.append("repeated_action")
-        if error is not None and max(self._errors.values(), default=0) >= self.repeated_error_limit:
+        if current_error_repeats >= self.repeated_error_limit:
             reasons.append("repeated_error")
         if self._no_progress_steps >= self.no_progress_limit:
             reasons.append("no_progress")
