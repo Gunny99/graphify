@@ -1331,7 +1331,7 @@ class TaskStore:
         if not isinstance(retryable, bool):
             raise ValueError("retryable must be a boolean")
         if error_signature is not None:
-            error_signature = _required_string(error_signature, "error_signature")
+            error_signature = _required_string(error_signature, "error_signature").strip()
             if len(error_signature) > 256:
                 raise ValueError("error_signature must be at most 256 characters")
         with self._transaction() as con:
@@ -1355,7 +1355,7 @@ class TaskStore:
                     and isinstance(previous, dict)
                     and previous.get("error_signature") == error_signature
                     and previous.get("input_signature") == input_signature
-                    and int(previous.get("attempt", 0)) == attempt - 1
+                    and previous.get("attempt") == attempt - 1
                 )
                 history.append({
                     "attempt": attempt,
