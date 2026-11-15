@@ -254,7 +254,7 @@ class TaskStore:
         name = _required_string(name, "name")
         if len(name) > 128 or re.fullmatch(r"[A-Za-z0-9_.:/-]+", name) is None:
             raise ValueError("name must be a short stable operation label")
-        if outcome not in {"ok", "error", "cancelled", "skipped"}:
+        if not isinstance(outcome, str) or outcome not in {"ok", "error", "cancelled", "skipped"}:
             raise ValueError("outcome must be ok, error, cancelled, or skipped")
         start = self._timeline_stamp(started_at, "started_at")
         finish = self._timeline_stamp(finished_at, "finished_at")
@@ -380,7 +380,7 @@ class TaskStore:
             con.close()
         events = []
         summary_keys = (
-            "status", "reason", "result_id", "attempt", "new_task_status",
+            "status", "result_id", "attempt", "new_task_status",
             "direct_cost", "name", "duration_ms", "outcome", "stage",
             "decision", "reason_code", "review_status", "strategy", "accepted",
         )
