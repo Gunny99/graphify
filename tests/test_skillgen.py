@@ -1543,6 +1543,8 @@ def test_chunk_coverage_manifest_is_authoritative_for_all_chunked_hosts():
     assert "set(coverage) != set(sources)" in core
     assert "resolved.relative_to(root)" in core
     assert "manifest.write_text('{}'" in core
+    assert "path.name == '.graphify_chunk_manifest.json'" in core
+    assert "Path(path).name != '.graphify_chunk_manifest.json'" in core
 
     platforms = gen.load_platforms()
     for key in platforms:
