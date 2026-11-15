@@ -1187,6 +1187,15 @@ def test_v1_task_store_migrates_to_immutable_v2_schema(tmp_path):
     path = tmp_path / "orchestrator.sqlite3"
     TaskStore(path)
     with sqlite3.connect(path) as con:
+        for trigger_name in (
+            "immutable_events_before_update",
+            "immutable_events_before_delete",
+            "immutable_results_before_update",
+            "immutable_results_before_delete",
+            "immutable_reviews_before_update",
+            "immutable_reviews_before_delete",
+        ):
+            con.execute(f"DROP TRIGGER IF EXISTS {trigger_name}")
         con.execute("PRAGMA user_version = 1")
 
     TaskStore(path)
