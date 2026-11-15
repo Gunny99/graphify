@@ -1740,12 +1740,15 @@ class _AnthropicAdapter:
             import anthropic
         except ImportError as exc:
             raise ImportError(_backend_pkg_hint("anthropic", "anthropic")) from exc
-        client = anthropic.Anthropic(
-            api_key=context.api_key,
-            base_url=context.base_url,
-            timeout=_resolve_api_timeout(),
-            max_retries=0,
-        )
+        client_kwargs = {
+            "api_key": context.api_key,
+            "base_url": context.base_url,
+            "timeout": _resolve_api_timeout(),
+            "max_retries": 0,
+        }
+        if request.extra_headers:
+            client_kwargs["default_headers"] = dict(request.extra_headers)
+        client = anthropic.Anthropic(**client_kwargs)
         kwargs: dict = {
             "model": context.model,
             "max_tokens": request.max_tokens,
@@ -1895,7 +1898,10 @@ class _AzureAdapter:
         messages: list[dict] = []
         if request.system_prompt is not None:
             messages.append({"role": "system", "content": request.system_prompt})
-        messages.append({"role": "user", "content": request.user_message})
+        messages.append({
+            "role": "user",
+            "content": _openai_content(request.user_message, list(request.images)),
+        })
         kwargs: dict = {
             "model": context.model,
             "messages": messages,
@@ -2722,7 +2728,12 @@ def _normalize_backend_exception(exc: Exception) -> Exception:
         "toomanyrequests", "resource_exhausted", "quota_exceeded",
         "throttl", "provisionedthroughputexceeded", "requestlimitexceeded",
     )
-    if status == 429 or any(marker in combined for marker in rate_markers):
+    error_identity = f"{names} {codes}"
+    if (
+        status == 429
+        or any(marker in error_identity for marker in rate_markers)
+        or (status is None and any(marker in messages for marker in rate_markers))
+    ):
         return RateLimited(str(exc), retry_after=_retry_after_seconds(exc))
 
     auth_markers = (
@@ -2732,7 +2743,9 @@ def _normalize_backend_exception(exc: Exception) -> Exception:
         "accessdenied", "access_denied", "access denied", "invalid api key",
         "invalid credentials", "authentication failed", "auth failed",
     )
-    if status in (401, 403) or any(marker in combined for marker in auth_markers):
+    if status in (401, 403) or (
+        status is None and any(marker in combined for marker in auth_markers)
+    ):
         return AuthenticationError(str(exc))
 
     if any(_is_timeout_exception(item) for item in chain):
@@ -2745,8 +2758,10 @@ def _normalize_backend_exception(exc: Exception) -> Exception:
         "service unavailable", "overloaded", "endpointconnectionerror",
         "connectionclosederror", "connectionerror", "connecterror",
     )
-    if status in (408, 409, 425) or (status is not None and 500 <= status <= 599) or any(
-        marker in combined for marker in transient_markers
+    if (
+        status in (408, 409, 425)
+        or (status is not None and 500 <= status <= 599)
+        or (status is None and any(marker in combined for marker in transient_markers))
     ):
         return TransientBackendError(str(exc))
     return exc
@@ -3531,14 +3546,13 @@ def _call_llm(
 ) -> str:
     """Send a text prompt through the same adapter registry as graph extraction.
 
-    The adapter performs one call only; the caller remains the owner of retry
-    policy, budgets, and fallback behaviour.
+    Each adapter invocation performs one transport call. The shared dispatcher
+    owns bounded retries; callers remain responsible for budgets and fallback
+    behaviour.
     """
     if backend not in BACKENDS:
         raise ValueError(f"Unknown backend {backend!r}")
     cfg = BACKENDS[backend]
-    if backend == "ollama":
-        _resolve_ollama_seed()
     key = _get_backend_api_key(backend)
     if not key and backend == "ollama":
         ollama_url = _resolve_ollama_base_url(cfg.get("base_url", ""))
