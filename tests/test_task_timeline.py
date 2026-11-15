@@ -171,3 +171,21 @@ def test_timeline_rejects_unknown_runs_and_unbounded_queries(tmp_path):
             since="2026-11-16T00:00:00Z",
             until="2026-11-15T00:00:00Z",
         )
+
+def test_span_rejects_freeform_labels_and_non_object_attributes(tmp_path):
+    store = _store(tmp_path)
+    with pytest.raises(ValueError, match="stable operation label"):
+        store.record_span(
+            "timeline-run",
+            name="run shell command --token secret",
+            started_at="2026-11-15T00:00:00Z",
+            finished_at="2026-11-15T00:00:01Z",
+        )
+    with pytest.raises(ValueError, match="attributes must be an object"):
+        store.record_span(
+            "timeline-run",
+            name="test-span",
+            started_at="2026-11-15T00:00:00Z",
+            finished_at="2026-11-15T00:00:01Z",
+            attributes=["not", "an", "object"],
+        )
