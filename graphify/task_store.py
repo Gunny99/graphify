@@ -10,6 +10,7 @@ from datetime import datetime, timezone
 import hashlib
 import json
 import math
+import re
 import secrets
 import sqlite3
 import time
@@ -247,6 +248,8 @@ class TaskStore:
         """Append a small, content-free timing span to the existing event ledger."""
         run_id = _required_string(run_id, "run_id")
         name = _required_string(name, "name")
+        if len(name) > 128 or re.fullmatch(r"[A-Za-z0-9_.:/-]+", name) is None:
+            raise ValueError("name must be a short stable operation label")
         if outcome not in {"ok", "error", "cancelled", "skipped"}:
             raise ValueError("outcome must be ok, error, cancelled, or skipped")
         start = self._timeline_stamp(started_at, "started_at")
@@ -260,7 +263,7 @@ class TaskStore:
             raise ValueError("span duration cannot exceed seven days")
 
         allowed_attributes = {
-            "stage", "provider", "model", "command", "test_id", "test_count",
+            "stage", "provider", "model", "test_id", "test_count",
             "exit_code", "cache_hit", "token_count", "file_count",
             "artifact_hash", "commit_sha", "review_status", "retry",
             "reason_code", "error_type", "status",
