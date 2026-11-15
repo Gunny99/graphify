@@ -453,9 +453,15 @@ class TaskStore:
                 if run_row is None:
                     raise TaskNotFoundError(f"run not found: {row['run_id']}")
                 run = _decode(run_row["run_json"])
+                initial_hypothesis = task["input"].get("workflow_hypothesis")
+                if not isinstance(initial_hypothesis, str) or not initial_hypothesis.strip():
+                    objective_hash = hashlib.sha256(
+                        str(task["objective"]).encode("utf-8")
+                    ).hexdigest()
+                    initial_hypothesis = f"initial-objective:{objective_hash}"
                 guard = WorkflowLoopGuard(
                     strategy=str(task["input"].get("workflow_strategy") or run["execution_policy"]["strategy"]),
-                    hypothesis=str(task["input"].get("workflow_hypothesis") or task["objective"]),
+                    hypothesis=initial_hypothesis,
                 )
             else:
                 previous_payload = _decode(previous["payload_json"])
