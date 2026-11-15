@@ -345,7 +345,7 @@ These references support the reliability principles, not Graphify-specific imple
 - Google SRE, **Addressing Cascading Failures** — bounded retries, randomized backoff, retry budgets, deadline propagation, and cancellation: https://sre.google/sre-book/addressing-cascading-failures/
 - OpenTelemetry, **Semantic Conventions for Events** — event timestamp and attributes should be structured, filterable, and avoid copying span attributes or sensitive/large bodies unnecessarily: https://opentelemetry.io/docs/specs/semconv/general/events/
 - OpenTelemetry, **Trace Semantic Conventions** — use spans for operations and consistent attributes across components: https://opentelemetry.io/docs/specs/semconv/general/trace/
-- AWS Builder Center, **When Retries Make an Outage Worse** (2026-09-24) — retry storms, deadlines, backoff, and failure containment: https://builder.aws.com/content/3JltT4T9OAxMK0W8A3cOLYYeQRV
+- AWS Builder Center, **When Retries Make an Outage Worse** (2026-09-24) — retry storms, deadlines, backoff, and failure containment: https://builder.aws.com/content/3JltT4T9OAxMK0W8A3cOLYYQeRV
 
 ## 11. Current implementation ledger
 
