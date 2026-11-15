@@ -365,12 +365,12 @@ $(cat graphify-out/.graphify_python) -c "
 import json, glob
 from pathlib import Path
 
-root = Path(Path('graphify-out/.graphify_root').read_text(encoding=\\\"utf-8-sig\\\").strip()).resolve()
+root = Path(Path('graphify-out/.graphify_root').read_text(encoding=\"utf-8-sig\").strip()).resolve()
 out = Path('graphify-out').resolve(strict=True)
 manifest_path = out / '.graphify_chunk_manifest.json'
 if manifest_path.is_symlink() or not manifest_path.is_file():
     raise SystemExit('Missing or unsafe chunk manifest; refusing to certify coverage')
-manifest = json.loads(manifest_path.read_text(encoding=\\\"utf-8\\\"))
+manifest = json.loads(manifest_path.read_text(encoding=\"utf-8\"))
 if not isinstance(manifest, dict):
     raise SystemExit('Chunk manifest must be a JSON object')
 chunks = sorted(glob.glob('graphify-out/.graphify_chunk_*.json'))
@@ -391,7 +391,7 @@ for key, sources in manifest.items():
     chunk_path = out / f'.graphify_chunk_{key}.json'
     if chunk_path.is_symlink() or not chunk_path.is_file():
         raise SystemExit(f'Unsafe or missing chunk file: {chunk_path.name}')
-    data = json.loads(chunk_path.read_text(encoding=\\\"utf-8\\\"))
+    data = json.loads(chunk_path.read_text(encoding=\"utf-8\"))
     coverage = data.get('coverage')
     if not isinstance(coverage, dict) or set(coverage) != set(sources):
         missing = sorted(set(sources) - set(coverage or {})) if isinstance(coverage, dict) else list(sources)
@@ -421,7 +421,7 @@ for key, sources in manifest.items():
         if n < total:
             partial.append((src, n, total, 'incomplete read'))
 
-Path('graphify-out/.graphify_partial.txt').write_text('\\\\n'.join(src for src, _, _, _ in partial), encoding=\\\"utf-8\\\")
+Path('graphify-out/.graphify_partial.txt').write_text('\\n'.join(src for src, _, _, _ in partial), encoding=\"utf-8\")
 if partial:
     print(f'WARNING: {len(partial)} file(s) are partial or lack exact coverage and will be retried on the next --update:')
     for src, n, total, reason in partial:
