@@ -1,11 +1,11 @@
 """Tests for serve.py - MCP graph query helpers (no mcp package required)."""
+import asyncio
 import importlib.util
 import json
 import subprocess
 import sys
-import asyncio
-from types import ModuleType
 import unicodedata
+from types import ModuleType
 
 import pytest
 import networkx as nx
