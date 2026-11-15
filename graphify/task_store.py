@@ -698,6 +698,8 @@ class TaskStore:
             # Keep active/runnable work ahead of this check, but do not let an
             # unrelated needs_review branch mask an unrecoverable work failure.
             status = "failed"
+        elif any(status == "needs_redesign" for status in statuses):
+            status = "needs_redesign"
         elif any(status == "needs_review" for status in statuses):
             status = "provisional"
         elif any(status in {"failed", "rejected", "blocked"} for status in statuses):
@@ -1099,7 +1101,7 @@ class TaskStore:
                 if run_row is None:
                     raise TaskNotFoundError(f"run not found: {row['run_id']}")
                 run = _decode(run_row["run_json"])
-                if run["status"] in {"failed", "cancelled", "accepted"}:
+                if run["status"] in {"failed", "cancelled", "accepted", "needs_redesign"}:
                     continue
                 execution = run["execution_policy"]
                 active_in_run = con.execute(
@@ -1912,7 +1914,7 @@ class TaskStore:
             rows = con.execute(
                 """
                 SELECT * FROM tasks WHERE run_id=?
-                AND status IN ('queued', 'leased', 'submitted', 'needs_review')
+                AND status IN ('queued', 'leased', 'submitted', 'needs_review', 'needs_redesign')
                 """,
                 (run_id,),
             ).fetchall()
