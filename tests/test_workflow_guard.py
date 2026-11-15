@@ -118,3 +118,20 @@ def test_loop_guard_round_trips_all_counters_and_redesign_history():
 def test_loop_guard_rejects_corrupt_persisted_state():
     with pytest.raises(ValueError, match="unsupported"):
         WorkflowLoopGuard.from_state({"schema_version": 99})
+
+
+@pytest.mark.parametrize(
+    ("strategy", "hypothesis"),
+    [
+        ("single", "a genuinely new hypothesis"),
+        ("a new strategy", "inspect then patch"),
+    ],
+)
+def test_redesign_rejects_plans_that_change_only_one_dimension(strategy, hypothesis):
+    guard = _guard(repeated_action_limit=1)
+    assert guard.observe("repeat").status == "redesign"
+    assert not guard.propose_redesign(
+        strategy=strategy,
+        hypothesis=hypothesis,
+        rationale="change the strategy and the causal diagnosis together",
+    )
