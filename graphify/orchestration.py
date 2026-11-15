@@ -18,14 +18,14 @@ SCHEMA_VERSION = 1
 
 RUN_STATUSES = frozenset({
     "queued", "running", "awaiting_review", "accepted", "provisional",
-    "failed", "cancelled",
+    "failed", "cancelled", "needs_redesign",
 })
 TASK_TYPES = frozenset({
     "research", "analysis", "implementation", "verification", "integration",
 })
 TASK_STATUSES = frozenset({
     "queued", "leased", "submitted", "needs_review", "accepted", "rejected",
-    "failed", "blocked", "cancelled",
+    "failed", "blocked", "cancelled", "needs_redesign",
 })
 AGENT_STATUSES = frozenset({"active", "paused", "disabled"})
 RESULT_STATUSES = frozenset({"submitted", "failed"})
