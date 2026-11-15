@@ -697,6 +697,32 @@ class TaskStore:
         now_dt = datetime.fromtimestamp(now_epoch, timezone.utc)
         with self._transaction() as con:
             self._reap_expired_leases(con, now_epoch)
+            # Sweep every expired queued task before agent eligibility or
+            # concurrency checks; otherwise an inactive/full/incompatible
+            # agent could leave expired work queued indefinitely.
+            queued_rows = con.execute(
+                "SELECT * FROM tasks WHERE status='queued'"
+            ).fetchall()
+            expired_runs: set[str] = set()
+            for queued_row in queued_rows:
+                queued_task = _decode(queued_row["task_json"])
+                if not _expired(queued_task.get("deadline_at"), now_dt):
+                    continue
+                self._set_task(con, queued_row, queued_task, "failed")
+                if queued_task.get("task_type") == "verification":
+                    self._mark_verification_parent_needs_review(
+                        con, queued_task, "verification task deadline expired before claim"
+                    )
+                self._event(
+                    con,
+                    run_id=queued_row["run_id"],
+                    task_id=queued_row["task_id"],
+                    event_type="deadline_expired",
+                    payload={"deadline_at": queued_task.get("deadline_at")},
+                )
+                expired_runs.add(queued_row["run_id"])
+            for expired_run_id in expired_runs:
+                self._refresh_run_status(con, expired_run_id)
             agent_row = con.execute(
                 "SELECT profile_json FROM agents WHERE agent_id=?", (agent_id,)
             ).fetchone()
@@ -721,20 +747,6 @@ class TaskStore:
             ).fetchall()
             for row in rows:
                 task = _decode(row["task_json"])
-                # Expired queued work must be finalized even when this agent
-                # lacks its capabilities; eligibility must not hide deadlines.
-                if _expired(task.get("deadline_at"), now_dt):
-                    self._set_task(con, row, task, "failed")
-                    if task.get("task_type") == "verification":
-                        self._mark_verification_parent_needs_review(
-                            con, task, "verification task deadline expired before claim"
-                        )
-                    self._event(
-                        con, run_id=row["run_id"], task_id=row["task_id"],
-                        event_type="deadline_expired", payload={"deadline_at": task.get("deadline_at")},
-                    )
-                    self._refresh_run_status(con, row["run_id"])
-                    continue
                 if not set(task["required_capabilities"]).issubset(set(agent["capabilities"])):
                     continue
 
