@@ -995,8 +995,8 @@ class TransientBackendError(BackendError):
     """A temporary provider or transport failure that is safe to retry."""
 
 
-class BackendTimeout(TransientBackendError):
-    """A provider or CLI invocation timed out."""
+class BackendTimeout(BackendError):
+    """A provider or CLI timeout; extraction's adaptive chunk policy owns recovery."""
 
 
 def _is_vision_image(path: Path) -> bool:
