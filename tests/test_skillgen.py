@@ -1535,6 +1535,25 @@ def test_shared_chunk_pipeline_rejects_symlinked_paths():
     assert "FileAttributes]::ReparsePoint" in powershell_guard
 
 
+
+def test_chunk_coverage_manifest_is_authoritative_for_all_chunked_hosts():
+    """Every chunked host must render the manifest-backed coverage verifier."""
+    core = gen._read_fragment("core/core.md")
+    assert ".graphify_chunk_manifest.json" in core
+    assert "set(coverage) != set(sources)" in core
+    assert "resolved.relative_to(root)" in core
+    assert "manifest.write_text('{}'" in core
+
+    platforms = gen.load_platforms()
+    for key in platforms:
+        if key in {"aider", "devin"}:
+            continue  # terminal-only inline pipelines do not use chunk dispatch
+        artifacts = gen.render_all(platforms, only=key)
+        skill = next(a for a in artifacts if a.path == platforms[key].skill_dst)
+        assert ".graphify_chunk_manifest.json" in skill.content, skill.path
+        assert "resolved.relative_to(root)" in skill.content, skill.path
+
+
 def test_retry_hints_name_host_specific_writers():
     assert "opencode-mention" in gen._WRITER_AGENT
     assert "manual-paste" in gen._WRITER_AGENT
