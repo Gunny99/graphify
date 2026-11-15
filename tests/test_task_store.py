@@ -1140,3 +1140,323 @@ def test_task_budget_counts_reported_cost_from_failed_attempts(tmp_path):
             "SELECT task_json FROM tasks WHERE task_id='task-1'"
         ).fetchone()
     assert json.loads(row["task_json"])["last_failure"] == "task_cost_budget_exceeded"
+
+
+def test_repeated_workflow_steps_pause_task_and_require_a_new_redesign(tmp_path):
+    store_path = tmp_path / "orchestrator.sqlite3"
+    store = TaskStore(store_path)
+    worker = _agent("loop-worker", "loop-provider", "loop-model")
+    _register(store, worker)
+    store.create_run(_run(strategy="single_agent"), [_task("loop-task")])
+    claimed = store.claim_task("loop-worker")
+    assert claimed is not None
+
+    observations = []
+    for _ in range(3):
+        observations.append(
+            store.observe_workflow_step(
+                "loop-task",
+                "loop-worker",
+                claimed["lease_token"],
+                "rerun the same failing test",
+                error="AssertionError: unchanged output",
+                progress_token="artifact-sha256-unchanged",
+            )
+        )
+    assert observations[0]["may_continue"] is True
+    assert observations[1]["may_continue"] is True
+    assert observations[2]["may_continue"] is False
+    assert observations[2]["task_status"] == "needs_redesign"
+    paused = store.get_run_status("run-1")
+    assert paused["run"]["status"] == "needs_redesign"
+    assert paused["tasks"][0]["status"] == "needs_redesign"
+
+    # The old lease is revoked as soon as the guard trips.
+    with pytest.raises(TaskLeaseError, match="not leased"):
+        store.observe_workflow_step(
+            "loop-task",
+            "loop-worker",
+            claimed["lease_token"],
+            "try again",
+        )
+
+    # Guard counters survive a TaskStore re-open; no process-local cache is required.
+    reopened = TaskStore(store_path)
+    resumed = reopened.redesign_task(
+        "run-1",
+        "loop-task",
+        strategy="inspect-test-fixture-and-import-path",
+        hypothesis="the test runner is loading a stale fixture path",
+        rationale="the same assertion failed three times without an artifact change",
+    )
+    assert resumed["run"]["status"] == "queued"
+    assert resumed["tasks"][0]["status"] == "queued"
+    task_row = reopened.get_run_status("run-1")["tasks"][0]
+    assert task_row["attempt"] == 1
+
+    next_claim = reopened.claim_task("loop-worker")
+    assert next_claim is not None
+    assert next_claim["attempt"] == 2
+    assert next_claim["input"]["workflow_strategy"] == "inspect-test-fixture-and-import-path"
+
+
+def test_duplicate_workflow_redesign_fails_closed(tmp_path):
+    store = TaskStore(tmp_path / "orchestrator.sqlite3")
+    worker = _agent("duplicate-worker", "duplicate-provider", "duplicate-model")
+    _register(store, worker)
+    task = _task("duplicate-task")
+    original_hypothesis = task["objective"]
+    store.create_run(_run(strategy="single_agent"), [task])
+    claimed = store.claim_task("duplicate-worker")
+    assert claimed is not None
+    for _ in range(3):
+        result = store.observe_workflow_step(
+            "duplicate-task",
+            "duplicate-worker",
+            claimed["lease_token"],
+            "repeat unchanged step",
+            progress_token="same",
+        )
+    assert result["task_status"] == "needs_redesign"
+
+    rejected = store.redesign_task(
+        "run-1",
+        "duplicate-task",
+        strategy="single_agent",
+        hypothesis=original_hypothesis,
+        rationale="retry the original plan",
+    )
+    assert rejected["run"]["status"] == "failed"
+    assert rejected["tasks"][0]["status"] == "failed"
+
+
+def test_loop_trip_pauses_run_and_revokes_other_worker_leases(tmp_path):
+    store_path = tmp_path / "orchestrator.sqlite3"
+    store = TaskStore(store_path)
+    worker_a = _agent("worker-a", "provider-a", "model-a", max_concurrency=1)
+    worker_b = _agent("worker-b", "provider-b", "model-b", max_concurrency=1)
+    _register(store, worker_a)
+    _register(store, worker_b)
+
+    first = _task("parallel-a")
+    second = _task("parallel-b")
+    second["max_attempts"] = 1
+    first["input"]["write_set"] = ["src/a.py"]
+    second["input"]["write_set"] = ["src/b.py"]
+    store.create_run(
+        _run(strategy="parallel_independent", max_parallel_agents=2),
+        [first, second],
+    )
+    lease_a = store.claim_task("worker-a")
+    lease_b = store.claim_task("worker-b")
+    assert lease_a is not None and lease_b is not None
+    assert lease_a["task_id"] == "parallel-a"
+    assert lease_b["task_id"] == "parallel-b"
+
+    for _ in range(3):
+        decision = store.observe_workflow_step(
+            "parallel-a",
+            "worker-a",
+            lease_a["lease_token"],
+            "rerun same failing test",
+            error="AssertionError: unchanged",
+            progress_token="same-artifact",
+        )
+    assert decision["task_status"] == "needs_redesign"
+    paused = store.get_run_status("run-1")
+    assert paused["run"]["status"] == "needs_redesign"
+    assert {task["status"] for task in paused["tasks"]} == {"needs_redesign", "queued"}
+    interrupted = next(task for task in paused["tasks"] if task["task_id"] == "parallel-b")
+    assert interrupted["max_attempts"] == 2
+
+    # The other worker's old lease was revoked too; the paused Run cannot dispatch.
+    with pytest.raises(TaskLeaseError, match="not leased"):
+        store.heartbeat_task(
+            "parallel-b", "worker-b", lease_b["lease_token"], lease_seconds=300
+        )
+    assert store.claim_task("worker-b") is None
+
+    resumed = store.redesign_task(
+        "run-1",
+        "parallel-a",
+        strategy="inspect-import-graph",
+        hypothesis="the test resolves a shadow module from a different path",
+        rationale="a changed import hypothesis is required after three unchanged attempts",
+    )
+    assert resumed["run"]["status"] == "queued"
+    new_a = store.claim_task("worker-a")
+    assert new_a is not None and new_a["task_id"] == "parallel-a"
+    new_b = store.claim_task("worker-b")
+    assert new_b is not None and new_b["task_id"] == "parallel-b"
+
+
+def test_workflow_guard_requires_a_progress_fingerprint(tmp_path):
+    store = TaskStore(tmp_path / "orchestrator.sqlite3")
+    worker = _agent("fingerprint-worker", "fingerprint-provider", "fingerprint-model")
+    _register(store, worker)
+    store.create_run(_run(strategy="single_agent"), [_task("fingerprint-task")])
+    claimed = store.claim_task("fingerprint-worker")
+    assert claimed is not None
+    with pytest.raises(ValueError, match="progress_token is required"):
+        store.observe_workflow_step(
+            "fingerprint-task",
+            "fingerprint-worker",
+            claimed["lease_token"],
+            "inspect current state",
+        )
+
+
+def test_exhausted_redesign_budget_blocks_every_pending_task(tmp_path):
+    store = TaskStore(tmp_path / "orchestrator.sqlite3")
+    worker = _agent("stop-worker", "stop-provider", "stop-model")
+    _register(store, worker)
+    primary = _task("stop-primary")
+    sibling = _task("stop-sibling")
+    primary["input"]["write_set"] = ["src/primary.py"]
+    sibling["input"]["write_set"] = ["src/sibling.py"]
+    store.create_run(
+        _run(strategy="parallel_independent", max_parallel_agents=2),
+        [primary, sibling],
+    )
+
+    for redesign_number in range(1, 3):
+        claimed = store.claim_task("stop-worker")
+        assert claimed is not None and claimed["task_id"] == "stop-primary"
+        for _ in range(3):
+            decision = store.observe_workflow_step(
+                "stop-primary",
+                "stop-worker",
+                claimed["lease_token"],
+                "repeat same failing operation",
+                error="AssertionError: no changed output",
+                progress_token=f"unchanged-state-{redesign_number}",
+            )
+        assert decision["task_status"] == "needs_redesign"
+        resumed = store.redesign_task(
+            "run-1",
+            "stop-primary",
+            strategy=f"new-intervention-{redesign_number}",
+            hypothesis=f"new causal hypothesis {redesign_number}",
+            rationale=f"the prior intervention {redesign_number} produced no progress",
+        )
+        assert resumed["run"]["status"] == "queued"
+
+    final_claim = store.claim_task("stop-worker")
+    assert final_claim is not None and final_claim["task_id"] == "stop-primary"
+    for _ in range(3):
+        decision = store.observe_workflow_step(
+            "stop-primary",
+            "stop-worker",
+            final_claim["lease_token"],
+            "repeat same failing operation",
+            error="AssertionError: no changed output",
+            progress_token="unchanged-state-final",
+        )
+    assert decision["task_status"] == "failed"
+    final = store.get_run_status("run-1")
+    assert final["run"]["status"] == "failed"
+    states = {task["task_id"]: task["status"] for task in final["tasks"]}
+    assert states == {"stop-primary": "failed", "stop-sibling": "blocked"}
+    assert store.claim_task("stop-worker") is None
+
+
+def test_rejected_parallel_redesign_blocks_queued_siblings(tmp_path):
+    store = TaskStore(tmp_path / "orchestrator.sqlite3")
+    worker = _agent("reject-worker", "reject-provider", "reject-model", max_concurrency=2)
+    _register(store, worker)
+    primary = _task("reject-primary")
+    sibling = _task("reject-sibling")
+    primary["input"].update({
+        "write_set": ["src/primary.py"],
+        "workflow_hypothesis": "same initial causal hypothesis",
+    })
+    sibling["input"]["write_set"] = ["src/sibling.py"]
+    store.create_run(
+        _run(strategy="parallel_independent", max_parallel_agents=2),
+        [primary, sibling],
+    )
+
+    leases = [store.claim_task("reject-worker"), store.claim_task("reject-worker")]
+    assert all(leases)
+    primary_lease = next(item for item in leases if item["task_id"] == "reject-primary")
+    sibling_lease = next(item for item in leases if item["task_id"] == "reject-sibling")
+    for _ in range(3):
+        decision = store.observe_workflow_step(
+            "reject-primary",
+            "reject-worker",
+            primary_lease["lease_token"],
+            "repeat unchanged work",
+            progress_token="same-progress",
+        )
+    assert decision["task_status"] == "needs_redesign"
+
+    rejected = store.redesign_task(
+        "run-1",
+        "reject-primary",
+        strategy="parallel_independent",
+        hypothesis="same initial causal hypothesis",
+        rationale="attempt the unchanged strategy again",
+    )
+    assert rejected["run"]["status"] == "failed"
+    states = {task["task_id"]: task["status"] for task in rejected["tasks"]}
+    assert states == {"reject-primary": "failed", "reject-sibling": "blocked"}
+    assert store.claim_task("reject-worker") is None
+    with pytest.raises(TaskLeaseError, match="not leased"):
+        store.heartbeat_task(
+            "reject-sibling",
+            "reject-worker",
+            sibling_lease["lease_token"],
+            lease_seconds=300,
+        )
+
+
+def test_rejected_verification_redesign_marks_parent_result_provisional(tmp_path):
+    store = TaskStore(tmp_path / "orchestrator.sqlite3")
+    producer = _agent("producer", "producer-provider", "producer-model")
+    verifier = _agent(
+        "verifier", "verifier-provider", "verifier-model", role="verifier"
+    )
+    _register(store, producer)
+    _register(store, verifier)
+    store.create_run(_run(strategy="single_with_review"), [_task("review-parent")])
+
+    producer_lease = store.claim_task("producer")
+    assert producer_lease is not None
+    submitted = store.submit_result(
+        _result("review-parent", producer), producer_lease["lease_token"]
+    )
+    verify_task_id = next(
+        task["task_id"] for task in submitted["tasks"]
+        if task["task_type"] == "verification"
+    )
+    verifier_lease = store.claim_task("verifier")
+    assert verifier_lease is not None and verifier_lease["task_id"] == verify_task_id
+
+    for _ in range(3):
+        decision = store.observe_workflow_step(
+            verify_task_id,
+            "verifier",
+            verifier_lease["lease_token"],
+            "repeat the same evidence check",
+            progress_token="unchanged-verification-state",
+        )
+    assert decision["task_status"] == "needs_redesign"
+
+    state_event = store.list_events(
+        "run-1",
+        task_id=verify_task_id,
+        event_type="workflow_guard_state",
+        include_payload=True,
+    )[-1]
+    guard_state = state_event["payload"]["state"]
+    rejected = store.redesign_task(
+        "run-1",
+        verify_task_id,
+        strategy=guard_state["strategy"],
+        hypothesis=guard_state["hypothesis"],
+        rationale="repeat the same verifier approach",
+    )
+    assert rejected["run"]["status"] == "provisional"
+    states = {task["task_id"]: task["status"] for task in rejected["tasks"]}
+    assert states["review-parent"] == "needs_review"
+    assert states[verify_task_id] == "failed"

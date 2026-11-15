@@ -3225,6 +3225,76 @@ def _build_server(graph_path: str):
                     "required": ["run_id", "coordinator_token"],
                 },
             ),
+            types.Tool(
+                name="orchestrator_record_span",
+                description="Record content-free timing metadata for a Run or Task. Do not send prompts, source bodies, credentials, or full tool output.",
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "run_id": {"type": "string"},
+                        "task_id": {"type": "string"},
+                        "name": {"type": "string"},
+                        "started_at": {"type": "string"},
+                        "finished_at": {"type": "string"},
+                        "outcome": {"type": "string", "enum": ["ok", "error", "cancelled", "skipped"]},
+                        "attributes": {"type": "object"},
+                        "coordinator_token": {"type": "string"},
+                    },
+                    "required": ["run_id", "name", "started_at", "finished_at", "coordinator_token"],
+                },
+            ),
+            types.Tool(
+                name="orchestrator_list_events",
+                description="Read a bounded, filterable slice of the Run event timeline. Returns compact event metadata, not prompts or source contents.",
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "run_id": {"type": "string"},
+                        "task_id": {"type": "string"},
+                        "event_type": {"type": "string"},
+                        "after_event_id": {"type": "integer", "minimum": 0},
+                        "since": {"type": "string"},
+                        "until": {"type": "string"},
+                        "limit": {"type": "integer", "minimum": 1, "maximum": 500, "default": 100},
+                        "include_payload": {"type": "boolean", "default": False, "description": "Include stored event details; by default only compact summaries are returned."},
+                        "coordinator_token": {"type": "string"},
+                    },
+                    "required": ["run_id", "coordinator_token"],
+                },
+            ),
+            types.Tool(
+                name="orchestrator_observe_step",
+                description="Record a content-free action/error/progress fingerprint for the currently leased task. A loop signal revokes the lease and pauses the Run for redesign.",
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "task_id": {"type": "string"},
+                        "agent_id": {"type": "string"},
+                        "agent_token": {"type": "string"},
+                        "lease_token": {"type": "string"},
+                        "action": {"type": "string"},
+                        "error": {"type": "string"},
+                        "progress_token": {"type": "string", "description": "Required stable fingerprint of the current artifact or execution state."},
+                    },
+                    "required": ["task_id", "agent_id", "agent_token", "lease_token", "action", "progress_token"],
+                },
+            ),
+            types.Tool(
+                name="orchestrator_redesign_task",
+                description="Resume a loop-paused task only with a genuinely new strategy and hypothesis. The coordinator must authorize the redesign.",
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "run_id": {"type": "string"},
+                        "task_id": {"type": "string"},
+                        "strategy": {"type": "string"},
+                        "hypothesis": {"type": "string"},
+                        "rationale": {"type": "string"},
+                        "coordinator_token": {"type": "string"},
+                    },
+                    "required": ["run_id", "task_id", "strategy", "hypothesis", "rationale", "coordinator_token"],
+                },
+            ),
         ]
         # Multi-project support: every tool accepts an optional project_path.
         # Injected here (rather than repeated in 11 literal schemas) so the set
@@ -3482,25 +3552,24 @@ def _build_server(graph_path: str):
             )
         return "\n\n".join(lines)
 
-    # Durable orchestration state is scoped to the selected graph project.
-    _orchestration_stores: dict[str, Any] = {}
-    _orchestration_store_lock = threading.Lock()
+    # One application controller per selected graph project. The controller
+    # owns orchestration use cases; TaskStore remains the transactional ledger.
+    _orchestration_controllers: dict[str, Any] = {}
+    _orchestration_controller_lock = threading.Lock()
 
-    def _orchestration_store():
+    def _orchestration_controller():
         from graphify.task_store import TaskStore
+        from graphify.workflow import RunController
         store_path = str((Path(active_graph_path).parent / "orchestrator.sqlite3").resolve())
-        with _orchestration_store_lock:
-            store = _orchestration_stores.get(store_path)
-            if store is None:
-                store = TaskStore(store_path)
-                _orchestration_stores[store_path] = store
-            return store
+        with _orchestration_controller_lock:
+            controller = _orchestration_controllers.get(store_path)
+            if controller is None:
+                controller = RunController(TaskStore(store_path))
+                _orchestration_controllers[store_path] = controller
+            return controller
 
     def _orchestration_json(value: Any) -> str:
         return json.dumps(value, ensure_ascii=False, default=str)
-
-    def _authenticate_orchestration_agent(store, agent_id: str, token: str) -> None:
-        store.authenticate_agent(agent_id, token)
 
     def _require_orchestration_coordinator(arguments: dict) -> None:
         expected = os.environ.get("GRAPHIFY_ORCHESTRATOR_TOKEN", "")
@@ -3515,72 +3584,67 @@ def _build_server(graph_path: str):
 
     def _tool_orchestrator_create_run(arguments: dict) -> str:
         _require_orchestration_coordinator(arguments)
-        store = _orchestration_store()
-        return _orchestration_json(store.create_run(arguments["run"], arguments["tasks"]))
+        return _orchestration_json(
+            _orchestration_controller().create_run(arguments["run"], arguments["tasks"])
+        )
 
     def _tool_orchestrator_list_agents(_: dict) -> str:
-        return _orchestration_json(_orchestration_store().list_agents())
+        return _orchestration_json(_orchestration_controller().list_agents())
 
     def _tool_orchestrator_claim_task(arguments: dict) -> str:
-        store = _orchestration_store()
-        store.authenticate_agent(arguments["agent_id"], arguments["agent_token"])
-        result = store.claim_task(
+        task = _orchestration_controller().claim_task(
             arguments["agent_id"],
+            arguments["agent_token"],
             lease_seconds=int(arguments.get("lease_seconds", 300)),
         )
-        return _orchestration_json({"task": result})
+        return _orchestration_json({"task": task})
 
     def _tool_orchestrator_heartbeat_task(arguments: dict) -> str:
-        store = _orchestration_store()
-        store.authenticate_agent(arguments["agent_id"], arguments["agent_token"])
-        expires = store.heartbeat_task(
+        expires = _orchestration_controller().heartbeat_task(
             arguments["task_id"],
             arguments["agent_id"],
+            arguments["agent_token"],
             arguments["lease_token"],
             lease_seconds=int(arguments.get("lease_seconds", 300)),
         )
         return _orchestration_json({"lease_expires_at": expires})
 
     def _tool_orchestrator_submit_result(arguments: dict) -> str:
-        store = _orchestration_store()
         result = arguments["result"]
         if not isinstance(result, dict) or not isinstance(result.get("agent"), dict):
             raise ToolError("result must be an object with an agent identity")
-        agent_id = result["agent"].get("agent_id")
-        _authenticate_orchestration_agent(store, agent_id, arguments["agent_token"])
         return _orchestration_json(
-            store.submit_result(result, arguments["lease_token"])
+            _orchestration_controller().submit_result(
+                result, arguments["agent_token"], arguments["lease_token"]
+            )
         )
 
     def _tool_orchestrator_get_verification_payload(arguments: dict) -> str:
-        store = _orchestration_store()
-        store.authenticate_agent(arguments["agent_id"], arguments["agent_token"])
         return _orchestration_json(
-            store.get_verification_payload(
+            _orchestration_controller().get_verification_payload(
                 arguments["task_id"],
                 arguments["agent_id"],
+                arguments["agent_token"],
                 arguments["lease_token"],
             )
         )
 
     def _tool_orchestrator_submit_review(arguments: dict) -> str:
-        store = _orchestration_store()
         review = arguments["review"]
         if not isinstance(review, dict) or not isinstance(review.get("reviewer"), dict):
             raise ToolError("review must be an object with a reviewer identity")
-        reviewer_id = review["reviewer"].get("agent_id")
-        _authenticate_orchestration_agent(store, reviewer_id, arguments["agent_token"])
         return _orchestration_json(
-            store.submit_review(review, arguments["lease_token"])
+            _orchestration_controller().submit_review(
+                review, arguments["agent_token"], arguments["lease_token"]
+            )
         )
 
     def _tool_orchestrator_fail_task(arguments: dict) -> str:
-        store = _orchestration_store()
-        store.authenticate_agent(arguments["agent_id"], arguments["agent_token"])
         return _orchestration_json(
-            store.fail_task(
+            _orchestration_controller().fail_task(
                 arguments["task_id"],
                 arguments["agent_id"],
+                arguments["agent_token"],
                 arguments["lease_token"],
                 arguments["reason"],
                 retryable=arguments.get("retryable", True),
@@ -3589,11 +3653,69 @@ def _build_server(graph_path: str):
 
     def _tool_orchestrator_get_run_status(arguments: dict) -> str:
         _require_orchestration_coordinator(arguments)
-        return _orchestration_json(_orchestration_store().get_run_status(arguments["run_id"]))
+        return _orchestration_json(
+            _orchestration_controller().get_run_status(arguments["run_id"])
+        )
 
     def _tool_orchestrator_cancel_run(arguments: dict) -> str:
         _require_orchestration_coordinator(arguments)
-        return _orchestration_json(_orchestration_store().cancel_run(arguments["run_id"]))
+        return _orchestration_json(
+            _orchestration_controller().cancel_run(arguments["run_id"])
+        )
+
+    def _tool_orchestrator_record_span(arguments: dict) -> str:
+        _require_orchestration_coordinator(arguments)
+        return _orchestration_json(
+            _orchestration_controller().record_span(
+                arguments["run_id"],
+                task_id=arguments.get("task_id"),
+                name=arguments["name"],
+                started_at=arguments["started_at"],
+                finished_at=arguments["finished_at"],
+                outcome=arguments.get("outcome", "ok"),
+                attributes=arguments.get("attributes"),
+            )
+        )
+
+    def _tool_orchestrator_list_events(arguments: dict) -> str:
+        _require_orchestration_coordinator(arguments)
+        return _orchestration_json(
+            _orchestration_controller().list_events(
+                arguments["run_id"],
+                task_id=arguments.get("task_id"),
+                event_type=arguments.get("event_type"),
+                after_event_id=arguments.get("after_event_id", 0),
+                since=arguments.get("since"),
+                until=arguments.get("until"),
+                limit=arguments.get("limit", 100),
+                include_payload=arguments.get("include_payload", False),
+            )
+        )
+
+    def _tool_orchestrator_observe_step(arguments: dict) -> str:
+        return _orchestration_json(
+            _orchestration_controller().observe_step(
+                arguments["task_id"],
+                arguments["agent_id"],
+                arguments["agent_token"],
+                arguments["lease_token"],
+                arguments["action"],
+                error=arguments.get("error"),
+                progress_token=arguments["progress_token"],
+            )
+        )
+
+    def _tool_orchestrator_redesign_task(arguments: dict) -> str:
+        _require_orchestration_coordinator(arguments)
+        return _orchestration_json(
+            _orchestration_controller().redesign_task(
+                arguments["run_id"],
+                arguments["task_id"],
+                strategy=arguments["strategy"],
+                hypothesis=arguments["hypothesis"],
+                rationale=arguments["rationale"],
+            )
+        )
 
     _handlers = {
         "query_graph": _tool_query_graph,
@@ -3616,6 +3738,10 @@ def _build_server(graph_path: str):
         "orchestrator_fail_task": _tool_orchestrator_fail_task,
         "orchestrator_get_run_status": _tool_orchestrator_get_run_status,
         "orchestrator_cancel_run": _tool_orchestrator_cancel_run,
+        "orchestrator_record_span": _tool_orchestrator_record_span,
+        "orchestrator_list_events": _tool_orchestrator_list_events,
+        "orchestrator_observe_step": _tool_orchestrator_observe_step,
+        "orchestrator_redesign_task": _tool_orchestrator_redesign_task,
     }
 
     def _load_community_labels() -> dict[int, str]:

@@ -2007,7 +2007,8 @@ def dispatch_command(cmd: str) -> None:
         import json as _json
         import secrets as _secrets
         from datetime import datetime, timezone
-        from graphify.task_store import TaskStore, TaskStoreError
+        from graphify.task_store import TaskStoreError
+        from graphify.workflow import RunController
 
         args = sys.argv[2:]
         subcmd = args[0] if args else ""
@@ -2079,8 +2080,10 @@ def dispatch_command(cmd: str) -> None:
                     raise ValueError("profile files must not supply auth_token or auth_token_hash")
                 token = _secrets.token_urlsafe(36)
                 profile["auth_token"] = token
-                store = TaskStore(Path(graph_path).resolve().parent / "orchestrator.sqlite3")
-                saved = store.register_agent(profile, trusted_profile=True)
+                controller = RunController(
+                    TaskStore(Path(graph_path).resolve().parent / "orchestrator.sqlite3")
+                )
+                saved = controller.register_agent(profile)
             except (OSError, ValueError, TaskStoreError) as exc:
                 print(f"Agent registration failed: {exc}", file=sys.stderr)
                 sys.exit(1)
@@ -2096,8 +2099,10 @@ def dispatch_command(cmd: str) -> None:
                     print("Error: --graph requires a path.", file=sys.stderr)
                     sys.exit(1)
                 graph_path = Path(args[index + 1])
-            store = TaskStore(graph_path.resolve().parent / "orchestrator.sqlite3")
-            for agent in store.list_agents():
+            controller = RunController(
+                TaskStore(graph_path.resolve().parent / "orchestrator.sqlite3")
+            )
+            for agent in controller.list_agents():
                 quality = ", ".join(
                     f"{item['role']}/{item['domain']}"
                     for item in agent["quality_profiles"]

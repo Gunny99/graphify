@@ -10,6 +10,7 @@ from datetime import datetime, timezone
 import hashlib
 import json
 import math
+import re
 import secrets
 import sqlite3
 import time
@@ -19,6 +20,7 @@ from typing import Any, Iterator, Mapping, Sequence
 AGENT_HEARTBEAT_TTL_SECONDS = 120
 
 
+from graphify.workflow_guard import WorkflowLoopGuard
 from graphify.orchestration import (
     OrchestrationValidationError,
     estimate_end_to_end_cost,
@@ -196,6 +198,10 @@ class TaskStore:
                     payload_json TEXT NOT NULL,
                     created_at TEXT NOT NULL
                 );
+                CREATE INDEX IF NOT EXISTS idx_events_run_event
+                    ON events(run_id, event_id);
+                CREATE INDEX IF NOT EXISTS idx_events_run_task_event
+                    ON events(run_id, task_id, event_id);
                 """
             )
             con.execute("PRAGMA user_version = 1")
@@ -221,6 +227,506 @@ class TaskStore:
         )
 
     @staticmethod
+    def _timeline_stamp(value: str, name: str) -> str:
+        if not isinstance(value, str) or not value.strip():
+            raise ValueError(f"{name} must be an ISO-8601 timestamp")
+        try:
+            stamp = datetime.fromisoformat(value.replace("Z", "+00:00"))
+        except ValueError as exc:
+            raise ValueError(f"{name} must be an ISO-8601 timestamp") from exc
+        if stamp.tzinfo is None:
+            raise ValueError(f"{name} must include a timezone")
+        return stamp.astimezone(timezone.utc).isoformat()
+
+    def record_span(
+        self,
+        run_id: str,
+        *,
+        name: str,
+        started_at: str,
+        finished_at: str,
+        task_id: str | None = None,
+        outcome: str = "ok",
+        attributes: Mapping[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """Append a small, content-free timing span to the existing event ledger."""
+        run_id = _required_string(run_id, "run_id")
+        name = _required_string(name, "name")
+        if len(name) > 128 or re.fullmatch(r"[A-Za-z0-9_.:/-]+", name) is None:
+            raise ValueError("name must be a short stable operation label")
+        if not isinstance(outcome, str) or outcome not in {"ok", "error", "cancelled", "skipped"}:
+            raise ValueError("outcome must be ok, error, cancelled, or skipped")
+        start = self._timeline_stamp(started_at, "started_at")
+        finish = self._timeline_stamp(finished_at, "finished_at")
+        start_dt = datetime.fromisoformat(start)
+        finish_dt = datetime.fromisoformat(finish)
+        duration_ms = (finish_dt - start_dt).total_seconds() * 1000
+        if duration_ms < 0:
+            raise ValueError("finished_at must not precede started_at")
+        if duration_ms > 7 * 24 * 60 * 60 * 1000:
+            raise ValueError("span duration cannot exceed seven days")
+
+        allowed_attributes = {
+            "stage", "provider", "model", "test_id", "test_count",
+            "exit_code", "cache_hit", "token_count", "file_count",
+            "artifact_hash", "commit_sha", "review_status", "retry",
+            "reason_code", "error_type", "status",
+        }
+        if attributes is not None and not isinstance(attributes, Mapping):
+            raise ValueError("attributes must be an object")
+        supplied = dict(attributes or {})
+        if len(supplied) > 20:
+            raise ValueError("attributes cannot contain more than 20 fields")
+        safe_attributes: dict[str, Any] = {}
+        for key, value in supplied.items():
+            if key not in allowed_attributes:
+                raise ValueError(f"unsupported span attribute: {key}")
+            if isinstance(value, str):
+                if len(value) > 256 or "\n" in value or "\r" in value:
+                    raise ValueError(f"attributes.{key} must be a single line of at most 256 characters")
+            elif isinstance(value, bool) or isinstance(value, int):
+                pass
+            elif isinstance(value, float) and math.isfinite(value):
+                pass
+            else:
+                raise ValueError(f"attributes.{key} must be a string, finite number, or boolean")
+            safe_attributes[key] = value
+
+        span_id = secrets.token_hex(12)
+        with self._transaction() as con:
+            if con.execute("SELECT 1 FROM runs WHERE run_id=?", (run_id,)).fetchone() is None:
+                raise TaskNotFoundError(f"run not found: {run_id}")
+            if task_id is not None:
+                task_id = _required_string(task_id, "task_id")
+                if con.execute(
+                    "SELECT 1 FROM tasks WHERE task_id=? AND run_id=?",
+                    (task_id, run_id),
+                ).fetchone() is None:
+                    raise TaskNotFoundError(f"task {task_id} does not belong to run {run_id}")
+            payload = {
+                "span_id": span_id,
+                "name": name,
+                "started_at": start,
+                "finished_at": finish,
+                "duration_ms": round(duration_ms, 3),
+                "outcome": outcome,
+                "attributes": safe_attributes,
+            }
+            self._event(
+                con,
+                run_id=run_id,
+                task_id=task_id,
+                event_type="span_completed",
+                payload=payload,
+            )
+            event_id = int(con.execute("SELECT last_insert_rowid()").fetchone()[0])
+        return {"event_id": event_id, **payload, "task_id": task_id}
+
+    def list_events(
+        self,
+        run_id: str,
+        *,
+        task_id: str | None = None,
+        event_type: str | None = None,
+        after_event_id: int = 0,
+        since: str | None = None,
+        until: str | None = None,
+        limit: int = 100,
+        include_payload: bool = False,
+    ) -> list[dict[str, Any]]:
+        """Read a bounded chronological slice of the append-only run timeline."""
+        run_id = _required_string(run_id, "run_id")
+        if not isinstance(after_event_id, int) or isinstance(after_event_id, bool) or after_event_id < 0:
+            raise ValueError("after_event_id must be an integer >= 0")
+        if not isinstance(limit, int) or isinstance(limit, bool) or not 1 <= limit <= 500:
+            raise ValueError("limit must be an integer between 1 and 500")
+        if not isinstance(include_payload, bool):
+            raise ValueError("include_payload must be a boolean")
+        since_stamp = self._timeline_stamp(since, "since") if since is not None else None
+        until_stamp = self._timeline_stamp(until, "until") if until is not None else None
+        if since_stamp and until_stamp and since_stamp > until_stamp:
+            raise ValueError("since must not be later than until")
+        if event_type is not None:
+            event_type = _required_string(event_type, "event_type")
+        if task_id is not None:
+            task_id = _required_string(task_id, "task_id")
+
+        clauses = ["run_id = ?", "event_id > ?"]
+        params: list[Any] = [run_id, after_event_id]
+        if task_id is not None:
+            clauses.append("task_id = ?")
+            params.append(task_id)
+        if event_type is not None:
+            clauses.append("event_type = ?")
+            params.append(event_type)
+        if since_stamp is not None:
+            clauses.append("created_at >= ?")
+            params.append(since_stamp)
+        if until_stamp is not None:
+            clauses.append("created_at <= ?")
+            params.append(until_stamp)
+        params.append(limit)
+
+        con = self._connect()
+        try:
+            if con.execute("SELECT 1 FROM runs WHERE run_id=?", (run_id,)).fetchone() is None:
+                raise TaskNotFoundError(f"run not found: {run_id}")
+            rows = con.execute(
+                f"SELECT event_id, run_id, task_id, agent_id, event_type, payload_json, created_at "
+                f"FROM events WHERE {' AND '.join(clauses)} ORDER BY event_id ASC LIMIT ?",
+                params,
+            ).fetchall()
+        finally:
+            con.close()
+        events = []
+        summary_keys = (
+            "status", "result_id", "attempt", "new_task_status",
+            "direct_cost", "name", "duration_ms", "outcome", "stage",
+            "decision", "reason_code", "review_status", "strategy", "accepted",
+        )
+        for row in rows:
+            payload = _decode(row["payload_json"])
+            event = {
+                "event_id": int(row["event_id"]),
+                "run_id": row["run_id"],
+                "task_id": row["task_id"],
+                "agent_id": row["agent_id"],
+                "event_type": row["event_type"],
+                "created_at": row["created_at"],
+            }
+            if include_payload:
+                event["payload"] = payload
+            else:
+                summary = {key: payload[key] for key in summary_keys if key in payload}
+                if isinstance(payload.get("decision"), dict):
+                    summary["decision"] = {
+                        key: payload["decision"][key]
+                        for key in ("status", "reasons", "reason")
+                        if key in payload["decision"]
+                    }
+                if summary:
+                    event["summary"] = summary
+            events.append(event)
+        return events
+
+    def observe_workflow_step(
+        self,
+        task_id: str,
+        agent_id: str,
+        lease_token: str,
+        action: str,
+        *,
+        error: str | None = None,
+        progress_token: str | None = None,
+    ) -> dict[str, Any]:
+        """Persist a loop-guard observation and revoke a lease when redesign is required.
+
+        Only the task's current lease owner may report a step. Raw action/error/
+        progress strings are not persisted; the guard stores normalized hashes.
+        """
+        if not isinstance(action, str) or len(action) > 512:
+            raise ValueError("action must be a string of at most 512 characters")
+        if error is not None and (not isinstance(error, str) or len(error) > 1024):
+            raise ValueError("error must be a string of at most 1024 characters")
+        if progress_token is not None and (
+            not isinstance(progress_token, str) or len(progress_token) > 256
+        ):
+            raise ValueError("progress_token must be a string of at most 256 characters")
+        with self._transaction() as con:
+            row = self._owned_lease(con, task_id, agent_id, lease_token)
+            task = _decode(row["task_json"])
+            if not isinstance(progress_token, str) or not progress_token.strip():
+                raise ValueError("progress_token is required; submit a stable artifact or state fingerprint")
+            previous = con.execute(
+                """
+                SELECT payload_json FROM events
+                WHERE run_id=? AND task_id=? AND event_type='workflow_guard_state'
+                ORDER BY event_id DESC LIMIT 1
+                """,
+                (row["run_id"], task_id),
+            ).fetchone()
+            if previous is None:
+                run_row = con.execute(
+                    "SELECT run_json FROM runs WHERE run_id=?",
+                    (row["run_id"],),
+                ).fetchone()
+                if run_row is None:
+                    raise TaskNotFoundError(f"run not found: {row['run_id']}")
+                run = _decode(run_row["run_json"])
+                initial_hypothesis = task["input"].get("workflow_hypothesis")
+                if not isinstance(initial_hypothesis, str) or not initial_hypothesis.strip():
+                    objective_hash = hashlib.sha256(
+                        str(task["objective"]).encode("utf-8")
+                    ).hexdigest()
+                    initial_hypothesis = f"initial-objective:{objective_hash}"
+                guard = WorkflowLoopGuard(
+                    strategy=str(task["input"].get("workflow_strategy") or run["execution_policy"]["strategy"]),
+                    hypothesis=initial_hypothesis,
+                )
+            else:
+                previous_payload = _decode(previous["payload_json"])
+                guard = WorkflowLoopGuard.from_state(previous_payload.get("state"))
+
+            decision = guard.observe(action, error=error, progress_token=progress_token)
+            decision_payload = {
+                "status": decision.status,
+                "reasons": list(decision.reasons),
+                "action_repeats": decision.action_repeats,
+                "error_repeats": decision.error_repeats,
+                "no_progress_steps": decision.no_progress_steps,
+                "redesigns": decision.redesigns,
+            }
+            self._event(
+                con,
+                run_id=row["run_id"],
+                task_id=task_id,
+                agent_id=agent_id,
+                event_type="workflow_guard_state",
+                payload={
+                    "state": guard.to_state(),
+                    "decision": decision_payload,
+                    "attempt": int(row["attempt"]),
+                },
+            )
+
+            task_status = "leased"
+            if decision.status in {"redesign", "stop"}:
+                reserve = float(task.pop("estimated_cost_reserved", 0.0))
+                if reserve > 0:
+                    task["unreported_cost_reserved"] = (
+                        float(task.get("unreported_cost_reserved", 0.0)) + reserve
+                    )
+                task["workflow_guard"] = guard.snapshot()
+                task["last_failure"] = (
+                    "workflow_loop_requires_redesign"
+                    if decision.status == "redesign"
+                    else "workflow_loop_redesign_budget_exhausted"
+                )
+                task_status = "needs_redesign" if decision.status == "redesign" else "failed"
+                self._set_task(con, row, task, task_status)
+                if decision.status == "stop" and task.get("task_type") == "verification":
+                    self._mark_verification_parent_needs_review(
+                        con, task, "verification workflow loop exhausted its redesign budget"
+                    )
+                # A loop trip pauses the whole Run. Requeue other leased tasks,
+                # release their leases, and preserve their estimated spend as
+                # unreported until the interrupted attempts can report usage.
+                if decision.status in {"redesign", "stop"}:
+                    if decision.status == "redesign":
+                        # Release other workers but preserve their work for the
+                        # coordinator-approved redesign to resume the Run.
+                        other_rows = con.execute(
+                            "SELECT * FROM tasks WHERE run_id=? AND status='leased' AND task_id<>?",
+                            (row["run_id"], task_id),
+                        ).fetchall()
+                    else:
+                        # Exhaustion is terminal: no queued or submitted sibling
+                        # may continue after the controller has stopped the Run.
+                        other_rows = con.execute(
+                            """
+                            SELECT * FROM tasks
+                            WHERE run_id=? AND task_id<>?
+                              AND status NOT IN ('accepted', 'failed', 'rejected', 'blocked', 'cancelled')
+                            """,
+                            (row["run_id"], task_id),
+                        ).fetchall()
+                    for other in other_rows:
+                        if (
+                            task.get("task_type") == "verification"
+                            and other["task_id"] == task.get("parent_task_id")
+                        ):
+                            # Keep the source result provisional; the verifier's
+                            # terminal failure must not turn it into a generic block.
+                            continue
+                        other_task = _decode(other["task_json"])
+                        reserve = float(other_task.pop("estimated_cost_reserved", 0.0))
+                        if reserve > 0:
+                            other_task["unreported_cost_reserved"] = (
+                                float(other_task.get("unreported_cost_reserved", 0.0)) + reserve
+                            )
+                        if decision.status == "redesign" and other["status"] == "leased":
+                            next_max_attempts = max(
+                                int(other["max_attempts"]), int(other["attempt"]) + 1
+                            )
+                            other_status = "queued"
+                            event_type = "task_interrupted_for_redesign"
+                        elif decision.status == "stop":
+                            other_status = "blocked"
+                            event_type = "task_blocked_after_loop_limit"
+                        else:
+                            continue
+                        self._set_task(
+                            con, other, other_task, other_status,
+                            max_attempts=(
+                                next_max_attempts if decision.status == "redesign" else None
+                            ),
+                        )
+                        self._event(
+                            con,
+                            run_id=row["run_id"],
+                            task_id=other["task_id"],
+                            event_type=event_type,
+                            payload={"paused_by_task_id": task_id},
+                        )
+                self._event(
+                    con,
+                    run_id=row["run_id"],
+                    task_id=task_id,
+                    agent_id=agent_id,
+                    event_type=(
+                        "workflow_loop_detected"
+                        if decision.status == "redesign"
+                        else "workflow_loop_stopped"
+                    ),
+                    payload=decision_payload,
+                )
+                self._refresh_run_status(con, row["run_id"])
+
+            return {
+                "task_id": task_id,
+                "task_status": task_status,
+                "may_continue": decision.status == "continue",
+                "decision": decision_payload,
+                "guard": guard.snapshot(),
+            }
+
+    def redesign_task(
+        self,
+        run_id: str,
+        task_id: str,
+        *,
+        strategy: str,
+        hypothesis: str,
+        rationale: str,
+    ) -> dict[str, Any]:
+        """Resume a loop-paused task only with a previously unseen redesign."""
+        for name, value in (
+            ("strategy", strategy),
+            ("hypothesis", hypothesis),
+            ("rationale", rationale),
+        ):
+            if not isinstance(value, str) or not value.strip() or len(value) > 500:
+                raise ValueError(f"{name} must be a non-empty string of at most 500 characters")
+
+        with self._transaction() as con:
+            row = con.execute(
+                "SELECT * FROM tasks WHERE task_id=? AND run_id=?",
+                (task_id, run_id),
+            ).fetchone()
+            if row is None:
+                raise TaskNotFoundError(f"task {task_id} does not belong to run {run_id}")
+            if row["status"] != "needs_redesign":
+                raise TaskStoreError(
+                    f"task must be needs_redesign before it can resume, got {row['status']}"
+                )
+            run_row = con.execute(
+                "SELECT status FROM runs WHERE run_id=?",
+                (run_id,),
+            ).fetchone()
+            if run_row is None or run_row["status"] != "needs_redesign":
+                raise TaskStoreError("run is not paused for redesign")
+            latest = con.execute(
+                """
+                SELECT payload_json FROM events
+                WHERE run_id=? AND task_id=? AND event_type='workflow_guard_state'
+                ORDER BY event_id DESC LIMIT 1
+                """,
+                (run_id, task_id),
+            ).fetchone()
+            if latest is None:
+                raise TaskStoreError("loop-paused task has no persisted guard state")
+            latest_payload = _decode(latest["payload_json"])
+            guard = WorkflowLoopGuard.from_state(latest_payload.get("state"))
+            accepted = guard.propose_redesign(
+                strategy=strategy,
+                hypothesis=hypothesis,
+                rationale=rationale,
+            )
+            task = _decode(row["task_json"])
+            if accepted:
+                task["input"]["workflow_strategy"] = strategy.strip()
+                task["input"]["workflow_hypothesis"] = hypothesis.strip()
+                task["last_redesign"] = {
+                    "strategy": strategy.strip(),
+                    "hypothesis": hypothesis.strip(),
+                    "rationale": rationale.strip(),
+                    "redesign_number": guard.redesigns,
+                }
+                task.pop("last_failure", None)
+                next_max_attempts = max(int(row["max_attempts"]), int(row["attempt"]) + 1)
+                self._set_task(
+                    con, row, task, "queued", max_attempts=next_max_attempts
+                )
+                event_type = "workflow_task_redesigned"
+                outcome = "queued"
+            else:
+                task["last_failure"] = guard.snapshot().get("terminal_reason") or "workflow_redesign_rejected"
+                self._set_task(con, row, task, "failed")
+                if task.get("task_type") == "verification":
+                    self._mark_verification_parent_needs_review(
+                        con, task, "verification workflow redesign was rejected"
+                    )
+                # A rejected redesign is terminal for the entire Run. Never
+                # let a queued sibling bypass the failed redesign decision.
+                siblings = con.execute(
+                    """
+                    SELECT * FROM tasks
+                    WHERE run_id=? AND task_id<>?
+                      AND status NOT IN ('accepted', 'failed', 'rejected', 'blocked', 'cancelled')
+                    """,
+                    (run_id, task_id),
+                ).fetchall()
+                for sibling in siblings:
+                    if (
+                        task.get("task_type") == "verification"
+                        and sibling["task_id"] == task.get("parent_task_id")
+                    ):
+                        # Preserve the parent as needs_review when its verifier
+                        # cannot be completed independently.
+                        continue
+                    sibling_task = _decode(sibling["task_json"])
+                    reserve = float(sibling_task.pop("estimated_cost_reserved", 0.0))
+                    if reserve > 0:
+                        sibling_task["unreported_cost_reserved"] = (
+                            float(sibling_task.get("unreported_cost_reserved", 0.0)) + reserve
+                        )
+                    self._set_task(con, sibling, sibling_task, "blocked")
+                    self._event(
+                        con,
+                        run_id=run_id,
+                        task_id=sibling["task_id"],
+                        event_type="task_blocked_after_redesign_rejection",
+                        payload={"rejected_task_id": task_id},
+                    )
+                event_type = "workflow_redesign_rejected"
+                outcome = "failed"
+
+            self._event(
+                con,
+                run_id=run_id,
+                task_id=task_id,
+                event_type="workflow_guard_state",
+                payload={
+                    "state": guard.to_state(),
+                    "decision": {"status": outcome, "reason": task.get("last_failure")},
+                },
+            )
+            self._event(
+                con,
+                run_id=run_id,
+                task_id=task_id,
+                event_type=event_type,
+                payload={
+                    "strategy": strategy.strip(),
+                    "hypothesis": hypothesis.strip(),
+                    "redesign_number": guard.redesigns,
+                    "accepted": accepted,
+                },
+            )
+            self._refresh_run_status(con, run_id)
+            return self._run_status_in_transaction(con, run_id)
+
+    @staticmethod
     def _set_task(
         con: sqlite3.Connection,
         row: sqlite3.Row,
@@ -231,12 +737,15 @@ class TaskStore:
         lease_token_hash: str | None = None,
         lease_expires_at: float | None = None,
         attempt: int | None = None,
+        max_attempts: int | None = None,
     ) -> None:
         now = _utc_now()
         task["status"] = status
         task["updated_at"] = now
         if attempt is not None:
             task["attempt"] = attempt
+        if max_attempts is not None:
+            task["max_attempts"] = max_attempts
         if status != "leased":
             task.pop("lease_expires_at", None)
         if status not in {"leased", "submitted", "needs_review", "queued"}:
@@ -244,7 +753,7 @@ class TaskStore:
         con.execute(
             """
             UPDATE tasks
-            SET task_json=?, status=?, attempt=?, lease_owner=?,
+            SET task_json=?, status=?, attempt=?, max_attempts=?, lease_owner=?,
                 lease_token_hash=?, lease_expires_at=?, updated_at=?
             WHERE task_id=?
             """,
@@ -252,6 +761,7 @@ class TaskStore:
                 _json(task),
                 status,
                 task["attempt"],
+                task["max_attempts"],
                 lease_owner,
                 lease_token_hash,
                 lease_expires_at,
@@ -327,6 +837,10 @@ class TaskStore:
             run["failure_reason"] = "run_cost_budget_exceeded"
         elif statuses and all(status == "accepted" for status in statuses):
             status = "accepted"
+        elif any(status == "needs_redesign" for status in statuses):
+            # A redesign pause is run-wide: no unrelated queued task may resume
+            # until the coordinator supplies a new hypothesis/intervention.
+            status = "needs_redesign"
         elif any(item == "leased" for item in statuses):
             status = "running"
         elif has_runnable_queued:
@@ -741,7 +1255,7 @@ class TaskStore:
                 if run_row is None:
                     raise TaskNotFoundError(f"run not found: {row['run_id']}")
                 run = _decode(run_row["run_json"])
-                if run["status"] in {"failed", "cancelled", "accepted"}:
+                if run["status"] in {"failed", "cancelled", "accepted", "needs_redesign"}:
                     continue
                 execution = run["execution_policy"]
                 active_in_run = con.execute(
@@ -1554,7 +2068,7 @@ class TaskStore:
             rows = con.execute(
                 """
                 SELECT * FROM tasks WHERE run_id=?
-                AND status IN ('queued', 'leased', 'submitted', 'needs_review')
+                AND status IN ('queued', 'leased', 'submitted', 'needs_review', 'needs_redesign')
                 """,
                 (run_id,),
             ).fetchall()
