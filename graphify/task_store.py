@@ -502,29 +502,53 @@ class TaskStore:
                 # release their leases, and preserve their estimated spend as
                 # unreported until the interrupted attempts can report usage.
                 if decision.status in {"redesign", "stop"}:
-                    other_leases = con.execute(
-                        "SELECT * FROM tasks WHERE run_id=? AND status='leased' AND task_id<>?",
-                        (row["run_id"], task_id),
-                    ).fetchall()
-                    for other in other_leases:
+                    if decision.status == "redesign":
+                        # Release other workers but preserve their work for the
+                        # coordinator-approved redesign to resume the Run.
+                        other_rows = con.execute(
+                            "SELECT * FROM tasks WHERE run_id=? AND status='leased' AND task_id<>?",
+                            (row["run_id"], task_id),
+                        ).fetchall()
+                    else:
+                        # Exhaustion is terminal: no queued or submitted sibling
+                        # may continue after the controller has stopped the Run.
+                        other_rows = con.execute(
+                            """
+                            SELECT * FROM tasks
+                            WHERE run_id=? AND task_id<>?
+                              AND status NOT IN ('accepted', 'failed', 'rejected', 'blocked', 'cancelled')
+                            """,
+                            (row["run_id"], task_id),
+                        ).fetchall()
+                    for other in other_rows:
                         other_task = _decode(other["task_json"])
                         reserve = float(other_task.pop("estimated_cost_reserved", 0.0))
                         if reserve > 0:
                             other_task["unreported_cost_reserved"] = (
                                 float(other_task.get("unreported_cost_reserved", 0.0)) + reserve
                             )
-                        next_max_attempts = max(
-                            int(other["max_attempts"]), int(other["attempt"]) + 1
-                        )
+                        if decision.status == "redesign" and other["status"] == "leased":
+                            next_max_attempts = max(
+                                int(other["max_attempts"]), int(other["attempt"]) + 1
+                            )
+                            other_status = "queued"
+                            event_type = "task_interrupted_for_redesign"
+                        elif decision.status == "stop":
+                            other_status = "blocked"
+                            event_type = "task_blocked_after_loop_limit"
+                        else:
+                            continue
                         self._set_task(
-                            con, other, other_task, "queued",
-                            max_attempts=next_max_attempts,
+                            con, other, other_task, other_status,
+                            max_attempts=(
+                                next_max_attempts if decision.status == "redesign" else None
+                            ),
                         )
                         self._event(
                             con,
                             run_id=row["run_id"],
                             task_id=other["task_id"],
-                            event_type="task_interrupted_for_redesign",
+                            event_type=event_type,
                             payload={"paused_by_task_id": task_id},
                         )
                 self._event(
@@ -578,6 +602,12 @@ class TaskStore:
                 raise TaskStoreError(
                     f"task must be needs_redesign before it can resume, got {row['status']}"
                 )
+            run_row = con.execute(
+                "SELECT status FROM runs WHERE run_id=?",
+                (run_id,),
+            ).fetchone()
+            if run_row is None or run_row["status"] != "needs_redesign":
+                raise TaskStoreError("run is not paused for redesign")
             latest = con.execute(
                 """
                 SELECT payload_json FROM events
