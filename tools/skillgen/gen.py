@@ -256,6 +256,9 @@ _HOOKS_TARGET = {
 # heading was consolidated on purpose and its content is covered elsewhere."
 SHARED_INTRO_ALLOWLIST: frozenset[str] = frozenset({
     "## What graphify is for",  # lean intro; v8 hosts had verbose intro prose, no heading.
+    # The old parallel-only Part B heading was broadened to cover both inline
+    # main-session processing and host subagent dispatch under the single-session-first gate.
+    "#### Part B - Semantic extraction (parallel subagents)",
 })
 
 _CONSOLIDATION_ALLOWLIST: dict[str, frozenset[str]] = {
@@ -1476,6 +1479,7 @@ def _is_single_session_first_fix_line(line: str) -> bool:
         "**Inline path:**",
         "**Delegated path:**",
         "Semantic extraction: N files (sequential — Aider)",
+        "Semantic extraction: N files (single-session sequential — Aider)",
         "Dispatch ALL subagents in the same response so they run in parallel.",
         "On the delegated path, dispatch all approved independent subagents",
         "Wait for all subagents. For each result:",

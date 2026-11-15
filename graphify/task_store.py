@@ -361,17 +361,29 @@ class TaskStore:
     def _reap_expired_leases(self, con: sqlite3.Connection, now_epoch: float) -> None:
         rows = con.execute(
             """
-            SELECT task_id, run_id, task_json, attempt, max_attempts, lease_owner
+            SELECT task_id, run_id, task_json, attempt, max_attempts, lease_owner,
+                   lease_expires_at
             FROM tasks
-            WHERE status='leased' AND lease_expires_at <= ?
-            """,
-            (now_epoch,),
+            WHERE status='leased'
+            """
         ).fetchall()
+        now_dt = datetime.fromtimestamp(now_epoch, timezone.utc)
         changed_runs: set[str] = set()
         for row in rows:
             task = _decode(row["task_json"])
+            deadline_expired = _expired(task.get("deadline_at"), now_dt)
+            lease_expired = (
+                row["lease_expires_at"] is None
+                or float(row["lease_expires_at"]) <= now_epoch
+            )
+            if not deadline_expired and not lease_expired:
+                continue
             attempt = int(row["attempt"])
-            status = "failed" if attempt >= int(row["max_attempts"]) else "queued"
+            status = (
+                "failed"
+                if deadline_expired or attempt >= int(row["max_attempts"])
+                else "queued"
+            )
             if row["lease_owner"] and status == "queued":
                 failed_agents = set(task["input"].get("failed_agent_ids", []))
                 failed_agents.add(str(row["lease_owner"]))
@@ -387,15 +399,22 @@ class TaskStore:
                 )
             self._set_task(con, row, task, status)
             if status == "failed" and task.get("task_type") == "verification":
-                self._mark_verification_parent_needs_review(
-                    con, task, "verification lease expired after all attempts"
+                reason = (
+                    "verification task deadline expired"
+                    if deadline_expired
+                    else "verification lease expired after all attempts"
                 )
+                self._mark_verification_parent_needs_review(con, task, reason)
             self._event(
                 con,
                 run_id=row["run_id"],
                 task_id=row["task_id"],
-                event_type="lease_expired",
-                payload={"attempt": attempt, "new_status": status},
+                event_type="deadline_expired" if deadline_expired else "lease_expired",
+                payload={
+                    "attempt": attempt,
+                    "new_status": status,
+                    **({"deadline_at": task.get("deadline_at")} if deadline_expired else {}),
+                },
             )
             changed_runs.add(row["run_id"])
         for run_id in changed_runs:
@@ -681,6 +700,32 @@ class TaskStore:
         now_dt = datetime.fromtimestamp(now_epoch, timezone.utc)
         with self._transaction() as con:
             self._reap_expired_leases(con, now_epoch)
+            # Sweep every expired queued task before agent eligibility or
+            # concurrency checks; otherwise an inactive/full/incompatible
+            # agent could leave expired work queued indefinitely.
+            queued_rows = con.execute(
+                "SELECT * FROM tasks WHERE status='queued'"
+            ).fetchall()
+            expired_runs: set[str] = set()
+            for queued_row in queued_rows:
+                queued_task = _decode(queued_row["task_json"])
+                if not _expired(queued_task.get("deadline_at"), now_dt):
+                    continue
+                self._set_task(con, queued_row, queued_task, "failed")
+                if queued_task.get("task_type") == "verification":
+                    self._mark_verification_parent_needs_review(
+                        con, queued_task, "verification task deadline expired before claim"
+                    )
+                self._event(
+                    con,
+                    run_id=queued_row["run_id"],
+                    task_id=queued_row["task_id"],
+                    event_type="deadline_expired",
+                    payload={"deadline_at": queued_task.get("deadline_at")},
+                )
+                expired_runs.add(queued_row["run_id"])
+            for expired_run_id in expired_runs:
+                self._refresh_run_status(con, expired_run_id)
             agent_row = con.execute(
                 "SELECT profile_json FROM agents WHERE agent_id=?", (agent_id,)
             ).fetchone()
@@ -706,14 +751,6 @@ class TaskStore:
             for row in rows:
                 task = _decode(row["task_json"])
                 if not set(task["required_capabilities"]).issubset(set(agent["capabilities"])):
-                    continue
-                if _expired(task.get("deadline_at"), now_dt):
-                    self._set_task(con, row, task, "failed")
-                    self._event(
-                        con, run_id=row["run_id"], task_id=row["task_id"],
-                        event_type="deadline_expired", payload={"deadline_at": task.get("deadline_at")},
-                    )
-                    self._refresh_run_status(con, row["run_id"])
                     continue
 
                 dep_rows = {
@@ -939,6 +976,9 @@ class TaskStore:
             raise TaskLeaseError("task is not leased to this agent")
         if row["lease_expires_at"] is None or float(row["lease_expires_at"]) <= time.time():
             raise TaskLeaseError("task lease has expired")
+        task = _decode(row["task_json"])
+        if _expired(task.get("deadline_at"), datetime.now(timezone.utc)):
+            raise TaskLeaseError("task deadline has expired")
         supplied_hash = _token_hash(_required_string(lease_token, "lease_token"))
         stored_hash = str(row["lease_token_hash"] or "")
         if not secrets.compare_digest(supplied_hash, stored_hash):
@@ -1017,6 +1057,7 @@ class TaskStore:
             "task_id": verification_id,
             "run_id": run_id,
             "parent_task_id": producer_task["task_id"],
+            "deadline_at": producer_task.get("deadline_at"),
             "data_scopes": list(producer_task["data_scopes"]),
             "task_type": "verification",
             "role": "verifier",

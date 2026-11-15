@@ -525,39 +525,10 @@ def test_all_progressive_hosts_check_and_audit_clean():
 def test_single_session_first_policy_is_rendered_for_every_host():
     platforms = gen.load_platforms()
     artifacts = gen.render_all(platforms)
-    skills = [a for a in artifacts if a.path.startswith("graphify/skill")]
-    assert skills
-    for artifact in skills:
-        body = artifact.content
-        assert "Single-session-first rule" in body, artifact.path
-        assert "main session" in body.lower(), artifact.path
-        assert "estimated end-to-end cost" in body.lower(), artifact.path
-        assert "MANDATORY: You MUST use the Agent tool here" not in body, artifact.path
-        assert "MANDATORY: You MUST use the subagent system here" not in body, artifact.path
-        assert "Run Part A (AST) and Part B (semantic) in parallel." not in body, artifact.path
-
-    aider = next(a.content for a in skills if a.path == "graphify/skill-aider.md")
-    assert "sequential extraction (Aider)" in aider
-    assert "process each file one at a time" in aider
-    assert "Delegated path" in aider  # policy documents the exception, not Aider's implementation
-
-
-def test_single_session_first_monolith_roundtrip_allowlist_is_scoped():
-    assert gen._is_single_session_first_fix_line("**Single-session-first rule:** main session.")
-    assert gen._is_single_session_first_fix_line(
-        "After each chunk completes, persist its result to its assigned file."
-    )
-    assert not gen._is_single_session_first_fix_line(
-        "Unrelated wording changed without an accompanying workflow change."
-    )
-
-
-def test_single_session_first_policy_is_rendered_for_every_host():
-    platforms = gen.load_platforms()
-    artifacts = gen.render_all(platforms)
     skills = [
         artifact for artifact in artifacts
-        if artifact.path.startswith("graphify/skill") and artifact.path.endswith(".md")
+        if artifact.path == "graphify/skill.md"
+        or (artifact.path.startswith("graphify/skill-") and artifact.path.endswith(".md"))
     ]
     assert skills
     for artifact in skills:
@@ -570,7 +541,7 @@ def test_single_session_first_policy_is_rendered_for_every_host():
         assert "Run Part A (AST) and Part B (semantic) in parallel." not in body, artifact.path
 
     aider = next(a.content for a in skills if a.path == "graphify/skill-aider.md")
-    assert "sequential extraction (Aider)" in aider
+    assert "Semantic extraction: N files (single-session sequential — Aider)" in aider
     assert "Process each file one at a time" in aider
 
 
@@ -623,13 +594,13 @@ def test_pi_never_names_the_claude_general_purpose_agent():
     pi, _ = _platform_artifacts("pi")
     assert "general-purpose" not in pi
     assert "Re-run with the `delegate` agent." in pi
-    assert "ensure the `delegate` agent is used." in pi
+    assert "Ensure the `delegate` agent is used." in pi
     claude, _ = _platform_artifacts("claude")
     assert "Re-run with general-purpose agent." in claude
-    assert 'ensure `subagent_type="general-purpose"` is used.' in claude
+    assert 'Ensure `subagent_type="general-purpose"` is used.' in claude
     codex, _ = _platform_artifacts("codex")
     assert "Re-run with the Codex `worker` agent." in codex
-    assert 'ensure `agent_type="worker"` is used.' in codex
+    assert 'Ensure `agent_type="worker"` is used.' in codex
 
 
 def test_compact_extraction_hosts_use_the_compact_spec():
@@ -981,6 +952,7 @@ def test_audit_allowlist_documents_only_consolidations():
     for hs in gen._CONSOLIDATION_ALLOWLIST.values():
         all_allowlisted |= set(hs)
     assert "## For native AGENTS.md integration (Trae)" not in all_allowlisted
+    assert "#### Part B - Semantic extraction (parallel subagents)" in all_allowlisted
     # Only the two minimal-body hosts carry per-host consolidations.
     assert set(gen._CONSOLIDATION_ALLOWLIST) == {"kilo", "vscode"}
 
@@ -1368,28 +1340,33 @@ def test_core_bounds_semantic_chunks_by_lines_as_well_as_file_count():
     assert "2000 lines gets a chunk to itself" in b1, (
         "a file past the Read cap must be dispatched alone"
     )
-    assert "replace `EXPECTED_CHUNKS` with that exact integer" in b1
+    assert "replace `EXPECTED_CHUNKS` with the exact integer" in b1
 
 
 def test_coverage_check_flags_a_partly_read_file_and_clears_a_complete_one(
     tmp_path, capsys, monkeypatch
 ):
     """Run the Step B3.5 coverage script: a short read is named, a full read is not."""
+    import json
+
     monkeypatch.chdir(tmp_path)  # the emitted bodies address graphify-out/ relatively
     core, _ = _platform_artifacts("claude")
-    body = _substituted(_step_body(core, "covered[src] = max("), tmp_path)
+    body = _substituted(_step_body(core, "for key, sources in manifest.items():"), tmp_path)
     out = tmp_path / "graphify-out"
 
     doc = tmp_path / "big.md"
     doc.write_text("\n".join(f"line {i}" for i in range(1, 51)), encoding="utf-8")
     whole = tmp_path / "small.md"
     whole.write_text("\n".join(f"line {i}" for i in range(1, 11)), encoding="utf-8")
+    (out / ".graphify_chunk_manifest.json").write_text(
+        json.dumps({"01": [str(doc), str(whole)]}), encoding="utf-8"
+    )
 
     # big.md was only read to line 10 of 50; small.md was read to its end.
     _write_chunk(out, {"coverage": {str(doc): 10, str(whole): 10}, "nodes": []})
     exec(compile(body, "step-b35", "exec"), {"__name__": "__main__"})
     printed = capsys.readouterr().out
-    assert "WARNING" in printed and "partly read" in printed, printed
+    assert "WARNING" in printed and "incomplete read" in printed, printed
     assert "read 10 of 50 lines" in printed, printed
     flagged = (out / ".graphify_partial.txt").read_text(encoding="utf-8").splitlines()
     assert flagged == [str(doc)], f"only the partly-read file may be flagged, got {flagged}"
@@ -1520,7 +1497,7 @@ def test_chunk_dispatch_paths_use_two_digit_chunk_numbers():
         assert ".graphify_chunk_0N.json" not in body
 
     powershell = gen._read_fragment("dispatch/agent-tool-disk-powershell.md")
-    assert '"{0:D2}" -f $CHUNK_NUM' in powershell
+    assert '".graphify_chunk_{0:D2}.json" -f $CHUNK_NUM' in powershell
     assert ".graphify_chunk_0N.json" not in powershell
 
 
@@ -1533,6 +1510,27 @@ def test_shared_chunk_pipeline_rejects_symlinked_paths():
     assert "O_NOFOLLOW" in core
     assert "[ -L graphify-out ]" in posix_guard
     assert "FileAttributes]::ReparsePoint" in powershell_guard
+
+
+
+def test_chunk_coverage_manifest_is_authoritative_for_all_chunked_hosts():
+    """Every chunked host must render the manifest-backed coverage verifier."""
+    core = gen._read_fragment("core/core.md")
+    assert ".graphify_chunk_manifest.json" in core
+    assert "set(coverage) != set(sources)" in core
+    assert "resolved.relative_to(root)" in core
+    assert "manifest.write_text('{}'" in core
+    assert "path.name == '.graphify_chunk_manifest.json'" in core
+    assert "Path(path).name != '.graphify_chunk_manifest.json'" in core
+
+    platforms = gen.load_platforms()
+    for key in platforms:
+        if key in {"aider", "devin"}:
+            continue  # terminal-only inline pipelines do not use chunk dispatch
+        artifacts = gen.render_all(platforms, only=key)
+        skill = next(a for a in artifacts if a.path == platforms[key].skill_dst)
+        assert ".graphify_chunk_manifest.json" in skill.content, skill.path
+        assert "resolved.relative_to(root)" in skill.content, skill.path
 
 
 def test_retry_hints_name_host_specific_writers():

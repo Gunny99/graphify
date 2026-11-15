@@ -71,24 +71,6 @@ Only when the path is one or more `https://github.com/...` URLs, or several loca
 
 ```powershell
 # Detect Python with graphify — uv/pipx-aware (fixes #831)
-$projectRoot = (Resolve-Path .).Path
-$outItem = Get-Item graphify-out -Force -ErrorAction SilentlyContinue
-if ($outItem -and (($outItem.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0)) {
-    throw "Refusing to use reparse-point graphify-out"
-}
-if ($outItem -and -not $outItem.PSIsContainer) {
-    throw "graphify-out exists but is not a directory"
-}
-if (-not $outItem) { New-Item -ItemType Directory -Path graphify-out | Out-Null }
-$resolvedOut = (Resolve-Path graphify-out).Path
-$expectedOut = [IO.Path]::GetFullPath((Join-Path $projectRoot 'graphify-out'))
-if ([IO.Path]::GetFullPath($resolvedOut) -ne $expectedOut) {
-    throw "graphify-out resolves outside the project root"
-}
-$pythonMarker = Get-Item graphify-out\.graphify_python -Force -ErrorAction SilentlyContinue
-if ($pythonMarker -and (($pythonMarker.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0)) {
-    throw "Refusing to read a reparse-point Python interpreter marker"
-}
 New-Item -ItemType Directory -Force -Path graphify-out | Out-Null
 $GRAPHIFY_PYTHON = $null
 
@@ -170,7 +152,7 @@ from graphify.detect import detect
 from pathlib import Path
 from graphify.paths import out_path
 from graphify.watch import _read_build_excludes, _read_build_gitignore
-INPUT_PATH = Path('graphify-out/.graphify_root').read_text(encoding="utf-8-sig").strip()
+INPUT_PATH = (out / '.graphify_root').read_text(encoding="utf-8-sig").strip()
 result = detect(Path(INPUT_PATH), extra_excludes=_read_build_excludes(out_path()), gitignore=_read_build_gitignore(out_path()))
 # Write the sidecar from Python, not a shell redirect, so the same block renders
 # on PowerShell hosts without console-encoding drift (#2528).
@@ -223,7 +205,7 @@ Print it once, then continue — do not wait for the user to supply a key. If `G
 
 > **No other API keys are read.** When `GEMINI_API_KEY`/`GOOGLE_API_KEY` are unset, semantic extraction falls to the host agent itself — the running session is the LLM. On a host that dispatches subagents (e.g. Claude Code), dispatch them as written in Part B. On a host that runs the CLI directly in a terminal and cannot dispatch subagents, do not stall: a code-only corpus has no semantic work, so write the empty semantic file (Part B "Fast path") and continue to Part C; for a corpus with docs/papers/images, either set a Gemini key or extract those inline yourself, but in no case prompt for `ANTHROPIC_API_KEY` — that prompt is a misread of this skill.
 
-Run structural extraction and semantic extraction as separate stages in this skill. Start them concurrently only when the host genuinely supports independent execution and the measured time/cost benefit justifies it. Otherwise keep the work in the main session and run the stages sequentially. Do not create a team of planner, developer, tester, and reviewer roles for one extraction task.
+Run structural extraction and semantic extraction as separate stages in this skill. Start them concurrently only when the host genuinely supports independent execution and the measured time/cost benefit justifies it. Otherwise keep the work in the main session and run the stages sequentially. Do not create a planner/developer/tester/reviewer team for one extraction task.
 
 #### Part A - Structural extraction for code files
 
@@ -285,12 +267,6 @@ import json
 from graphify.cache import check_semantic_cache
 from pathlib import Path
 
-detect = json.loads(Path('graphify-out/.graphify_detect.json').read_text(encoding="utf-8"))
-# Only content files go to semantic extraction. Code is already covered structurally
-# by the AST pass (Part A); flattening every category here makes subagents re-read
-# every source file (#1392). Video is transcribed to a document in Step 2.5 first.
-all_files = [f for cat in ('document', 'paper', 'image') for f in detect['files'].get(cat, [])]
-
 project_root = Path.cwd().resolve()
 out = Path('graphify-out')
 if out.is_symlink():
@@ -300,7 +276,14 @@ if not out.exists():
 out = out.resolve(strict=True)
 if out.parent != project_root:
     raise SystemExit("graphify-out resolves outside the project root")
-INPUT_PATH = (out / '.graphify_root').read_text(encoding="utf-8-sig").strip()
+
+detect = json.loads((out / '.graphify_detect.json').read_text(encoding="utf-8"))
+# Only content files go to semantic extraction. Code is already covered structurally
+# by the AST pass (Part A); flattening every category here makes subagents re-read
+# every source file (#1392). Video is transcribed to a document in Step 2.5 first.
+all_files = [f for cat in ('document', 'paper', 'image') for f in detect['files'].get(cat, [])]
+
+INPUT_PATH = Path('graphify-out/.graphify_root').read_text(encoding="utf-8-sig").strip()
 cached_nodes, cached_edges, cached_hyperedges, uncached = check_semantic_cache(all_files, root=INPUT_PATH, prompt_file='SPEC_PATH')
 
 # Always (re)write the cache file: write hits, else DELETE any leftover from a prior
@@ -313,12 +296,23 @@ else:
 # Nothing has been dispatched yet, so any chunk file on disk is a leftover from an
 # interrupted run, and Step B3 merges every .graphify_chunk_*.json it finds.
 for stale in out.glob('.graphify_chunk_*.json'):
+    if stale.name == '.graphify_chunk_manifest.json':
+        continue
     if stale.is_symlink():
-        stale.unlink(missing_ok=True)
+        stale.unlink(missing_ok=True)  # unlink only the link itself
         continue
     if not stale.is_file():
         raise SystemExit(f"Refusing to remove non-regular chunk path: {stale.name}")
     stale.unlink()
+manifest = out / '.graphify_chunk_manifest.json'
+if manifest.is_symlink():
+    manifest.unlink(missing_ok=True)
+elif manifest.exists():
+    if not manifest.is_file():
+        raise SystemExit("Refusing to remove non-regular chunk manifest")
+    manifest.unlink()
+if not uncached:
+    manifest.write_text('{}', encoding="utf-8")
 print(f'Cache: {len(all_files)-len(uncached)} files hit, {len(uncached)} files need extraction')
 '@ | & (Get-Content graphify-out\.graphify_python) -
 ```
@@ -331,7 +325,7 @@ Load files from `graphify-out/.graphify_uncached.txt`. Split into chunks bounded
 
 Both bounds matter. The line bound is not only about the 2000-line Read cap: a subagent holding 25 files splits its attention across all of them and skims the dense ones, and a 590-line plan can come back with zero nodes that way. Bounding content as well as file count is what keeps a chunk's coverage honest (#2225).
 
-After splitting, assign stable chunk numbers `01`, `02`, ... in dispatch order and record the exact number of chunks created. Before running the Step B3 preflight, replace `EXPECTED_CHUNKS` with that exact integer. Do not count only successful responses. If B2 is skipped because every semantic file is cached, use `EXPECTED_CHUNKS = 0`.
+After splitting, assign stable chunk numbers `01`, `02`, ... in dispatch order and record the exact number of chunks created. **Before dispatch**, write `graphify-out/.graphify_chunk_manifest.json` as a JSON object mapping each two-digit chunk number (for example `01`) to the exact list of source paths assigned to that chunk. Include every assigned file exactly once; use the same path strings that workers must use as keys in their `coverage` objects. The manifest is authoritative and must not be reconstructed from worker output. For zero chunks, write an empty object. Before running the Step B3 preflight, replace `EXPECTED_CHUNKS` with the exact integer. Do not count only successful responses. If B2 is skipped because every semantic file is cached, use `EXPECTED_CHUNKS = 0`.
 
 **Step B2 - Select the execution path**
 
@@ -401,6 +395,8 @@ failed = []
 valid = []
 
 for path in sorted(out.glob('.graphify_chunk_*.json')):
+    if path.name == '.graphify_chunk_manifest.json':
+        continue
     if path.name not in expected_names:
         print(f'WARNING: removing unexpected chunk file {path.name}')
         if path.is_symlink() or path.is_file():
@@ -468,7 +464,6 @@ else:
     print(f'Chunk preflight OK: {len(valid)} of {EXPECTED_CHUNKS} expected chunk(s) are valid.')
 '@ | & (Get-Content graphify-out\.graphify_python) -
 ```
-
 **Step B3.5 - Verify each reported file was actually read to its end**
 
 A subagent that only read the first Read call's worth of a long file still writes a well-formed chunk, so "chunk file exists and parses" is not evidence of coverage. Compare each file's self-reported `coverage` against its real length:
@@ -478,43 +473,94 @@ A subagent that only read the first Read call's worth of a long file still write
 import json, glob
 from pathlib import Path
 
-INPUT_PATH = Path('graphify-out/.graphify_root').read_text(encoding="utf-8-sig").strip()
-covered = {}
-for c in sorted(glob.glob('graphify-out/.graphify_chunk_*.json')):
-    d = json.loads(Path(c).read_text(encoding="utf-8"))
-    for src, n in (d.get('coverage') or {}).items():
-        covered[src] = max(covered.get(src, 0), int(n))
-
+root = Path(Path('graphify-out/.graphify_root').read_text(encoding="utf-8-sig").strip()).resolve()
+out = Path('graphify-out').resolve(strict=True)
+manifest_path = out / '.graphify_chunk_manifest.json'
+if manifest_path.is_symlink() or not manifest_path.is_file():
+    raise SystemExit('Missing or unsafe chunk manifest; refusing to certify coverage')
+manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+if not isinstance(manifest, dict):
+    raise SystemExit('Chunk manifest must be a JSON object')
+chunks = sorted(
+    path for path in glob.glob('graphify-out/.graphify_chunk_*.json')
+    if Path(path).name != '.graphify_chunk_manifest.json'
+)
+expected_names = {f'.graphify_chunk_{key}.json' for key in manifest}
+actual_names = {Path(path).name for path in chunks}
+if not actual_names.issubset(expected_names):
+    raise SystemExit('Unexpected chunk file is present outside the authoritative chunk manifest')
 partial = []
-for src, n in sorted(covered.items()):
-    p = Path(src)
-    if not p.is_absolute():
-        p = Path(INPUT_PATH) / src
-    if not p.is_file():
-        continue
-    total = sum(1 for _ in p.open(encoding='utf-8', errors='replace'))
-    if total and n < total:
-        partial.append((src, n, total))
+seen_sources = set()
 
-Path('graphify-out/.graphify_partial.txt').write_text('\n'.join(s for s, _, _ in partial), encoding="utf-8")
+for key, sources in manifest.items():
+    if not isinstance(key, str) or len(key) != 2 or not key.isdigit():
+        raise SystemExit(f'Invalid chunk number in manifest: {key!r}')
+    if not isinstance(sources, list) or not sources or not all(isinstance(x, str) and x for x in sources):
+        raise SystemExit(f'Invalid source list in chunk manifest: {key}')
+    if len(sources) != len(set(sources)) or seen_sources.intersection(sources):
+        raise SystemExit(f'Duplicate source assignment in chunk manifest: {key}')
+    seen_sources.update(sources)
+    chunk_path = out / f'.graphify_chunk_{key}.json'
+    if chunk_path.name not in actual_names:
+        for src in sources:
+            partial.append((src, 0, None, 'chunk missing or rejected by preflight'))
+        continue
+    if chunk_path.is_symlink() or not chunk_path.is_file():
+        raise SystemExit(f'Unsafe chunk file: {chunk_path.name}')
+    data = json.loads(chunk_path.read_text(encoding="utf-8"))
+    coverage = data.get('coverage')
+    if not isinstance(coverage, dict) or set(coverage) != set(sources):
+        missing = sorted(set(sources) - set(coverage or {})) if isinstance(coverage, dict) else list(sources)
+        extra = sorted(set(coverage) - set(sources)) if isinstance(coverage, dict) else []
+        for src in missing:
+            partial.append((src, 0, None, 'missing coverage report'))
+        if extra:
+            raise SystemExit(f'Unexpected coverage paths in {chunk_path.name}: {extra}')
+        continue
+    for src in sources:
+        n = coverage[src]
+        if not isinstance(n, int) or isinstance(n, bool) or n < 0:
+            raise SystemExit(f'Invalid coverage line count for {src!r}')
+        candidate = Path(src)
+        if not candidate.is_absolute():
+            candidate = root / candidate
+        if candidate.is_symlink():
+            raise SystemExit(f'Symlinked coverage path is not allowed: {src}')
+        resolved = candidate.resolve(strict=True)
+        try:
+            resolved.relative_to(root)
+        except ValueError:
+            raise SystemExit(f'Coverage path escapes project root: {src}')
+        if not resolved.is_file():
+            raise SystemExit(f'Coverage path is not a regular file: {src}')
+        total = sum(1 for _ in resolved.open(encoding='utf-8', errors='replace'))
+        if n < total:
+            partial.append((src, n, total, 'incomplete read'))
+
+Path('graphify-out/.graphify_partial.txt').write_text('\n'.join(src for src, _, _, _ in partial), encoding="utf-8")
 if partial:
-    print(f'WARNING: {len(partial)} file(s) were only partly read. They are cached as partial and retried on the next --update:')
-    for src, n, total in partial:
-        print(f'  {src}: read {n} of {total} lines')
+    print(f'WARNING: {len(partial)} file(s) are partial or lack exact coverage and will be retried on the next --update:')
+    for src, n, total, reason in partial:
+        suffix = f' (read {n} of {total} lines)' if total is not None else ''
+        print(f'  {src}: {reason}{suffix}')
 else:
-    print('Coverage OK - every file a subagent reported was read to its last line')
+    print('Coverage OK - every assigned file was reported and read to its last line')
 '@ | & (Get-Content graphify-out\.graphify_python) -
+
 ```
 
 Tell the user which files came up short and what was lost (the line counts are printed above). The nodes already extracted for those files are kept - they are still true - but the file is cached as partial and left unstamped in the manifest below, so the next `--update` re-dispatches it and replace-on-re-extract swaps the partial node set for a complete one. This is the same mechanism the library path uses for a truncated LLM response (#933, #1950), so both paths now recover instead of silently keeping a half-read file forever. A file a subagent did not report at all is not counted as partial - there is nothing to compare against - which is why the prompt rule in `references/extraction-spec.md` asks for the count in the first place.
 
-Merge all chunk files into `.graphify_semantic_new.json`. **After each Agent call completes, read the real token counts from the Agent tool result's `usage` field and write them back into the chunk JSON before merging** — the chunk JSON itself always has placeholder zeros. Then run:
+Merge all valid chunk files into `.graphify_semantic_new.json`. If the host exposes per-worker token usage metadata, copy the actual counts into that worker's chunk file before merging. Otherwise preserve the validated `input_tokens` and `output_tokens` values returned in the chunk JSON; never invent usage numbers. Then run:
 ```powershell
 @'
 import json, glob
 from pathlib import Path
 
-chunks = sorted(glob.glob('graphify-out/.graphify_chunk_*.json'))
+chunks = sorted(
+    path for path in glob.glob('graphify-out/.graphify_chunk_*.json')
+    if Path(path).name != '.graphify_chunk_manifest.json'
+)
 all_nodes, all_edges, all_hyperedges = [], [], []
 total_in, total_out = 0, 0
 for c in chunks:
