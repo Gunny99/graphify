@@ -13,10 +13,10 @@ import subprocess
 import sys
 import time
 from collections.abc import Callable, Iterator, Mapping
-from typing import Protocol
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, replace
 from pathlib import Path
+from typing import Protocol
 
 from graphify.extractors.base import _read_source_text
 from graphify.file_slice import (
@@ -1876,11 +1876,11 @@ class _AzureAdapter:
         response = client.chat.completions.create(**kwargs)
         if not response.choices or response.choices[0].message is None:
             raise ValueError("Azure OpenAI returned empty or filtered response")
-        usage = response.usage
+        usage = getattr(response, "usage", None)
         return LLMResult(
             text=response.choices[0].message.content or "",
-            input_tokens=int((usage.prompt_tokens or 0) if usage else 0),
-            output_tokens=int((usage.completion_tokens or 0) if usage else 0),
+            input_tokens=int(getattr(usage, "prompt_tokens", 0) or 0),
+            output_tokens=int(getattr(usage, "completion_tokens", 0) or 0),
             model=context.model,
             stop_reason="length" if response.choices[0].finish_reason == "length" else "stop",
         )
