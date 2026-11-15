@@ -3274,9 +3274,9 @@ def _build_server(graph_path: str):
                         "lease_token": {"type": "string"},
                         "action": {"type": "string"},
                         "error": {"type": "string"},
-                        "progress_token": {"type": "string"},
+                        "progress_token": {"type": "string", "description": "Required stable fingerprint of the current artifact or execution state."},
                     },
-                    "required": ["task_id", "agent_id", "agent_token", "lease_token", "action"],
+                    "required": ["task_id", "agent_id", "agent_token", "lease_token", "action", "progress_token"],
                 },
             ),
             types.Tool(
