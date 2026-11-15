@@ -3261,6 +3261,39 @@ def _build_server(graph_path: str):
                     "required": ["run_id", "coordinator_token"],
                 },
             ),
+            types.Tool(
+                name="orchestrator_observe_step",
+                description="Record a content-free action/error/progress fingerprint for the currently leased task. A loop signal revokes the lease and pauses the Run for redesign.",
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "task_id": {"type": "string"},
+                        "agent_id": {"type": "string"},
+                        "agent_token": {"type": "string"},
+                        "lease_token": {"type": "string"},
+                        "action": {"type": "string"},
+                        "error": {"type": "string"},
+                        "progress_token": {"type": "string"},
+                    },
+                    "required": ["task_id", "agent_id", "agent_token", "lease_token", "action"],
+                },
+            ),
+            types.Tool(
+                name="orchestrator_redesign_task",
+                description="Resume a loop-paused task only with a genuinely new strategy and hypothesis. The coordinator must authorize the redesign.",
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "run_id": {"type": "string"},
+                        "task_id": {"type": "string"},
+                        "strategy": {"type": "string"},
+                        "hypothesis": {"type": "string"},
+                        "rationale": {"type": "string"},
+                        "coordinator_token": {"type": "string"},
+                    },
+                    "required": ["run_id", "task_id", "strategy", "hypothesis", "rationale", "coordinator_token"],
+                },
+            ),
         ]
         # Multi-project support: every tool accepts an optional project_path.
         # Injected here (rather than repeated in 11 literal schemas) so the set
@@ -3659,6 +3692,32 @@ def _build_server(graph_path: str):
             )
         )
 
+    def _tool_orchestrator_observe_step(arguments: dict) -> str:
+        store = _orchestration_store()
+        store.authenticate_agent(arguments["agent_id"], arguments["agent_token"])
+        return _orchestration_json(
+            store.observe_workflow_step(
+                arguments["task_id"],
+                arguments["agent_id"],
+                arguments["lease_token"],
+                arguments["action"],
+                error=arguments.get("error"),
+                progress_token=arguments.get("progress_token"),
+            )
+        )
+
+    def _tool_orchestrator_redesign_task(arguments: dict) -> str:
+        _require_orchestration_coordinator(arguments)
+        return _orchestration_json(
+            _orchestration_store().redesign_task(
+                arguments["run_id"],
+                arguments["task_id"],
+                strategy=arguments["strategy"],
+                hypothesis=arguments["hypothesis"],
+                rationale=arguments["rationale"],
+            )
+        )
+
     _handlers = {
         "query_graph": _tool_query_graph,
         "get_node": _tool_get_node,
@@ -3682,6 +3741,8 @@ def _build_server(graph_path: str):
         "orchestrator_cancel_run": _tool_orchestrator_cancel_run,
         "orchestrator_record_span": _tool_orchestrator_record_span,
         "orchestrator_list_events": _tool_orchestrator_list_events,
+        "orchestrator_observe_step": _tool_orchestrator_observe_step,
+        "orchestrator_redesign_task": _tool_orchestrator_redesign_task,
     }
 
     def _load_community_labels() -> dict[int, str]:
