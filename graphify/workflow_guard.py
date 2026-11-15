@@ -103,7 +103,7 @@ class WorkflowLoopGuard:
     def _validate_label(value: str, name: str) -> None:
         if not isinstance(value, str) or not value.strip():
             raise ValueError(f"{name} must be a non-empty string")
-        if len(value) > 512 or "\\n" in value or "\\r" in value:
+        if len(value) > 512 or chr(10) in value or chr(13) in value:
             raise ValueError(f"{name} must be a single line of at most 512 characters")
 
     @staticmethod
@@ -135,6 +135,8 @@ class WorkflowLoopGuard:
             return self._decision("redesign", self._trip_reasons)
 
         if progress_token is not None:
+            if not isinstance(progress_token, str) or len(progress_token) > 256:
+                raise ValueError("progress_token must be a string of at most 256 characters")
             token = _fingerprint(progress_token)
             if self._last_progress is None:
                 self._last_progress = token
