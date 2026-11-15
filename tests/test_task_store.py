@@ -1408,3 +1408,55 @@ def test_rejected_parallel_redesign_blocks_queued_siblings(tmp_path):
             sibling_lease["lease_token"],
             lease_seconds=300,
         )
+
+
+def test_rejected_verification_redesign_marks_parent_result_provisional(tmp_path):
+    store = TaskStore(tmp_path / "orchestrator.sqlite3")
+    producer = _agent("producer", "producer-provider", "producer-model")
+    verifier = _agent(
+        "verifier", "verifier-provider", "verifier-model", role="verifier"
+    )
+    _register(store, producer)
+    _register(store, verifier)
+    store.create_run(_run(strategy="single_with_review"), [_task("review-parent")])
+
+    producer_lease = store.claim_task("producer")
+    assert producer_lease is not None
+    submitted = store.submit_result(
+        _result("review-parent", producer), producer_lease["lease_token"]
+    )
+    verify_task_id = next(
+        task["task_id"] for task in submitted["tasks"]
+        if task["task_type"] == "verification"
+    )
+    verifier_lease = store.claim_task("verifier")
+    assert verifier_lease is not None and verifier_lease["task_id"] == verify_task_id
+
+    for _ in range(3):
+        decision = store.observe_workflow_step(
+            verify_task_id,
+            "verifier",
+            verifier_lease["lease_token"],
+            "repeat the same evidence check",
+            progress_token="unchanged-verification-state",
+        )
+    assert decision["task_status"] == "needs_redesign"
+
+    state_event = store.list_events(
+        "run-1",
+        task_id=verify_task_id,
+        event_type="workflow_guard_state",
+        include_payload=True,
+    )[-1]
+    guard_state = state_event["payload"]["state"]
+    rejected = store.redesign_task(
+        "run-1",
+        verify_task_id,
+        strategy=guard_state["strategy"],
+        hypothesis=guard_state["hypothesis"],
+        rationale="repeat the same verifier approach",
+    )
+    assert rejected["run"]["status"] == "provisional"
+    states = {task["task_id"]: task["status"] for task in rejected["tasks"]}
+    assert states["review-parent"] == "needs_review"
+    assert states[verify_task_id] == "failed"
