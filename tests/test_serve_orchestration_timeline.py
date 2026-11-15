@@ -6,6 +6,8 @@ from pathlib import Path
 import sys
 from types import ModuleType, SimpleNamespace
 
+import pytest
+
 from graphify.task_store import TaskStore
 
 
@@ -119,6 +121,7 @@ def test_mcp_exposes_authenticated_timeline_record_and_query(tmp_path, monkeypat
     assert "orchestrator_observe_step" in by_name
     assert "orchestrator_redesign_task" in by_name
     assert "coordinator_token" in by_name["orchestrator_list_events"].inputSchema["required"]
+    assert "progress_token" in by_name["orchestrator_observe_step"].inputSchema["required"]
 
     arguments = {
         "run_id": "mcp-timeline-run",
@@ -161,11 +164,13 @@ def test_mcp_timeline_tools_require_coordinator_token(tmp_path, monkeypatch):
     from graphify.serve import _build_server
 
     server = _build_server(str(graph_path))
-    result = asyncio.run(server.call_handler(
-        "orchestrator_list_events",
-        {"run_id": "some-run", "coordinator_token": "wrong-secret"},
-    ))
-    assert "Coordinator authentication failed" in result[0].text
+    from graphify.serve import ToolError
+
+    with pytest.raises(ToolError, match="Coordinator authentication failed"):
+        asyncio.run(server.call_handler(
+            "orchestrator_list_events",
+            {"run_id": "some-run", "coordinator_token": "wrong-secret"},
+        ))
 
 
 def test_mcp_loop_guard_revokes_lease_until_coordinator_redesign(tmp_path, monkeypatch):
@@ -262,3 +267,4 @@ def test_mcp_loop_guard_revokes_lease_until_coordinator_redesign(tmp_path, monke
     payload = json.loads(redesigned[0].text)
     assert payload["run"]["status"] == "queued"
     assert payload["tasks"][0]["status"] == "queued"
+    assert payload["tasks"][0]["max_attempts"] == 2
