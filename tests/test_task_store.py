@@ -1240,6 +1240,7 @@ def test_loop_trip_pauses_run_and_revokes_other_worker_leases(tmp_path):
 
     first = _task("parallel-a")
     second = _task("parallel-b")
+    second["max_attempts"] = 1
     first["input"]["write_set"] = ["src/a.py"]
     second["input"]["write_set"] = ["src/b.py"]
     store.create_run(
@@ -1265,6 +1266,8 @@ def test_loop_trip_pauses_run_and_revokes_other_worker_leases(tmp_path):
     paused = store.get_run_status("run-1")
     assert paused["run"]["status"] == "needs_redesign"
     assert {task["status"] for task in paused["tasks"]} == {"needs_redesign", "queued"}
+    interrupted = next(task for task in paused["tasks"] if task["task_id"] == "parallel-b")
+    assert interrupted["max_attempts"] == 2
 
     # The other worker's old lease was revoked too; the paused Run cannot dispatch.
     with pytest.raises(TaskLeaseError, match="not leased"):
