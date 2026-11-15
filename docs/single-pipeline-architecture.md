@@ -304,7 +304,7 @@ Status at creation: **120 proposals catalogued; implementation is staged.** "Des
 |---|---|---|
 | P0 — Architecture baseline | This contract, 120-item register, system inventory, decision record | One agreed architecture boundary and measurable acceptance criteria |
 | P1 — Durable observability and loop barrier | Timeline API over existing events; structured spans; pure loop guard; progress summaries | Event queries are bounded; spans redact content; loop tests prove stop/redesign |
-| P2 — One controller | Run lifecycle and transition authority over existing TaskStore | Every entry path creates/updates one Run; no side-channel state changes |
+| P2 — One controller | RunController application service over the existing TaskStore | Every entry path routes lifecycle operations through one Run boundary; no side-channel state changes |
 | P3 — Adapter convergence | LLM + host + Graphify stage adapters use common contracts | Shared contract suite passes across adapters; one retry owner |
 | P4 — Independent review | Frozen artifacts, blind reviewer input, structured findings, adjudication | Reviewer is independent and cannot self-approve or silently edit |
 | P5 — Selective skill/context system | Canonical skill index, on-demand references, task-specific context manifest | No default bulk cache/reference loading; token/latency benefit measured |
@@ -332,7 +332,7 @@ Grounded in the current source snapshot:
 - `TaskStore.record_span()` now records content-free stage/task timing metadata in the same event ledger; active-vs-wait attribution and automatic span emission across every host remain open.
 - `WorkflowLoopGuard` now fingerprints repeated actions/errors and unchanged progress, persists state in the event ledger, and pauses the whole Run for redesign. The MCP contract requires a progress fingerprint, but automatic calls from all existing skill/CLI/host execution paths remain open.
 - `querylog.py` is opt-in query logging, not a task execution timeline; it should not be repurposed to hold prompts or source bodies.
-- `serve.py` registers orchestration handlers separately from other command entry points; all entry points still need a common Run facade.
+- `serve.py` now routes every MCP orchestration operation through `graphify.workflow.RunController`; CLI, skill-host, and direct backend entry points still need to adopt the same application boundary.
 - The skill generator already uses a core plus references, but host-specific fragments and generated artifacts can drift unless canonical contracts and consistency tests own the policy.
 - `llm.py` has a direct API path, while skill-driven host execution is a separate route; both need one internal request/result/retry contract.
 - Current reviewer workflows exist for structured claims; code review needs the same frozen-artifact, finding, disposition, and cycle-limit semantics.
@@ -357,7 +357,8 @@ These references support the reliability principles, not Graphify-specific imple
 - [~] P1 MCP exposure: `orchestrator_record_span`, `orchestrator_list_events`, `orchestrator_observe_step`, `orchestrator_redesign_task`.
 - [ ] P1 automatic instrumentation from every host skill, CLI/backend and task execution boundary; workers must currently call the new progress-report tool.
 - [ ] P1 execute focused and full regression tests on the exact head SHA. Tests were added/updated but have not been run in this environment; the PR currently has no check runs.
-- [ ] P2 one controller facade and transition authority across MCP, CLI, skills, backend and Graphify domain pipeline.
+- [~] P2 initial `RunController` application boundary: all MCP orchestration handlers now route through `graphify.workflow.RunController`, while `TaskStore` remains the transactional ledger. CLI, skill-host, backend, and Graphify domain-pipeline callers are not yet migrated.
+- [ ] P2 extend the same controller boundary to CLI, skill hosts, backend execution, and Graphify domain stages; remove direct state-transition bypasses.
 - [ ] P3 adapter convergence, one retry/deadline owner and contract tests.
 - [ ] P4 frozen-artifact independent code reviewer and adjudication.
 - [ ] P5 selective skill/context loading and measured cache policy.
