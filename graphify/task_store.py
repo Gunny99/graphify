@@ -651,6 +651,31 @@ class TaskStore:
             else:
                 task["last_failure"] = guard.snapshot().get("terminal_reason") or "workflow_redesign_rejected"
                 self._set_task(con, row, task, "failed")
+                # A rejected redesign is terminal for the entire Run. Never
+                # let a queued sibling bypass the failed redesign decision.
+                siblings = con.execute(
+                    """
+                    SELECT * FROM tasks
+                    WHERE run_id=? AND task_id<>?
+                      AND status NOT IN ('accepted', 'failed', 'rejected', 'blocked', 'cancelled')
+                    """,
+                    (run_id, task_id),
+                ).fetchall()
+                for sibling in siblings:
+                    sibling_task = _decode(sibling["task_json"])
+                    reserve = float(sibling_task.pop("estimated_cost_reserved", 0.0))
+                    if reserve > 0:
+                        sibling_task["unreported_cost_reserved"] = (
+                            float(sibling_task.get("unreported_cost_reserved", 0.0)) + reserve
+                        )
+                    self._set_task(con, sibling, sibling_task, "blocked")
+                    self._event(
+                        con,
+                        run_id=run_id,
+                        task_id=sibling["task_id"],
+                        event_type="task_blocked_after_redesign_rejection",
+                        payload={"rejected_task_id": task_id},
+                    )
                 event_type = "workflow_redesign_rejected"
                 outcome = "failed"
 
