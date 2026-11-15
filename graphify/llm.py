@@ -3334,7 +3334,11 @@ def _call_llm(
         )
 
     resolved_model = model or _default_model_for_backend(backend)
-    temperature = _resolve_temperature(cfg.get("temperature", 0), resolved_model)
+    temperature = (
+        _resolve_temperature(cfg.get("temperature", 0), resolved_model)
+        if backend not in ("claude", "claude-cli", "bedrock")
+        else None
+    )
     request = LLMRequest(
         user_message=prompt, max_tokens=max_tokens, response_format="text",
         temperature=temperature, reasoning_effort=cfg.get("reasoning_effort"),
