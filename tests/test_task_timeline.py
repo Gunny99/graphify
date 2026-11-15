@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import datetime, timedelta, timezone
+
 import pytest
 
 from graphify.task_store import TaskNotFoundError, TaskStore
@@ -101,6 +103,7 @@ def test_record_span_appends_to_existing_event_ledger_and_is_filterable(tmp_path
 
 def test_timeline_supports_cursor_time_range_and_limit(tmp_path):
     store = _store(tmp_path)
+    now = datetime.now(timezone.utc)
     first = store.record_span(
         "timeline-run",
         name="first",
@@ -118,11 +121,11 @@ def test_timeline_supports_cursor_time_range_and_limit(tmp_path):
         "timeline-run",
         event_type="span_completed",
         after_event_id=first["event_id"],
-        since="2026-11-15T00:00:30Z",
-        until="2026-11-15T00:02:00Z",
+        since=(now - timedelta(seconds=5)).isoformat(),
+        until=(now + timedelta(seconds=5)).isoformat(),
         limit=1,
     )
-    assert [event["payload"]["name"] for event in page] == ["second"]
+    assert [event["summary"]["name"] for event in page] == ["second"]
     assert page[0]["event_id"] == second["event_id"]
 
 
