@@ -513,7 +513,13 @@ class TaskStore:
                             other_task["unreported_cost_reserved"] = (
                                 float(other_task.get("unreported_cost_reserved", 0.0)) + reserve
                             )
-                        self._set_task(con, other, other_task, "queued")
+                        next_max_attempts = max(
+                            int(other["max_attempts"]), int(other["attempt"]) + 1
+                        )
+                        self._set_task(
+                            con, other, other_task, "queued",
+                            max_attempts=next_max_attempts,
+                        )
                         self._event(
                             con,
                             run_id=row["run_id"],
