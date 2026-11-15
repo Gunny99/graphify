@@ -531,6 +531,13 @@ class TaskStore:
                             (row["run_id"], task_id),
                         ).fetchall()
                     for other in other_rows:
+                        if (
+                            task.get("task_type") == "verification"
+                            and other["task_id"] == task.get("parent_task_id")
+                        ):
+                            # Keep the source result provisional; the verifier's
+                            # terminal failure must not turn it into a generic block.
+                            continue
                         other_task = _decode(other["task_json"])
                         reserve = float(other_task.pop("estimated_cost_reserved", 0.0))
                         if reserve > 0:
@@ -670,6 +677,13 @@ class TaskStore:
                     (run_id, task_id),
                 ).fetchall()
                 for sibling in siblings:
+                    if (
+                        task.get("task_type") == "verification"
+                        and sibling["task_id"] == task.get("parent_task_id")
+                    ):
+                        # Preserve the parent as needs_review when its verifier
+                        # cannot be completed independently.
+                        continue
                     sibling_task = _decode(sibling["task_json"])
                     reserve = float(sibling_task.pop("estimated_cost_reserved", 0.0))
                     if reserve > 0:
