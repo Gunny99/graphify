@@ -103,6 +103,8 @@ class WorkflowLoopGuard:
     def _validate_label(value: str, name: str) -> None:
         if not isinstance(value, str) or not value.strip():
             raise ValueError(f"{name} must be a non-empty string")
+        if len(value) > 512 or "\\n" in value or "\\r" in value:
+            raise ValueError(f"{name} must be a single line of at most 512 characters")
 
     @staticmethod
     def _plan_fingerprint(strategy: str, hypothesis: str) -> str:
@@ -195,7 +197,10 @@ class WorkflowLoopGuard:
             return False
 
         plan_id = self._plan_fingerprint(strategy, hypothesis)
-        if plan_id in self._used_plans:
+        if (
+            plan_id in self._used_plans
+            or _normalize(hypothesis) == _normalize(self.hypothesis)
+        ):
             self._terminal_reason = "duplicate_redesign"
             return False
 
