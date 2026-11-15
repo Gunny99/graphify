@@ -1358,3 +1358,53 @@ def test_exhausted_redesign_budget_blocks_every_pending_task(tmp_path):
     states = {task["task_id"]: task["status"] for task in final["tasks"]}
     assert states == {"stop-primary": "failed", "stop-sibling": "blocked"}
     assert store.claim_task("stop-worker") is None
+
+
+def test_rejected_parallel_redesign_blocks_queued_siblings(tmp_path):
+    store = TaskStore(tmp_path / "orchestrator.sqlite3")
+    worker = _agent("reject-worker", "reject-provider", "reject-model", max_concurrency=2)
+    _register(store, worker)
+    primary = _task("reject-primary")
+    sibling = _task("reject-sibling")
+    primary["input"].update({
+        "write_set": ["src/primary.py"],
+        "workflow_hypothesis": "same initial causal hypothesis",
+    })
+    sibling["input"]["write_set"] = ["src/sibling.py"]
+    store.create_run(
+        _run(strategy="parallel_independent", max_parallel_agents=2),
+        [primary, sibling],
+    )
+
+    leases = [store.claim_task("reject-worker"), store.claim_task("reject-worker")]
+    assert all(leases)
+    primary_lease = next(item for item in leases if item["task_id"] == "reject-primary")
+    sibling_lease = next(item for item in leases if item["task_id"] == "reject-sibling")
+    for _ in range(3):
+        decision = store.observe_workflow_step(
+            "reject-primary",
+            "reject-worker",
+            primary_lease["lease_token"],
+            "repeat unchanged work",
+            progress_token="same-progress",
+        )
+    assert decision["task_status"] == "needs_redesign"
+
+    rejected = store.redesign_task(
+        "run-1",
+        "reject-primary",
+        strategy="parallel_independent",
+        hypothesis="same initial causal hypothesis",
+        rationale="attempt the unchanged strategy again",
+    )
+    assert rejected["run"]["status"] == "failed"
+    states = {task["task_id"]: task["status"] for task in rejected["tasks"]}
+    assert states == {"reject-primary": "failed", "reject-sibling": "blocked"}
+    assert store.claim_task("reject-worker") is None
+    with pytest.raises(TaskLeaseError, match="not leased"):
+        store.heartbeat_task(
+            "reject-sibling",
+            "reject-worker",
+            sibling_lease["lease_token"],
+            lease_seconds=300,
+        )
