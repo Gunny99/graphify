@@ -223,7 +223,6 @@ class TaskStore:
         )
 
     @staticmethod
-    @staticmethod
     def _timeline_stamp(value: str, name: str) -> str:
         if not isinstance(value, str) or not value.strip():
             raise ValueError(f"{name} must be an ISO-8601 timestamp")
@@ -466,6 +465,29 @@ class TaskStore:
                 )
                 task_status = "needs_redesign" if decision.status == "redesign" else "failed"
                 self._set_task(con, row, task, task_status)
+                # A loop trip pauses the whole Run. Requeue other leased tasks,
+                # release their leases, and preserve their estimated spend as
+                # unreported until the interrupted attempts can report usage.
+                if decision.status in {"redesign", "stop"}:
+                    other_leases = con.execute(
+                        "SELECT * FROM tasks WHERE run_id=? AND status='leased' AND task_id<>?",
+                        (row["run_id"], task_id),
+                    ).fetchall()
+                    for other in other_leases:
+                        other_task = _decode(other["task_json"])
+                        reserve = float(other_task.pop("estimated_cost_reserved", 0.0))
+                        if reserve > 0:
+                            other_task["unreported_cost_reserved"] = (
+                                float(other_task.get("unreported_cost_reserved", 0.0)) + reserve
+                            )
+                        self._set_task(con, other, other_task, "queued")
+                        self._event(
+                            con,
+                            run_id=row["run_id"],
+                            task_id=other["task_id"],
+                            event_type="task_interrupted_for_redesign",
+                            payload={"paused_by_task_id": task_id},
+                        )
                 self._event(
                     con,
                     run_id=row["run_id"],
@@ -685,6 +707,10 @@ class TaskStore:
             run["failure_reason"] = "run_cost_budget_exceeded"
         elif statuses and all(status == "accepted" for status in statuses):
             status = "accepted"
+        elif any(status == "needs_redesign" for status in statuses):
+            # A redesign pause is run-wide: no unrelated queued task may resume
+            # until the coordinator supplies a new hypothesis/intervention.
+            status = "needs_redesign"
         elif any(item == "leased" for item in statuses):
             status = "running"
         elif has_runnable_queued:
@@ -698,8 +724,6 @@ class TaskStore:
             # Keep active/runnable work ahead of this check, but do not let an
             # unrelated needs_review branch mask an unrecoverable work failure.
             status = "failed"
-        elif any(status == "needs_redesign" for status in statuses):
-            status = "needs_redesign"
         elif any(status == "needs_review" for status in statuses):
             status = "provisional"
         elif any(status in {"failed", "rejected", "blocked"} for status in statuses):
