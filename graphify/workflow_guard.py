@@ -192,6 +192,8 @@ class WorkflowLoopGuard:
         self._validate_label(strategy, "strategy")
         self._validate_label(hypothesis, "hypothesis")
         self._validate_label(rationale, "rationale")
+        if len(rationale) > 500:
+            raise ValueError("rationale must be at most 500 characters")
         if not self._trip_reasons or self._terminal_reason:
             return False
         if self.redesigns >= self.max_redesigns:
