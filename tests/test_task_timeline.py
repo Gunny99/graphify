@@ -202,7 +202,6 @@ def test_span_rejects_freeform_labels_and_non_object_attributes(tmp_path):
 
 def test_timeline_compact_default_does_not_surface_raw_event_payload(tmp_path):
     store = _store(tmp_path)
-    store._event_for_test = None
     with store._transaction() as con:
         store._event(
             con,
