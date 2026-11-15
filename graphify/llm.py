@@ -2012,6 +2012,8 @@ def _invoke_backend_request(request: LLMRequest, context: BackendContext) -> LLM
                     raise
                 raise normalized from exc
             retry_after = getattr(normalized, "retry_after", None)
+            if retry_after is None:
+                retry_after = _retry_after_seconds(exc)
             delay = retry_after if retry_after is not None else min(2 ** attempt, 30)
             print(
                 f"[graphify] {context.backend} {type(normalized).__name__}; "
@@ -2686,9 +2688,24 @@ def _is_timeout_exception(exc: BaseException) -> bool:
 def _normalize_backend_exception(exc: Exception) -> Exception:
     """Normalize SDK/CLI errors; leave unknown programming errors untouched."""
     chain = list(_exception_chain(exc))
-    existing = next((item for item in chain if isinstance(item, BackendError)), None)
-    if existing is not None:
-        return existing
+    if isinstance(exc, BackendError):
+        return exc
+    existing = next(
+        (item for item in chain[1:] if isinstance(item, BackendError)),
+        None,
+    )
+    if isinstance(existing, RateLimited):
+        return RateLimited(str(exc), retry_after=existing.retry_after)
+    if isinstance(existing, AuthenticationError):
+        return AuthenticationError(str(exc))
+    if isinstance(existing, ContextWindowExceeded):
+        return ContextWindowExceeded(str(exc))
+    if isinstance(existing, BackendTimeout):
+        return BackendTimeout(str(exc))
+    if isinstance(existing, TransientBackendError):
+        return TransientBackendError(str(exc))
+    if isinstance(existing, BackendError):
+        return BackendError(str(exc))
 
     messages = " ".join(str(item) for item in chain).lower()
     names = " ".join(type(item).__name__.lower() for item in chain)
