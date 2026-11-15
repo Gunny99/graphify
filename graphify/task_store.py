@@ -275,7 +275,11 @@ class TaskStore:
             if isinstance(value, str):
                 if len(value) > 256 or "\n" in value or "\r" in value:
                     raise ValueError(f"attributes.{key} must be a single line of at most 256 characters")
-            elif not isinstance(value, (int, float, bool)) or isinstance(value, bool) is False and not math.isfinite(value):
+            elif isinstance(value, bool) or isinstance(value, int):
+                pass
+            elif isinstance(value, float) and math.isfinite(value):
+                pass
+            else:
                 raise ValueError(f"attributes.{key} must be a string, finite number, or boolean")
             safe_attributes[key] = value
 
