@@ -1301,3 +1301,117 @@ def test_task_budget_counts_reported_cost_from_failed_attempts(tmp_path):
             "SELECT task_json FROM tasks WHERE task_id='task-1'"
         ).fetchone()
     assert json.loads(row["task_json"])["last_failure"] == "task_cost_budget_exceeded"
+
+
+
+def test_repeated_deterministic_error_signature_stops_before_attempt_limit(tmp_path):
+    store = TaskStore(tmp_path / "orchestrator.sqlite3")
+    agent = _agent("agent-1", "provider-1", "model-1")
+    _register(store, agent)
+    task = _task("task-1")
+    task["max_attempts"] = 3
+    store.create_run(_run(strategy="single_agent"), [task])
+
+    first = store.claim_task("agent-1")
+    assert first is not None
+    first_failure = store.fail_task(
+        "task-1",
+        "agent-1",
+        first["lease_token"],
+        "output violates the declared JSON schema",
+        retryable=True,
+        error_signature="validation:output-schema",
+    )
+    assert first_failure["tasks"][0]["status"] == "queued"
+
+    second = store.claim_task("agent-1")
+    assert second is not None
+    second_failure = store.fail_task(
+        "task-1",
+        "agent-1",
+        second["lease_token"],
+        "output violates the declared JSON schema",
+        retryable=True,
+        error_signature="validation:output-schema",
+    )
+    assert second_failure["tasks"][0]["status"] == "failed"
+
+    with store._connect() as con:
+        row = con.execute(
+            "SELECT task_json FROM tasks WHERE task_id='task-1'"
+        ).fetchone()
+        event = con.execute(
+            "SELECT payload_json FROM events "
+            "WHERE task_id='task-1' AND event_type='task_failed' "
+            "ORDER BY event_id DESC LIMIT 1"
+        ).fetchone()
+    persisted = json.loads(row["task_json"])
+    assert [item["attempt"] for item in persisted["failure_history"]] == [1, 2]
+    assert persisted["failure_loop_detected"]["error_signature"] == "validation:output-schema"
+    assert json.loads(event["payload_json"])["loop_detected"] is True
+
+
+def test_same_error_signature_does_not_stop_retry_after_task_input_changes(tmp_path):
+    store = TaskStore(tmp_path / "orchestrator.sqlite3")
+    _register(store, _agent("agent-1", "provider-1", "model-1"))
+    task = _task("task-1")
+    task["max_attempts"] = 3
+    store.create_run(_run(strategy="single_agent"), [task])
+
+    first = store.claim_task("agent-1")
+    assert first is not None
+    store.fail_task(
+        "task-1",
+        "agent-1",
+        first["lease_token"],
+        "output violates the declared JSON schema",
+        retryable=True,
+        error_signature="validation:output-schema",
+    )
+
+    with store._transaction() as con:
+        row = con.execute(
+            "SELECT task_json FROM tasks WHERE task_id='task-1'"
+        ).fetchone()
+        persisted = json.loads(row["task_json"])
+        persisted["input"]["question"] = "Use the revised acceptance input."
+        con.execute(
+            "UPDATE tasks SET task_json=? WHERE task_id='task-1'",
+            (json.dumps(persisted, sort_keys=True),),
+        )
+
+    second = store.claim_task("agent-1")
+    assert second is not None
+    status = store.fail_task(
+        "task-1",
+        "agent-1",
+        second["lease_token"],
+        "output violates the declared JSON schema",
+        retryable=True,
+        error_signature="validation:output-schema",
+    )
+    assert status["tasks"][0]["status"] == "queued"
+
+
+def test_fail_task_accepts_missing_error_signature_for_legacy_callers(tmp_path):
+    store = TaskStore(tmp_path / "orchestrator.sqlite3")
+    _register(store, _agent("agent-1", "provider-1", "model-1"))
+    task = _task("task-1")
+    task["max_attempts"] = 3
+    store.create_run(_run(strategy="single_agent"), [task])
+
+    first = store.claim_task("agent-1")
+    assert first is not None
+    status = store.fail_task(
+        "task-1",
+        "agent-1",
+        first["lease_token"],
+        "transient connection reset",
+        retryable=True,
+    )
+    assert status["tasks"][0]["status"] == "queued"
+    with store._connect() as con:
+        row = con.execute(
+            "SELECT task_json FROM tasks WHERE task_id='task-1'"
+        ).fetchone()
+    assert "failure_history" not in json.loads(row["task_json"])
