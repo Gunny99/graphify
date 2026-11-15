@@ -3,6 +3,8 @@ import importlib.util
 import json
 import subprocess
 import sys
+import asyncio
+from types import ModuleType
 import unicodedata
 
 import pytest
@@ -2321,3 +2323,101 @@ def test_query_graph_text_inheritance_filter_walks_the_hierarchy():
     assert "Context: inherits (explicit)" in text
     assert "2 nodes found" in text
     assert "helper" not in text
+
+
+
+def _install_fake_mcp_1x(monkeypatch):
+    """Install the tiny MCP 1.x surface needed to exercise _build_server."""
+    class _Model:
+        def __init__(self, **kwargs):
+            self.__dict__.update(kwargs)
+
+    mcp_types = ModuleType("mcp.types")
+    mcp_types.AnyUrl = str
+    mcp_types.Tool = _Model
+    mcp_types.TextContent = _Model
+
+    class _Server:
+        def __init__(self, *args, **kwargs):
+            self.handlers = {}
+
+        def _register(self, name):
+            def decorator(handler):
+                self.handlers[name] = handler
+                return handler
+            return decorator
+
+        def list_tools(self):
+            return self._register("list_tools")
+
+        def call_tool(self):
+            return self._register("call_tool")
+
+        def list_resources(self):
+            return self._register("list_resources")
+
+        def read_resource(self):
+            return self._register("read_resource")
+
+    mcp_package = ModuleType("mcp")
+    mcp_package.types = mcp_types
+    mcp_server = ModuleType("mcp.server")
+    mcp_server.Server = _Server
+    monkeypatch.setitem(sys.modules, "mcp", mcp_package)
+    monkeypatch.setitem(sys.modules, "mcp.types", mcp_types)
+    monkeypatch.setitem(sys.modules, "mcp.server", mcp_server)
+
+
+def test_orchestrator_tools_work_before_graph_json_exists(tmp_path, monkeypatch):
+    from graphify.serve import _build_server
+
+    _install_fake_mcp_1x(monkeypatch)
+    default_graph = tmp_path / "not-extracted" / "graphify-out" / "graph.json"
+    project = tmp_path / "new-project"
+    server = _build_server(str(default_graph))
+
+    result = asyncio.run(server.handlers["call_tool"](
+        "orchestrator_list_agents",
+        {"project_path": str(project)},
+    ))
+
+    assert result[0].text == "[]"
+    assert not (project / "graphify-out" / "graph.json").exists()
+    assert (project / "graphify-out" / "orchestrator.sqlite3").is_file()
+
+
+def test_orchestrator_failures_are_protocol_errors_and_auth_schema_is_consistent(
+    tmp_path, monkeypatch
+):
+    from graphify.serve import ToolError, _build_server
+
+    _install_fake_mcp_1x(monkeypatch)
+    monkeypatch.setenv("GRAPHIFY_ORCHESTRATOR_TOKEN", "coordinator-secret")
+    server = _build_server(
+        str(tmp_path / "not-extracted" / "graphify-out" / "graph.json")
+    )
+
+    tools = asyncio.run(server.handlers["list_tools"]())
+    schemas = {tool.name: tool.inputSchema for tool in tools}
+    for name in ("orchestrator_get_run_status", "orchestrator_cancel_run"):
+        schema = schemas[name]
+        assert "coordinator_token" in schema["properties"]
+        assert "coordinator_token" in schema["required"]
+    assert "coordinator_token" not in schemas["orchestrator_fail_task"]["properties"]
+
+    with pytest.raises(ToolError, match="Coordinator authentication failed"):
+        asyncio.run(server.handlers["call_tool"](
+            "orchestrator_get_run_status",
+            {"run_id": "missing", "coordinator_token": "wrong"},
+        ))
+
+    with pytest.raises(ToolError, match="Error executing orchestrator_create_run"):
+        asyncio.run(server.handlers["call_tool"](
+            "orchestrator_create_run",
+            {
+                "project_path": str(tmp_path / "project"),
+                "coordinator_token": "coordinator-secret",
+                "run": {},
+                "tasks": [],
+            },
+        ))
