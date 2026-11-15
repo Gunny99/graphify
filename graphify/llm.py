@@ -497,14 +497,13 @@ def _resolve_api_timeout(default: float = 600.0) -> float:
 
 
 def _resolve_max_retries(default: int = 6) -> int:
-    """How many times the provider SDK retries a transient error (notably HTTP 429
-    rate limits) before giving up. The OpenAI/Anthropic/Azure SDKs already back off
-    exponentially and honour ``Retry-After``; the SDK default of 2 is too low for
-    strict per-org concurrency/RPM caps (e.g. Moonshot/kimi), where a parallel run
-    429s and the chunk is then dropped — incomplete graph plus console spam (#1523).
-    A higher cap lets a rate-limited chunk wait out the window instead of failing.
-    Honour GRAPHIFY_MAX_RETRIES; 0 is allowed (disable retries). The shared
-    adapter dispatcher owns these retries; provider SDK retry loops are disabled."""
+    """Return the shared dispatcher retry count for transient backend failures.
+
+    The dispatcher honours provider ``Retry-After`` values and otherwise uses
+    bounded exponential backoff. Setting GRAPHIFY_MAX_RETRIES=0 disables all
+    shared retries. Provider SDK retry loops are disabled to avoid multiplying
+    attempts across nested layers.
+    """
     raw = os.environ.get("GRAPHIFY_MAX_RETRIES", "").strip()
     if raw:
         try:
@@ -2710,7 +2709,8 @@ def _normalize_backend_exception(exc: Exception) -> Exception:
         "apiconnectionerror", "internalservererror", "serviceunavailable",
         "modelnotready", "temporarily unavailable", "connection reset",
         "connection aborted", "server disconnected", "internal server error",
-        "service unavailable", "overloaded",
+        "service unavailable", "overloaded", "endpointconnectionerror",
+        "connectionclosederror", "connectionerror", "connecterror",
     )
     if status in (408, 409, 425) or (status is not None and 500 <= status <= 599) or any(
         marker in combined for marker in transient_markers
@@ -2737,25 +2737,7 @@ def _looks_like_context_exceeded(exc: BaseException) -> bool:
 
 def _looks_like_timeout(exc: BaseException) -> bool:
     """Classify a normalized backend or raw subprocess/SDK timeout."""
-    if isinstance(exc, BackendTimeout):
-        return True
-    types: list[type[BaseException]] = [subprocess.TimeoutExpired]
-    try:
-        import openai
-        types.append(openai.APITimeoutError)
-    except ImportError:
-        pass
-    try:
-        import anthropic
-        types.append(anthropic.APITimeoutError)
-    except ImportError:
-        pass
-    try:
-        import botocore.exceptions
-        types.extend([botocore.exceptions.ReadTimeoutError, botocore.exceptions.ConnectTimeoutError])
-    except ImportError:
-        pass
-    return isinstance(exc, tuple(types))
+    return any(_is_timeout_exception(item) for item in _exception_chain(exc))
 
 
 def _mark_partial(result: dict) -> None:
