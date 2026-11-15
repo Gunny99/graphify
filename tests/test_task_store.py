@@ -294,6 +294,50 @@ def test_heartbeat_rejects_lease_after_task_deadline(tmp_path):
     assert store.get_run_status("run-1")["tasks"][0]["status"] == "failed"
 
 
+def test_expired_queued_verifier_marks_parent_needs_review(tmp_path):
+    store_path = tmp_path / "graphify-out" / "orchestrator.sqlite3"
+    store = TaskStore(store_path)
+    producer = _agent("deadline-producer", "provider", "producer-model")
+    verifier = _agent(
+        "deadline-verifier", "independent-provider", "verifier-model",
+        role="verifier",
+    )
+    _register(store, producer)
+    _register(store, verifier)
+    producer_task = _task("producer-task")
+    producer_task["deadline_at"] = "2030-01-01T00:00:00Z"
+    store.create_run(_run(), [producer_task])
+
+    claimed = store.claim_task("deadline-producer")
+    assert claimed is not None
+    store.submit_result(
+        _result("producer-task", producer), claimed["lease_token"]
+    )
+    status = store.get_run_status("run-1")
+    verification = next(
+        task for task in status["tasks"] if task["task_type"] == "verification"
+    )
+
+    import sqlite3
+    with sqlite3.connect(store_path) as con:
+        row = con.execute(
+            "SELECT task_json FROM tasks WHERE task_id=?",
+            (verification["task_id"],),
+        ).fetchone()
+        task = json.loads(row[0])
+        task["deadline_at"] = "2020-01-01T00:00:00Z"
+        con.execute(
+            "UPDATE tasks SET task_json=? WHERE task_id=?",
+            (json.dumps(task), verification["task_id"]),
+        )
+
+    assert store.claim_task("deadline-verifier") is None
+    final = store.get_run_status("run-1")
+    states = {task["task_id"]: task["status"] for task in final["tasks"]}
+    assert states["producer-task"] == "needs_review"
+    assert states[verification["task_id"]] == "failed"
+
+
 def test_claim_uses_lowest_cost_qualified_agent_and_enforces_dependency(tmp_path):
     store = TaskStore(tmp_path / "graphify-out" / "orchestrator.sqlite3")
     premium = _agent("premium", "provider-premium", "premium-model", input_cost=0.5, output_cost=1.0)
