@@ -201,6 +201,7 @@ class WorkflowLoopGuard:
         plan_id = self._plan_fingerprint(strategy, hypothesis)
         if (
             plan_id in self._used_plans
+            or _normalize(strategy) == _normalize(self.strategy)
             or _normalize(hypothesis) == _normalize(self.hypothesis)
         ):
             self._terminal_reason = "duplicate_redesign"
