@@ -3256,6 +3256,7 @@ def _build_server(graph_path: str):
                         "since": {"type": "string"},
                         "until": {"type": "string"},
                         "limit": {"type": "integer", "minimum": 1, "maximum": 500, "default": 100},
+                        "include_payload": {"type": "boolean", "default": False, "description": "Include stored event details; by default only compact summaries are returned."},
                         "coordinator_token": {"type": "string"},
                     },
                     "required": ["run_id", "coordinator_token"],
@@ -3689,6 +3690,7 @@ def _build_server(graph_path: str):
                 since=arguments.get("since"),
                 until=arguments.get("until"),
                 limit=arguments.get("limit", 100),
+                include_payload=arguments.get("include_payload", False),
             )
         )
 
