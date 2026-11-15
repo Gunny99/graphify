@@ -1319,7 +1319,10 @@ class TaskStore:
                 task["input"]["failed_agent_ids"] = sorted(failed_agents)
             # fail_task has no usage payload. Preserve the current attempt's
             # estimate separately; a subsequent claim writes a fresh estimate.
-            unreported_reserve = float(task.pop("estimated_cost_reserved", 0.0))
+            legacy_reserve = task.pop("estimated_cost_reserved", 0.0)
+            unreported_reserve = float(
+                task.pop("estimated_generation_cost_reserved", legacy_reserve)
+            )
             if unreported_reserve > 0:
                 task["unreported_cost_reserved"] = (
                     float(task.get("unreported_cost_reserved", 0.0))
