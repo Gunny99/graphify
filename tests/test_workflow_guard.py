@@ -99,3 +99,22 @@ def test_redesign_budget_is_bounded():
 def test_guard_rejects_invalid_thresholds(value):
     with pytest.raises(ValueError):
         _guard(repeated_action_limit=value)
+
+
+def test_loop_guard_round_trips_all_counters_and_redesign_history():
+    guard = _guard(repeated_action_limit=5)
+    guard.observe("inspect", error="temporary", progress_token="artifact-a")
+    guard.observe("inspect", error="temporary", progress_token="artifact-a")
+    assert guard.propose_redesign(
+        strategy="inspect-imports",
+        hypothesis="a stale import path is masking the real module",
+        rationale="test the real import target instead of rerunning the same assertion",
+    )
+    restored = WorkflowLoopGuard.from_state(guard.to_state())
+    assert restored.snapshot() == guard.snapshot()
+    assert restored.observe("inspect-imports", progress_token="artifact-b").status == "continue"
+
+
+def test_loop_guard_rejects_corrupt_persisted_state():
+    with pytest.raises(ValueError, match="unsupported"):
+        WorkflowLoopGuard.from_state({"schema_version": 99})
