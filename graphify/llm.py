@@ -923,7 +923,6 @@ class _ImageRef:
         return self.media_type.split("/", 1)[-1]
 
 
-
 @dataclass(frozen=True)
 class LLMRequest:
     """Provider-neutral description of one model invocation."""
@@ -1621,7 +1620,6 @@ def _call_ollama_native(
     )
 
 
-
 class _OpenAICompatibleAdapter:
     def call(self, request: LLMRequest, context: BackendContext) -> LLMResult:
         backend = context.backend
@@ -1629,7 +1627,11 @@ class _OpenAICompatibleAdapter:
         try:
             from openai import OpenAI
         except ImportError as exc:
-            extra = context.backend if context.backend in ("kimi", "gemini", "openai", "ollama") else "openai"
+            extra = (
+                context.backend
+                if context.backend in ("kimi", "gemini", "openai", "ollama")
+                else "openai"
+            )
             raise ImportError(_backend_pkg_hint("openai", extra)) from exc
 
         if not context.base_url:
