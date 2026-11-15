@@ -600,7 +600,10 @@ class TaskStore:
                     "redesign_number": guard.redesigns,
                 }
                 task.pop("last_failure", None)
-                self._set_task(con, row, task, "queued")
+                next_max_attempts = max(int(row["max_attempts"]), int(row["attempt"]) + 1)
+                self._set_task(
+                    con, row, task, "queued", max_attempts=next_max_attempts
+                )
                 event_type = "workflow_task_redesigned"
                 outcome = "queued"
             else:
@@ -645,12 +648,15 @@ class TaskStore:
         lease_token_hash: str | None = None,
         lease_expires_at: float | None = None,
         attempt: int | None = None,
+        max_attempts: int | None = None,
     ) -> None:
         now = _utc_now()
         task["status"] = status
         task["updated_at"] = now
         if attempt is not None:
             task["attempt"] = attempt
+        if max_attempts is not None:
+            task["max_attempts"] = max_attempts
         if status != "leased":
             task.pop("lease_expires_at", None)
         if status not in {"leased", "submitted", "needs_review", "queued"}:
@@ -658,7 +664,7 @@ class TaskStore:
         con.execute(
             """
             UPDATE tasks
-            SET task_json=?, status=?, attempt=?, lease_owner=?,
+            SET task_json=?, status=?, attempt=?, max_attempts=?, lease_owner=?,
                 lease_token_hash=?, lease_expires_at=?, updated_at=?
             WHERE task_id=?
             """,
@@ -666,6 +672,7 @@ class TaskStore:
                 _json(task),
                 status,
                 task["attempt"],
+                task["max_attempts"],
                 lease_owner,
                 lease_token_hash,
                 lease_expires_at,
