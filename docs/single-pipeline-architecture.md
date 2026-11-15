@@ -311,7 +311,7 @@ Status at creation: **120 proposals catalogued; implementation is staged.** "Des
 | P6 — Failure prevention | Fingerprint registry, invariant promotion, loop redesign protocol, fault injection | Confirmed prior failures are blocked by executable tests/guards |
 | P7 — Migration and retirement | Legacy execution paths routed through controller then removed | Compatibility matrix green; old paths proven unused; rollback tested |
 
-P0 is the current phase. P1 is the first implementation slice. No phase is considered complete by documentation alone.
+P0 is complete. P1 implementation is in progress: the durable timeline, content-free spans, persistent loop guard, and coordinator-controlled redesign path are present in code and exposed through MCP. The runtime guard is opt-in at the execution boundary today: a worker must call `orchestrator_observe_step` and submit a progress fingerprint; existing host skills and direct execution paths are not yet automatically instrumented. P1 remains open until focused tests run on the exact head commit and execution adapters are wired to report progress. No phase is considered complete by documentation alone.
 
 ## 8. Acceptance metrics
 
@@ -328,9 +328,9 @@ The following metrics are required before calling this architecture successful:
 ## 9. Existing gaps to address first
 
 Grounded in the current source snapshot:
-- The event table is written internally by `TaskStore._event`, but there is no public bounded event-query/timeline API.
-- Run/task state is durable, but explicit stage spans and active-vs-wait duration are not first-class.
-- Retry and lease handling exist at TaskStore/LLM levels, but a workflow-wide repeated-action/no-progress guard is not yet authoritative.
+- The append-only event table remains the canonical timeline; `TaskStore.list_events()` now provides bounded cursor/time/task/type filtering, compact summaries by default, and explicit payload opt-in.
+- `TaskStore.record_span()` now records content-free stage/task timing metadata in the same event ledger; active-vs-wait attribution and automatic span emission across every host remain open.
+- `WorkflowLoopGuard` now fingerprints repeated actions/errors and unchanged progress, persists state in the event ledger, and pauses the whole Run for redesign. The MCP contract requires a progress fingerprint, but automatic calls from all existing skill/CLI/host execution paths remain open.
 - `querylog.py` is opt-in query logging, not a task execution timeline; it should not be repurposed to hold prompts or source bodies.
 - `serve.py` registers orchestration handlers separately from other command entry points; all entry points still need a common Run facade.
 - The skill generator already uses a core plus references, but host-specific fragments and generated artifacts can drift unless canonical contracts and consistency tests own the policy.
@@ -351,9 +351,17 @@ These references support the reliability principles, not Graphify-specific imple
 
 - [x] P0 repository inventory: `orchestration.py`, `task_store.py`, `serve.py`, `llm.py`, `querylog.py`, `tools/skillgen`, product pipeline.
 - [x] P0 core design and 120 proposals recorded in this document.
-- [ ] P1 timeline query and structured span recording over the existing event table.
-- [ ] P1 repeated-action/no-progress loop guard with bounded redesign.
-- [ ] P1 MCP exposure and tests for timeline/guard behavior.
-- [ ] P2+ controller unification, adapter migration, reviewer contract, skill selection, failure registry, rollout.
+- [~] P1 bounded timeline query over existing events: `TaskStore.list_events()`, cursor/time/task/type filters, 1–500 result bound, compact summaries by default, explicit payload opt-in.
+- [~] P1 structured spans: `TaskStore.record_span()` records start/end, duration, outcome and allowlisted metadata in the same event table; no separate log DB/cache.
+- [~] P1 loop guard: repeated action/error and unchanged-progress fingerprints, durable state restoration, required progress fingerprint, whole-Run pause, sibling lease revocation, coordinator-only redesign, maximum two redesigns, fail-closed stop and sibling blocking.
+- [~] P1 MCP exposure: `orchestrator_record_span`, `orchestrator_list_events`, `orchestrator_observe_step`, `orchestrator_redesign_task`.
+- [ ] P1 automatic instrumentation from every host skill, CLI/backend and task execution boundary; workers must currently call the new progress-report tool.
+- [ ] P1 execute focused and full regression tests on the exact head SHA. Tests were added/updated but have not been run in this environment; the PR currently has no check runs.
+- [ ] P2 one controller facade and transition authority across MCP, CLI, skills, backend and Graphify domain pipeline.
+- [ ] P3 adapter convergence, one retry/deadline owner and contract tests.
+- [ ] P4 frozen-artifact independent code reviewer and adjudication.
+- [ ] P5 selective skill/context loading and measured cache policy.
+- [ ] P6 global failure fingerprint/invariant registry and fault-injection gates.
+- [ ] P7 staged migration, compatibility matrix, legacy path retirement and rollback.
 
-**Progress rule:** update this ledger, the PR body, and the PR review thread after each completed implementation/verification milestone. Report the exact head SHA and actual test evidence.
+**Progress rule:** update this ledger, the PR body, and the PR review thread after each completed implementation/verification milestone. Report the exact head SHA and actual test evidence. A `[~]` item has implementation code but has not passed its acceptance/verification gate.
