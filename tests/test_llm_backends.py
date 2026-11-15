@@ -1794,10 +1794,8 @@ def test_resolve_max_retries_default_and_env(monkeypatch):
     assert llm._resolve_max_retries() >= 5          # invalid -> default
 
 
-def test_openai_compat_client_built_with_retries(monkeypatch):
-    """The OpenAI-compatible client (kimi/openai/gemini/deepseek/ollama) is built with
-    max_retries so rate-limited (429) chunks are retried with backoff instead of being
-    dropped — the kimi rate-limit failure in #1523."""
+def test_openai_compat_client_delegates_retries_to_shared_dispatcher(monkeypatch):
+    """Provider SDK retries stay disabled; the shared dispatcher owns retry policy."""
     import sys
     import types
 
@@ -1824,14 +1822,11 @@ def test_openai_compat_client_built_with_retries(monkeypatch):
         "https://api.moonshot.ai/v1", "fake-key", "kimi-k2",
         "user msg", temperature=0, max_completion_tokens=4096, backend="kimi",
     )
-    assert ctor_kwargs.get("max_retries", 0) >= 5, ctor_kwargs
+    assert ctor_kwargs.get("max_retries") == 0, ctor_kwargs
 
 
-def test_call_llm_claude_client_built_with_timeout_and_retries(monkeypatch):
-    """The secondary dispatch path (_call_llm, used by the dedup tiebreaker)
-    must build its Anthropic client with both timeout and max_retries, matching
-    the primary extraction path — #1442. Previously _call_llm passed neither
-    (then only max_retries), so GRAPHIFY_API_TIMEOUT was silently ignored here."""
+def test_call_llm_claude_client_uses_shared_retry_dispatcher(monkeypatch):
+    """The text path keeps the timeout; SDK retries are owned by the dispatcher."""
     import sys
     import types
 
@@ -1855,11 +1850,11 @@ def test_call_llm_claude_client_built_with_timeout_and_retries(monkeypatch):
 
     assert llm._call_llm("hi", backend="claude") == "ok"
     assert ctor_kwargs.get("timeout") == 1.0, ctor_kwargs
-    assert ctor_kwargs.get("max_retries", 0) >= 5, ctor_kwargs
+    assert ctor_kwargs.get("max_retries") == 0, ctor_kwargs
 
 
-def test_call_llm_openai_compat_client_built_with_timeout_and_retries(monkeypatch):
-    """Same #1442 fix for the OpenAI-compatible branch of _call_llm."""
+def test_call_llm_openai_compat_client_delegates_retries_to_dispatcher(monkeypatch):
+    """The text path keeps the timeout; SDK retries are owned by the dispatcher."""
     import sys
     import types
 
@@ -1883,7 +1878,7 @@ def test_call_llm_openai_compat_client_built_with_timeout_and_retries(monkeypatc
 
     llm._call_llm("hi", backend="kimi")
     assert ctor_kwargs.get("timeout") == 1.0, ctor_kwargs
-    assert ctor_kwargs.get("max_retries", 0) >= 5, ctor_kwargs
+    assert ctor_kwargs.get("max_retries") == 0, ctor_kwargs
 
 
 def test_adaptive_retry_does_not_bisect_a_hollow_response(tmp_path, monkeypatch):
@@ -2135,3 +2130,141 @@ def test_structured_and_text_calls_share_backend_adapter_contract(monkeypatch):
     assert [request.response_format for request, _ in calls] == ["graph_json", "text"]
     assert calls[0][0].system_prompt is not None
     assert calls[1][0].system_prompt is None
+
+
+def test_shared_dispatcher_retries_rate_limit_and_honors_retry_after(monkeypatch):
+    from types import SimpleNamespace
+
+    calls = []
+    sleeps = []
+
+    class RateLimitError(Exception):
+        status_code = 429
+        response = SimpleNamespace(headers={"Retry-After": "0.25"})
+
+    class _Adapter:
+        def call(self, request, context):
+            calls.append((request, context))
+            if len(calls) == 1:
+                raise RateLimitError("HTTP 429 rate limit exceeded")
+            return llm.LLMResult(text="ok", model=context.model)
+
+    monkeypatch.setitem(llm._BACKEND_ADAPTERS, "test-rate-limit", _Adapter())
+    monkeypatch.setattr(llm.time, "sleep", sleeps.append)
+    monkeypatch.setenv("GRAPHIFY_MAX_RETRIES", "2")
+
+    result = llm._invoke_backend_request(
+        llm.LLMRequest(user_message="prompt", max_tokens=20),
+        llm.BackendContext(backend="test-rate-limit", api_key="", model="test-model"),
+    )
+
+    assert result.text == "ok"
+    assert len(calls) == 2
+    assert sleeps == [0.25]
+
+
+def test_shared_dispatcher_retries_transient_server_errors(monkeypatch):
+    calls = []
+    sleeps = []
+
+    class ServiceUnavailable(Exception):
+        status_code = 503
+
+    class _Adapter:
+        def call(self, request, context):
+            calls.append(1)
+            if len(calls) == 1:
+                raise ServiceUnavailable("provider unavailable")
+            return llm.LLMResult(text="recovered", model=context.model)
+
+    monkeypatch.setitem(llm._BACKEND_ADAPTERS, "test-503", _Adapter())
+    monkeypatch.setattr(llm.time, "sleep", sleeps.append)
+    monkeypatch.setenv("GRAPHIFY_MAX_RETRIES", "1")
+
+    result = llm._invoke_backend_request(
+        llm.LLMRequest(user_message="prompt", max_tokens=20),
+        llm.BackendContext(backend="test-503", api_key="", model="test-model"),
+    )
+
+    assert result.text == "recovered"
+    assert calls == [1, 1]
+    assert sleeps == [1]
+
+
+def test_shared_dispatcher_does_not_retry_authentication_failures(monkeypatch):
+    calls = []
+
+    class Unauthorized(Exception):
+        status_code = 401
+
+    class _Adapter:
+        def call(self, request, context):
+            calls.append(1)
+            raise Unauthorized("invalid credentials")
+
+    monkeypatch.setitem(llm._BACKEND_ADAPTERS, "test-auth", _Adapter())
+    monkeypatch.setattr(llm.time, "sleep", lambda _seconds: pytest.fail("must not sleep"))
+    monkeypatch.setenv("GRAPHIFY_MAX_RETRIES", "5")
+
+    with pytest.raises(llm.AuthenticationError, match="invalid credentials"):
+        llm._invoke_backend_request(
+            llm.LLMRequest(user_message="prompt", max_tokens=20),
+            llm.BackendContext(backend="test-auth", api_key="", model="test-model"),
+        )
+
+    assert calls == [1]
+
+
+def test_shared_dispatcher_zero_retries_means_one_attempt(monkeypatch):
+    calls = []
+
+    class RateLimitError(Exception):
+        status_code = 429
+
+    class _Adapter:
+        def call(self, request, context):
+            calls.append(1)
+            raise RateLimitError("rate limit")
+
+    monkeypatch.setitem(llm._BACKEND_ADAPTERS, "test-no-retry", _Adapter())
+    monkeypatch.setattr(llm.time, "sleep", lambda _seconds: pytest.fail("must not sleep"))
+    monkeypatch.setenv("GRAPHIFY_MAX_RETRIES", "0")
+
+    with pytest.raises(llm.RateLimited):
+        llm._invoke_backend_request(
+            llm.LLMRequest(user_message="prompt", max_tokens=20),
+            llm.BackendContext(backend="test-no-retry", api_key="", model="test-model"),
+        )
+
+    assert calls == [1]
+
+
+def test_exception_normalizer_preserves_bedrock_throttling_code():
+    underlying = RuntimeError("raw boto failure")
+    underlying.response = {"Error": {"Code": "ThrottlingException"}}
+    wrapped = RuntimeError("Bedrock API error")
+    wrapped.__cause__ = underlying
+
+    normalized = llm._normalize_backend_exception(wrapped)
+
+    assert isinstance(normalized, llm.RateLimited)
+
+
+def test_exception_normalizer_classifies_context_and_timeout():
+    context_error = llm._normalize_backend_exception(
+        RuntimeError("maximum context length exceeded")
+    )
+    timeout_error = llm._normalize_backend_exception(
+        TimeoutError("request timed out")
+    )
+
+    assert isinstance(context_error, llm.ContextWindowExceeded)
+    assert llm._looks_like_context_exceeded(context_error)
+    assert isinstance(timeout_error, llm.BackendTimeout)
+    assert llm._looks_like_timeout(timeout_error)
+
+
+def test_exception_normalizer_leaves_unknown_errors_unchanged():
+    error = ValueError("programming mistake")
+
+    assert llm._normalize_backend_exception(error) is error
