@@ -284,6 +284,14 @@ def test_heartbeat_rejects_lease_after_task_deadline(tmp_path):
         store.heartbeat_task(
             "deadline-task", "deadline-agent", claimed["lease_token"]
         )
+    with pytest.raises(TaskLeaseError, match="deadline"):
+        store.submit_result(
+            _result("deadline-task", agent), claimed["lease_token"]
+        )
+
+    # The next scheduler pass reaps the expired lease and finalizes the task.
+    assert store.claim_task("deadline-agent") is None
+    assert store.get_run_status("run-1")["tasks"][0]["status"] == "failed"
 
 
 def test_claim_uses_lowest_cost_qualified_agent_and_enforces_dependency(tmp_path):
