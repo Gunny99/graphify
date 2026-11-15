@@ -3225,6 +3225,42 @@ def _build_server(graph_path: str):
                     "required": ["run_id", "coordinator_token"],
                 },
             ),
+            types.Tool(
+                name="orchestrator_record_span",
+                description="Record content-free timing metadata for a Run or Task. Do not send prompts, source bodies, credentials, or full tool output.",
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "run_id": {"type": "string"},
+                        "task_id": {"type": "string"},
+                        "name": {"type": "string"},
+                        "started_at": {"type": "string"},
+                        "finished_at": {"type": "string"},
+                        "outcome": {"type": "string", "enum": ["ok", "error", "cancelled", "skipped"]},
+                        "attributes": {"type": "object"},
+                        "coordinator_token": {"type": "string"},
+                    },
+                    "required": ["run_id", "name", "started_at", "finished_at", "coordinator_token"],
+                },
+            ),
+            types.Tool(
+                name="orchestrator_list_events",
+                description="Read a bounded, filterable slice of the Run event timeline. Returns compact event metadata, not prompts or source contents.",
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "run_id": {"type": "string"},
+                        "task_id": {"type": "string"},
+                        "event_type": {"type": "string"},
+                        "after_event_id": {"type": "integer", "minimum": 0},
+                        "since": {"type": "string"},
+                        "until": {"type": "string"},
+                        "limit": {"type": "integer", "minimum": 1, "maximum": 500, "default": 100},
+                        "coordinator_token": {"type": "string"},
+                    },
+                    "required": ["run_id", "coordinator_token"],
+                },
+            ),
         ]
         # Multi-project support: every tool accepts an optional project_path.
         # Injected here (rather than repeated in 11 literal schemas) so the set
@@ -3595,6 +3631,34 @@ def _build_server(graph_path: str):
         _require_orchestration_coordinator(arguments)
         return _orchestration_json(_orchestration_store().cancel_run(arguments["run_id"]))
 
+    def _tool_orchestrator_record_span(arguments: dict) -> str:
+        _require_orchestration_coordinator(arguments)
+        return _orchestration_json(
+            _orchestration_store().record_span(
+                arguments["run_id"],
+                task_id=arguments.get("task_id"),
+                name=arguments["name"],
+                started_at=arguments["started_at"],
+                finished_at=arguments["finished_at"],
+                outcome=arguments.get("outcome", "ok"),
+                attributes=arguments.get("attributes"),
+            )
+        )
+
+    def _tool_orchestrator_list_events(arguments: dict) -> str:
+        _require_orchestration_coordinator(arguments)
+        return _orchestration_json(
+            _orchestration_store().list_events(
+                arguments["run_id"],
+                task_id=arguments.get("task_id"),
+                event_type=arguments.get("event_type"),
+                after_event_id=arguments.get("after_event_id", 0),
+                since=arguments.get("since"),
+                until=arguments.get("until"),
+                limit=arguments.get("limit", 100),
+            )
+        )
+
     _handlers = {
         "query_graph": _tool_query_graph,
         "get_node": _tool_get_node,
@@ -3616,6 +3680,8 @@ def _build_server(graph_path: str):
         "orchestrator_fail_task": _tool_orchestrator_fail_task,
         "orchestrator_get_run_status": _tool_orchestrator_get_run_status,
         "orchestrator_cancel_run": _tool_orchestrator_cancel_run,
+        "orchestrator_record_span": _tool_orchestrator_record_span,
+        "orchestrator_list_events": _tool_orchestrator_list_events,
     }
 
     def _load_community_labels() -> dict[int, str]:
