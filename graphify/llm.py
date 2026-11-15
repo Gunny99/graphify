@@ -2053,8 +2053,11 @@ def _call_openai_compat(
     if result["output_tokens"] < 50 and backend == "ollama":
         print(
             "[graphify] warning: ollama returned very few tokens — likely causes: "
-            "(1) VRAM pressure: reduce chunk size with --token-budget or set "
-            "GRAPHIFY_OLLAMA_NUM_CTX; (2) model too small for JSON instruction following.",
+            "(1) VRAM pressure: check `nvidia-smi` and reduce chunk size with "
+            "--token-budget (e.g. --token-budget 4096) or set "
+            "GRAPHIFY_OLLAMA_NUM_CTX to a smaller value; "
+            "(2) model too small for JSON instruction following — "
+            "try a larger model with --model (e.g. --model qwen2.5-coder:14b).",
             file=sys.stderr,
         )
     return result
