@@ -268,6 +268,8 @@ class TaskStore:
             "artifact_hash", "commit_sha", "review_status", "retry",
             "reason_code", "error_type", "status",
         }
+        if attributes is not None and not isinstance(attributes, Mapping):
+            raise ValueError("attributes must be an object")
         supplied = dict(attributes or {})
         if len(supplied) > 20:
             raise ValueError("attributes cannot contain more than 20 fields")
