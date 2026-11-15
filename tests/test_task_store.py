@@ -1304,3 +1304,57 @@ def test_workflow_guard_requires_a_progress_fingerprint(tmp_path):
             claimed["lease_token"],
             "inspect current state",
         )
+
+
+def test_exhausted_redesign_budget_blocks_every_pending_task(tmp_path):
+    store = TaskStore(tmp_path / "orchestrator.sqlite3")
+    worker = _agent("stop-worker", "stop-provider", "stop-model")
+    _register(store, worker)
+    primary = _task("stop-primary")
+    sibling = _task("stop-sibling")
+    primary["input"]["write_set"] = ["src/primary.py"]
+    sibling["input"]["write_set"] = ["src/sibling.py"]
+    store.create_run(
+        _run(strategy="parallel_independent", max_parallel_agents=2),
+        [primary, sibling],
+    )
+
+    for redesign_number in range(1, 3):
+        claimed = store.claim_task("stop-worker")
+        assert claimed is not None and claimed["task_id"] == "stop-primary"
+        for _ in range(3):
+            decision = store.observe_workflow_step(
+                "stop-primary",
+                "stop-worker",
+                claimed["lease_token"],
+                "repeat same failing operation",
+                error="AssertionError: no changed output",
+                progress_token=f"unchanged-state-{redesign_number}",
+            )
+        assert decision["task_status"] == "needs_redesign"
+        resumed = store.redesign_task(
+            "run-1",
+            "stop-primary",
+            strategy=f"new-intervention-{redesign_number}",
+            hypothesis=f"new causal hypothesis {redesign_number}",
+            rationale=f"the prior intervention {redesign_number} produced no progress",
+        )
+        assert resumed["run"]["status"] == "queued"
+
+    final_claim = store.claim_task("stop-worker")
+    assert final_claim is not None and final_claim["task_id"] == "stop-primary"
+    for _ in range(3):
+        decision = store.observe_workflow_step(
+            "stop-primary",
+            "stop-worker",
+            final_claim["lease_token"],
+            "repeat same failing operation",
+            error="AssertionError: no changed output",
+            progress_token="unchanged-state-final",
+        )
+    assert decision["task_status"] == "failed"
+    final = store.get_run_status("run-1")
+    assert final["run"]["status"] == "failed"
+    states = {task["task_id"]: task["status"] for task in final["tasks"]}
+    assert states == {"stop-primary": "failed", "stop-sibling": "blocked"}
+    assert store.claim_task("stop-worker") is None
