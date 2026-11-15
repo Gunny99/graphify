@@ -57,3 +57,16 @@ def test_controller_authenticates_reviewer_identity_before_review_submission():
     assert response["run"]["status"] == "accepted"
     store.authenticate_agent.assert_called_once_with("reviewer-9", "reviewer-token")
     store.submit_review.assert_called_once_with(review, "review-lease")
+
+
+
+def test_controller_uses_trusted_operator_registration_boundary():
+    store = Mock()
+    store.register_agent.return_value = {"agent_id": "worker-1"}
+    controller = RunController(store)
+    profile = {"agent_id": "worker-1", "auth_token": "one-time-secret"}
+
+    result = controller.register_agent(profile)
+
+    assert result == {"agent_id": "worker-1"}
+    store.register_agent.assert_called_once_with(profile, trusted_profile=True)
