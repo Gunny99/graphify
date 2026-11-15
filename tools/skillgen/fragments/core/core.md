@@ -234,6 +234,8 @@ elif manifest.exists():
     if not manifest.is_file():
         raise SystemExit("Refusing to remove non-regular chunk manifest")
     manifest.unlink()
+if not uncached:
+    manifest.write_text('{}', encoding="utf-8")
 print(f'Cache: {len(all_files)-len(uncached)} files hit, {len(uncached)} files need extraction')
 "
 ```
