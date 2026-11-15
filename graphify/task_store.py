@@ -125,7 +125,7 @@ class TaskStore:
             con.execute("PRAGMA journal_mode = WAL")
             con.execute("PRAGMA synchronous = NORMAL")
             version = int(con.execute("PRAGMA user_version").fetchone()[0])
-            if version > 1:
+            if version > 2:
                 raise TaskStoreError(
                     f"task database schema {version} is newer than this Graphify version"
                 )
@@ -196,9 +196,45 @@ class TaskStore:
                     payload_json TEXT NOT NULL,
                     created_at TEXT NOT NULL
                 );
+
+                CREATE TRIGGER IF NOT EXISTS immutable_events_before_update
+                BEFORE UPDATE ON events
+                BEGIN
+                    SELECT RAISE(ABORT, 'immutable orchestration record');
+                END;
+
+                CREATE TRIGGER IF NOT EXISTS immutable_events_before_delete
+                BEFORE DELETE ON events
+                BEGIN
+                    SELECT RAISE(ABORT, 'immutable orchestration record');
+                END;
+
+                CREATE TRIGGER IF NOT EXISTS immutable_results_before_update
+                BEFORE UPDATE ON results
+                BEGIN
+                    SELECT RAISE(ABORT, 'immutable orchestration record');
+                END;
+
+                CREATE TRIGGER IF NOT EXISTS immutable_results_before_delete
+                BEFORE DELETE ON results
+                BEGIN
+                    SELECT RAISE(ABORT, 'immutable orchestration record');
+                END;
+
+                CREATE TRIGGER IF NOT EXISTS immutable_reviews_before_update
+                BEFORE UPDATE ON reviews
+                BEGIN
+                    SELECT RAISE(ABORT, 'immutable orchestration record');
+                END;
+
+                CREATE TRIGGER IF NOT EXISTS immutable_reviews_before_delete
+                BEFORE DELETE ON reviews
+                BEGIN
+                    SELECT RAISE(ABORT, 'immutable orchestration record');
+                END;
                 """
             )
-            con.execute("PRAGMA user_version = 1")
+            con.execute("PRAGMA user_version = 2")
         finally:
             con.close()
 
@@ -219,6 +255,44 @@ class TaskStore:
             """,
             (run_id, task_id, agent_id, event_type, _json(payload), _utc_now()),
         )
+
+    def list_events(
+        self,
+        run_id: str,
+        *,
+        after_event_id: int = 0,
+    ) -> list[dict[str, Any]]:
+        """Return an ordered, incremental read of immutable run events."""
+        run_id = _required_string(run_id, "run_id")
+        if (
+            not isinstance(after_event_id, int)
+            or isinstance(after_event_id, bool)
+            or after_event_id < 0
+        ):
+            raise ValueError("after_event_id must be a non-negative integer")
+        with self._connect() as con:
+            rows = con.execute(
+                """
+                SELECT event_id, run_id, task_id, agent_id, event_type,
+                       payload_json, created_at
+                FROM events
+                WHERE run_id=? AND event_id>?
+                ORDER BY event_id ASC
+                """,
+                (run_id, after_event_id),
+            ).fetchall()
+        return [
+            {
+                "event_id": int(row["event_id"]),
+                "run_id": row["run_id"],
+                "task_id": row["task_id"],
+                "agent_id": row["agent_id"],
+                "event_type": row["event_type"],
+                "payload": _decode(row["payload_json"]),
+                "created_at": row["created_at"],
+            }
+            for row in rows
+        ]
 
     @staticmethod
     def _set_task(
@@ -241,6 +315,7 @@ class TaskStore:
             task.pop("lease_expires_at", None)
         if status not in {"leased", "submitted", "needs_review", "queued"}:
             task.pop("estimated_cost_reserved", None)
+            task.pop("estimated_generation_cost_reserved", None)
         con.execute(
             """
             UPDATE tasks
@@ -379,7 +454,10 @@ class TaskStore:
             # No usage telemetry is available for an expired lease. Move the
             # old attempt's estimate into a durable uncertainty reserve so a
             # later claim cannot overwrite it with the next attempt's estimate.
-            unreported_reserve = float(task.pop("estimated_cost_reserved", 0.0))
+            legacy_reserve = task.pop("estimated_cost_reserved", 0.0)
+            unreported_reserve = float(
+                task.pop("estimated_generation_cost_reserved", legacy_reserve)
+            )
             if unreported_reserve > 0:
                 task["unreported_cost_reserved"] = (
                     float(task.get("unreported_cost_reserved", 0.0))
@@ -884,6 +962,9 @@ class TaskStore:
                 task["attempt"] = next_attempt
                 task["lease_expires_at"] = expires_at
                 task["estimated_cost_reserved"] = expected
+                task["estimated_generation_cost_reserved"] = float(
+                    ranked[0]["estimated_generation_cost"]
+                )
                 self._set_task(
                     con,
                     row,
@@ -977,6 +1058,10 @@ class TaskStore:
                 agent_id=agent_id,
                 event_type="lease_renewed",
                 payload={"lease_expires_at": expires_at},
+            )
+            con.execute(
+                "UPDATE agents SET updated_at=? WHERE agent_id=?",
+                (_utc_now(), agent_id),
             )
             return expires_at
 
@@ -1118,15 +1203,6 @@ class TaskStore:
                 )
             if task["task_type"] == "verification":
                 raise TaskStoreError("verification tasks must use submit_review, not submit_result")
-            result_domain = result["output"].get("domain")
-            if result_domain is not None and result_domain != task["domain"]:
-                raise TaskStoreError(
-                    f"result domain {result_domain!r} does not match task domain {task['domain']!r}"
-                )
-            if task["domain"] == "ziwei_saju" and result_domain != "ziwei_saju":
-                raise TaskStoreError(
-                    "ziwei_saju tasks require result.output.domain='ziwei_saju'"
-                )
             if result["run_id"] != row["run_id"] or int(result["attempt"]) != int(row["attempt"]):
                 raise TaskStoreError("result run_id or attempt does not match the active task lease")
             run_row = con.execute(
@@ -1154,6 +1230,7 @@ class TaskStore:
                 new_status = "queued" if int(row["attempt"]) < int(row["max_attempts"]) else "failed"
                 task["last_failed_result_id"] = result_id
                 task.pop("estimated_cost_reserved", None)
+                task.pop("estimated_generation_cost_reserved", None)
                 if new_status == "queued":
                     failed_agents = set(task["input"].get("failed_agent_ids", []))
                     failed_agents.add(agent_id)
@@ -1192,9 +1269,11 @@ class TaskStore:
                     )
                     task["verification_task_id"] = verification_id
                     task.pop("estimated_cost_reserved", None)
+                task.pop("estimated_generation_cost_reserved", None)
                     new_status = "submitted"
                 else:
                     task.pop("estimated_cost_reserved", None)
+                task.pop("estimated_generation_cost_reserved", None)
                     new_status = "accepted"
             self._set_task(con, row, task, new_status)
             self._event(
