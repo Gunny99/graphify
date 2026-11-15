@@ -972,6 +972,43 @@ def _install_capturing_anthropic(monkeypatch, usage=None):
     return calls
 
 
+def test_anthropic_adapter_passes_provider_extra_headers(monkeypatch):
+    import sys
+    import types
+    from types import SimpleNamespace
+
+    captured = {}
+
+    class _Messages:
+        def create(self, **kwargs):
+            return SimpleNamespace(
+                content=[SimpleNamespace(type="text", text="ok")],
+                usage=SimpleNamespace(input_tokens=1, output_tokens=1),
+                stop_reason="end_turn",
+            )
+
+    fake_module = types.ModuleType("anthropic")
+    fake_module.Anthropic = lambda **kwargs: (
+        captured.update(kwargs) or SimpleNamespace(messages=_Messages())
+    )
+    monkeypatch.setitem(sys.modules, "anthropic", fake_module)
+
+    request = llm.LLMRequest(
+        user_message="label this",
+        max_tokens=20,
+        extra_headers={"x-provider-session": "session-1"},
+    )
+    result = llm._AnthropicAdapter().call(
+        request,
+        llm.BackendContext(
+            backend="claude", api_key="test-key", model="claude-sonnet-test"
+        ),
+    )
+
+    assert result.text == "ok"
+    assert captured["default_headers"] == {"x-provider-session": "session-1"}
+
+
 @pytest.mark.parametrize("deep_mode", [False, True], ids=["normal", "deep"])
 def test_claude_system_prompt_marked_cacheable(monkeypatch, deep_mode):
     calls = _install_capturing_anthropic(monkeypatch)
@@ -1488,6 +1525,57 @@ def test_call_azure_uses_correct_client_params_and_max_completion_tokens(monkeyp
     assert "max_completion_tokens" in captured["create_kwargs"], "must use max_completion_tokens not max_tokens"
     assert "max_tokens" not in captured["create_kwargs"], "deprecated max_tokens must not be sent"
     assert result["nodes"] == [{"id": "a"}]
+
+
+def test_azure_adapter_preserves_image_inputs(monkeypatch, tmp_path):
+    from types import SimpleNamespace
+
+    captured = {}
+
+    class _Completions:
+        def create(self, **kwargs):
+            captured.update(kwargs)
+            return SimpleNamespace(
+                choices=[SimpleNamespace(
+                    message=SimpleNamespace(content="ok"),
+                    finish_reason="stop",
+                )],
+                usage=SimpleNamespace(prompt_tokens=1, completion_tokens=1),
+            )
+
+    client = SimpleNamespace(
+        chat=SimpleNamespace(completions=_Completions())
+    )
+    monkeypatch.setattr(llm, "_azure_client", lambda *_args: client)
+    image = llm._ImageRef(
+        path=tmp_path / "pixel.png",
+        rel="pixel.png",
+        media_type="image/png",
+        raw=b"png-bytes",
+    )
+    request = llm.LLMRequest(
+        user_message="describe this image",
+        max_tokens=50,
+        images=(image,),
+        response_format="graph_json",
+    )
+
+    result = llm._AzureAdapter().call(
+        request,
+        llm.BackendContext(
+            backend="azure",
+            api_key="test-key",
+            model="gpt-4o",
+            endpoint="https://resource.example/",
+        ),
+    )
+
+    assert result.text == "ok"
+    content = captured["messages"][-1]["content"]
+    assert isinstance(content, list)
+    assert content[0]["type"] == "text"
+    assert content[1]["type"] == "image_url"
+    assert content[1]["image_url"]["url"].startswith("data:image/png;base64,")
 
 
 def test_detect_backend_returns_azure_when_both_vars_set(monkeypatch):
@@ -2275,6 +2363,41 @@ def test_exception_normalizer_leaves_unknown_errors_unchanged():
     error = ValueError("programming mistake")
 
     assert llm._normalize_backend_exception(error) is error
+
+
+@pytest.mark.parametrize(
+    ("message", "status"),
+    [
+        ("Invalid parameter: rate limit config", 400),
+        ("Bad request: connection reset option", 400),
+        ("Unprocessable request: service unavailable preference", 422),
+    ],
+)
+def test_shared_dispatcher_does_not_retry_permanent_client_errors(
+    monkeypatch, message, status
+):
+    calls = []
+
+    class _Adapter:
+        def call(self, request, context):
+            calls.append(1)
+            raise _FakeAPIStatusError(message, status)
+
+    monkeypatch.setitem(llm._BACKEND_ADAPTERS, "test-bad-request", _Adapter())
+    monkeypatch.setattr(
+        llm.time, "sleep", lambda _seconds: pytest.fail("4xx client errors must not retry")
+    )
+    monkeypatch.setenv("GRAPHIFY_MAX_RETRIES", "5")
+
+    with pytest.raises(_FakeAPIStatusError, match=message):
+        llm._invoke_backend_request(
+            llm.LLMRequest(user_message="prompt", max_tokens=20),
+            llm.BackendContext(
+                backend="test-bad-request", api_key="", model="test-model"
+            ),
+        )
+
+    assert calls == [1]
 
 
 def test_retry_after_reads_botocore_response_metadata():
