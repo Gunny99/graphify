@@ -70,3 +70,76 @@ def test_controller_uses_trusted_operator_registration_boundary():
 
     assert result == {"agent_id": "worker-1"}
     store.register_agent.assert_called_once_with(profile, trusted_profile=True)
+
+
+
+def test_agent_register_cli_delegates_trusted_registration_to_controller(tmp_path, monkeypatch, capsys):
+    import json
+    import sys
+    import graphify.task_store
+    import graphify.workflow
+
+    profile_path = tmp_path / "trusted-profile.json"
+    profile_path.write_text(json.dumps({"agent_id": "cli-worker"}), encoding="utf-8")
+    seen = {}
+
+    class FakeStore:
+        def __init__(self, path):
+            seen["store_path"] = path
+
+    class FakeController:
+        def __init__(self, store):
+            seen["controller_store"] = store
+
+        def register_agent(self, profile):
+            seen["profile"] = profile
+            return {"agent_id": profile["agent_id"], "provider": "provider", "model": "model"}
+
+    monkeypatch.setattr(graphify.task_store, "TaskStore", FakeStore)
+    monkeypatch.setattr(graphify.workflow, "RunController", FakeController)
+    monkeypatch.setattr(
+        sys, "argv",
+        ["graphify", "agent", "register", str(profile_path), "--graph", str(tmp_path / "graph.json")],
+    )
+
+    from graphify.cli import dispatch_command
+    dispatch_command("agent")
+
+    output = capsys.readouterr().out
+    assert "Registered agent: cli-worker" in output
+    assert seen["profile"]["agent_id"] == "cli-worker"
+    assert len(seen["profile"]["auth_token"]) >= 24
+
+
+def test_agent_list_cli_uses_controller_not_task_store_methods(tmp_path, monkeypatch, capsys):
+    import sys
+    import graphify.task_store
+    import graphify.workflow
+
+    class FakeStore:
+        def __init__(self, path):
+            self.path = path
+
+    class FakeController:
+        def __init__(self, store):
+            self.store = store
+
+        def list_agents(self):
+            return [{
+                "agent_id": "worker",
+                "provider": "provider",
+                "model": "model",
+                "status": "active",
+                "capabilities": ["research"],
+                "quality_profiles": [{"role": "researcher", "domain": "technical"}],
+            }]
+
+    monkeypatch.setattr(graphify.task_store, "TaskStore", FakeStore)
+    monkeypatch.setattr(graphify.workflow, "RunController", FakeController)
+    monkeypatch.setattr(sys, "argv", ["graphify", "agent", "list", "--graph", str(tmp_path / "graph.json")])
+
+    from graphify.cli import dispatch_command
+    dispatch_command("agent")
+
+    output = capsys.readouterr().out
+    assert "worker  provider/model [active]" in output
