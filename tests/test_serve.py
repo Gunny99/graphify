@@ -2423,3 +2423,59 @@ def test_orchestrator_failures_are_protocol_errors_and_auth_schema_is_consistent
                 "tasks": [],
             },
         ))
+
+
+
+def _install_fake_mcp_2x(monkeypatch):
+    """Install the callback-based MCP 2.x surface used by current clients."""
+    class _Model:
+        def __init__(self, **kwargs):
+            self.__dict__.update(kwargs)
+
+    mcp_types = ModuleType("mcp.types")
+    mcp_types.AnyUrl = str
+    for name in (
+        "Tool", "TextContent", "ListToolsResult", "CallToolResult",
+        "ListResourcesResult", "ReadResourceResult", "TextResourceContents",
+    ):
+        setattr(mcp_types, name, _Model)
+
+    class _Server:
+        def __init__(self, *args, **kwargs):
+            self.handlers = kwargs
+
+    mcp_package = ModuleType("mcp")
+    mcp_package.__path__ = []
+    mcp_package.types = mcp_types
+    mcp_server = ModuleType("mcp.server")
+    mcp_server.Server = _Server
+    mcp_package.server = mcp_server
+    monkeypatch.setitem(sys.modules, "mcp", mcp_package)
+    monkeypatch.setitem(sys.modules, "mcp.types", mcp_types)
+    monkeypatch.setitem(sys.modules, "mcp.server", mcp_server)
+
+
+def test_mcp_2x_marks_orchestrator_exceptions_as_tool_errors(tmp_path, monkeypatch):
+    from types import SimpleNamespace
+
+    from graphify.serve import _build_server
+
+    _install_fake_mcp_2x(monkeypatch)
+    monkeypatch.setenv("GRAPHIFY_ORCHESTRATOR_TOKEN", "coordinator-secret")
+    server = _build_server(
+        str(tmp_path / "not-extracted" / "graphify-out" / "graph.json")
+    )
+
+    params = SimpleNamespace(
+        name="orchestrator_create_run",
+        arguments={
+            "project_path": str(tmp_path / "project"),
+            "coordinator_token": "coordinator-secret",
+            "run": {},
+            "tasks": [],
+        },
+    )
+    result = asyncio.run(server.handlers["on_call_tool"](None, params))
+
+    assert result.isError is True
+    assert "Error executing orchestrator_create_run" in result.content[0].text
