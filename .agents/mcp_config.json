@@ -1,0 +1,22 @@
+{
+  "mcpServers": {
+    "graphify": {
+      "serverUrl": "https://api.graphify.com/mcp",
+      "enabledTools": [
+        "list_workspaces",
+        "list_repositories",
+        "query_graph",
+        "graphify_node",
+        "graphify_find",
+        "graphify_callers",
+        "graphify_impact",
+        "graphify_imports_exports",
+        "graphify_tests_for",
+        "graphify_file_neighbors",
+        "graphify_rank_files",
+        "graph_stats",
+        "recall"
+      ]
+    }
+  }
+}
