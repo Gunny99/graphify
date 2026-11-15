@@ -3705,6 +3705,12 @@ def _build_server(graph_path: str):
             # an error result; the 2.x path catches it in _on_call_tool).
             raise
         except Exception as exc:
+            if name.startswith("orchestrator_"):
+                # Orchestration failures are protocol-level tool failures, not
+                # successful text payloads. Preserve the original exception as
+                # the cause for server-side diagnostics while exposing a concise
+                # error message to MCP clients.
+                raise ToolError(f"Orchestration tool {name} failed: {exc}") from exc
             return [types.TextContent(type="text", text=f"Error executing {name}: {exc}")]
 
     if hasattr(Server, "list_tools"):
