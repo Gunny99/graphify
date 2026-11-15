@@ -245,6 +245,47 @@ def _register(store: TaskStore, agent: dict) -> str:
     return token
 
 
+def test_expired_queued_task_fails_even_for_agent_without_capability(tmp_path):
+    store = TaskStore(tmp_path / "graphify-out" / "orchestrator.sqlite3")
+    agent = _agent("other-only", "provider", "model")
+    agent["capabilities"] = ["other"]
+    _register(store, agent)
+    task = _task("expired-task")
+    task["deadline_at"] = "2020-01-01T00:00:00Z"
+    store.create_run(_run(), [task])
+
+    assert store.claim_task("other-only") is None
+    status = store.get_run_status("run-1")
+    assert status["tasks"][0]["status"] == "failed"
+
+
+def test_heartbeat_rejects_lease_after_task_deadline(tmp_path):
+    store_path = tmp_path / "graphify-out" / "orchestrator.sqlite3"
+    store = TaskStore(store_path)
+    agent = _agent("deadline-agent", "provider", "model")
+    _register(store, agent)
+    store.create_run(_run(), [_task("deadline-task")])
+    claimed = store.claim_task("deadline-agent")
+    assert claimed is not None
+
+    import sqlite3
+    with sqlite3.connect(store_path) as con:
+        row = con.execute(
+            "SELECT task_json FROM tasks WHERE task_id=?", ("deadline-task",)
+        ).fetchone()
+        task = json.loads(row[0])
+        task["deadline_at"] = "2020-01-01T00:00:00Z"
+        con.execute(
+            "UPDATE tasks SET task_json=? WHERE task_id=?",
+            (json.dumps(task), "deadline-task"),
+        )
+
+    with pytest.raises(TaskLeaseError, match="deadline"):
+        store.heartbeat_task(
+            "deadline-task", "deadline-agent", claimed["lease_token"]
+        )
+
+
 def test_claim_uses_lowest_cost_qualified_agent_and_enforces_dependency(tmp_path):
     store = TaskStore(tmp_path / "graphify-out" / "orchestrator.sqlite3")
     premium = _agent("premium", "provider-premium", "premium-model", input_cost=0.5, output_cost=1.0)
