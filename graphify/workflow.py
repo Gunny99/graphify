@@ -25,6 +25,10 @@ class RunController:
     ) -> dict[str, Any]:
         return self._store.create_run(run, tasks)
 
+    def register_agent(self, profile: Mapping[str, Any]) -> dict[str, Any]:
+        """Register a trusted local operator profile; workers cannot self-certify."""
+        return self._store.register_agent(profile, trusted_profile=True)
+
     def list_agents(self) -> list[dict[str, Any]]:
         return self._store.list_agents()
 
