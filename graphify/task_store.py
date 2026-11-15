@@ -399,9 +399,12 @@ class TaskStore:
                 )
             self._set_task(con, row, task, status)
             if status == "failed" and task.get("task_type") == "verification":
-                self._mark_verification_parent_needs_review(
-                    con, task, "verification lease expired after all attempts"
+                reason = (
+                    "verification task deadline expired"
+                    if deadline_expired
+                    else "verification lease expired after all attempts"
                 )
+                self._mark_verification_parent_needs_review(con, task, reason)
             self._event(
                 con,
                 run_id=row["run_id"],
