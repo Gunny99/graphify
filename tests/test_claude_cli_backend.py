@@ -138,27 +138,28 @@ def test_raises_on_array_shaped_error_envelope():
             llm._call_claude_cli("dummy", max_tokens=8192)
 
 
-def test_call_llm_raises_on_error_envelope():
-    # _call_llm returns envelope["result"] verbatim, so a rate-limited call
-    # hands "API Error: Rate limit reached" back to its callers as if it were
-    # model output — the dedup tiebreaker and community labeling then write
-    # that string into the graph as a label (#2554).
+def test_call_llm_raises_on_error_envelope(monkeypatch):
+    # The CLI reports rate limits inside its result envelope. With retries
+    # disabled here, assert the normalized failure is surfaced, not returned
+    # as model text or mislabeled as an empty extraction.
+    monkeypatch.setenv("GRAPHIFY_MAX_RETRIES", "0")
     completed = MagicMock(
         returncode=0, stdout=json.dumps(_ERROR_ENVELOPE), stderr="",
     )
     with patch("shutil.which", return_value="/fake/bin/claude"), \
          patch("subprocess.run", return_value=completed):
-        with pytest.raises(RuntimeError, match="Rate limit reached"):
+        with pytest.raises(llm.RateLimited, match="Rate limit reached"):
             llm._call_llm("dummy", backend="claude-cli")
 
 
-def test_call_llm_nonzero_exit_surfaces_envelope_error():
+def test_call_llm_nonzero_exit_surfaces_envelope_error(monkeypatch):
+    monkeypatch.setenv("GRAPHIFY_MAX_RETRIES", "0")
     completed = MagicMock(
         returncode=1, stdout=json.dumps(_ERROR_ENVELOPE), stderr="",
     )
     with patch("shutil.which", return_value="/fake/bin/claude"), \
          patch("subprocess.run", return_value=completed):
-        with pytest.raises(RuntimeError, match="Rate limit reached"):
+        with pytest.raises(llm.RateLimited, match="Rate limit reached"):
             llm._call_llm("dummy", backend="claude-cli")
 
 
