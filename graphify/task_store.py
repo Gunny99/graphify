@@ -20,6 +20,7 @@ from typing import Any, Iterator, Mapping, Sequence
 AGENT_HEARTBEAT_TTL_SECONDS = 120
 
 
+from graphify.workflow_guard import WorkflowLoopGuard
 from graphify.orchestration import (
     OrchestrationValidationError,
     estimate_end_to_end_cost,
@@ -383,6 +384,200 @@ class TaskStore:
             }
             for row in rows
         ]
+
+    def observe_workflow_step(
+        self,
+        task_id: str,
+        agent_id: str,
+        lease_token: str,
+        action: str,
+        *,
+        error: str | None = None,
+        progress_token: str | None = None,
+    ) -> dict[str, Any]:
+        """Persist a loop-guard observation and revoke a lease when redesign is required.
+
+        Only the task's current lease owner may report a step. Raw action/error/
+        progress strings are not persisted; the guard stores normalized hashes.
+        """
+        with self._transaction() as con:
+            row = self._owned_lease(con, task_id, agent_id, lease_token)
+            task = _decode(row["task_json"])
+            if error is not None and not isinstance(error, str):
+                raise ValueError("error must be a string when provided")
+            previous = con.execute(
+                """
+                SELECT payload_json FROM events
+                WHERE run_id=? AND task_id=? AND event_type='workflow_guard_state'
+                ORDER BY event_id DESC LIMIT 1
+                """,
+                (row["run_id"], task_id),
+            ).fetchone()
+            if previous is None:
+                run_row = con.execute(
+                    "SELECT run_json FROM runs WHERE run_id=?",
+                    (row["run_id"],),
+                ).fetchone()
+                if run_row is None:
+                    raise TaskNotFoundError(f"run not found: {row['run_id']}")
+                run = _decode(run_row["run_json"])
+                guard = WorkflowLoopGuard(
+                    strategy=str(task["input"].get("workflow_strategy") or run["execution_policy"]["strategy"]),
+                    hypothesis=str(task["input"].get("workflow_hypothesis") or task["objective"]),
+                )
+            else:
+                previous_payload = _decode(previous["payload_json"])
+                guard = WorkflowLoopGuard.from_state(previous_payload.get("state"))
+
+            decision = guard.observe(action, error=error, progress_token=progress_token)
+            decision_payload = {
+                "status": decision.status,
+                "reasons": list(decision.reasons),
+                "action_repeats": decision.action_repeats,
+                "error_repeats": decision.error_repeats,
+                "no_progress_steps": decision.no_progress_steps,
+                "redesigns": decision.redesigns,
+            }
+            self._event(
+                con,
+                run_id=row["run_id"],
+                task_id=task_id,
+                agent_id=agent_id,
+                event_type="workflow_guard_state",
+                payload={
+                    "state": guard.to_state(),
+                    "decision": decision_payload,
+                    "attempt": int(row["attempt"]),
+                },
+            )
+
+            task_status = "leased"
+            if decision.status in {"redesign", "stop"}:
+                reserve = float(task.pop("estimated_cost_reserved", 0.0))
+                if reserve > 0:
+                    task["unreported_cost_reserved"] = (
+                        float(task.get("unreported_cost_reserved", 0.0)) + reserve
+                    )
+                task["workflow_guard"] = guard.snapshot()
+                task["last_failure"] = (
+                    "workflow_loop_requires_redesign"
+                    if decision.status == "redesign"
+                    else "workflow_loop_redesign_budget_exhausted"
+                )
+                task_status = "needs_redesign" if decision.status == "redesign" else "failed"
+                self._set_task(con, row, task, task_status)
+                self._event(
+                    con,
+                    run_id=row["run_id"],
+                    task_id=task_id,
+                    agent_id=agent_id,
+                    event_type=(
+                        "workflow_loop_detected"
+                        if decision.status == "redesign"
+                        else "workflow_loop_stopped"
+                    ),
+                    payload=decision_payload,
+                )
+                self._refresh_run_status(con, row["run_id"])
+
+            return {
+                "task_id": task_id,
+                "task_status": task_status,
+                "may_continue": decision.status == "continue",
+                "decision": decision_payload,
+                "guard": guard.snapshot(),
+            }
+
+    def redesign_task(
+        self,
+        run_id: str,
+        task_id: str,
+        *,
+        strategy: str,
+        hypothesis: str,
+        rationale: str,
+    ) -> dict[str, Any]:
+        """Resume a loop-paused task only with a previously unseen redesign."""
+        for name, value in (
+            ("strategy", strategy),
+            ("hypothesis", hypothesis),
+            ("rationale", rationale),
+        ):
+            if not isinstance(value, str) or not value.strip() or len(value) > 500:
+                raise ValueError(f"{name} must be a non-empty string of at most 500 characters")
+
+        with self._transaction() as con:
+            row = con.execute(
+                "SELECT * FROM tasks WHERE task_id=? AND run_id=?",
+                (task_id, run_id),
+            ).fetchone()
+            if row is None:
+                raise TaskNotFoundError(f"task {task_id} does not belong to run {run_id}")
+            if row["status"] != "needs_redesign":
+                raise TaskStoreError(
+                    f"task must be needs_redesign before it can resume, got {row['status']}"
+                )
+            latest = con.execute(
+                """
+                SELECT payload_json FROM events
+                WHERE run_id=? AND task_id=? AND event_type='workflow_guard_state'
+                ORDER BY event_id DESC LIMIT 1
+                """,
+                (run_id, task_id),
+            ).fetchone()
+            if latest is None:
+                raise TaskStoreError("loop-paused task has no persisted guard state")
+            latest_payload = _decode(latest["payload_json"])
+            guard = WorkflowLoopGuard.from_state(latest_payload.get("state"))
+            accepted = guard.propose_redesign(
+                strategy=strategy,
+                hypothesis=hypothesis,
+                rationale=rationale,
+            )
+            task = _decode(row["task_json"])
+            if accepted:
+                task["input"]["workflow_strategy"] = strategy.strip()
+                task["input"]["workflow_hypothesis"] = hypothesis.strip()
+                task["last_redesign"] = {
+                    "strategy": strategy.strip(),
+                    "hypothesis": hypothesis.strip(),
+                    "rationale": rationale.strip(),
+                    "redesign_number": guard.redesigns,
+                }
+                task.pop("last_failure", None)
+                self._set_task(con, row, task, "queued")
+                event_type = "workflow_task_redesigned"
+                outcome = "queued"
+            else:
+                task["last_failure"] = guard.snapshot().get("terminal_reason") or "workflow_redesign_rejected"
+                self._set_task(con, row, task, "failed")
+                event_type = "workflow_redesign_rejected"
+                outcome = "failed"
+
+            self._event(
+                con,
+                run_id=run_id,
+                task_id=task_id,
+                event_type="workflow_guard_state",
+                payload={
+                    "state": guard.to_state(),
+                    "decision": {"status": outcome, "reason": task.get("last_failure")},
+                },
+            )
+            self._event(
+                con,
+                run_id=run_id,
+                task_id=task_id,
+                event_type=event_type,
+                payload={
+                    "strategy": strategy.strip(),
+                    "hypothesis": hypothesis.strip(),
+                    "redesign_number": guard.redesigns,
+                    "accepted": accepted,
+                },
+            )
+            self._refresh_run_status(con, run_id)
+            return self._run_status_in_transaction(con, run_id)
 
     def _set_task(
         con: sqlite3.Connection,
