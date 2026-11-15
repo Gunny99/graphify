@@ -428,7 +428,7 @@ for key, sources in manifest.items():
         if n < total:
             partial.append((src, n, total, 'incomplete read'))
 
-Path('graphify-out/.graphify_partial.txt').write_text('\\n'.join(src for src, _, _, _ in partial), encoding=\"utf-8\")
+Path('graphify-out/.graphify_partial.txt').write_text('\n'.join(src for src, _, _, _ in partial), encoding=\"utf-8\")
 if partial:
     print(f'WARNING: {len(partial)} file(s) are partial or lack exact coverage and will be retried on the next --update:')
     for src, n, total, reason in partial:
