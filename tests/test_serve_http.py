@@ -395,7 +395,13 @@ def test_orchestration_handler_exception_sets_iserror(tmp_path, monkeypatch):
         headers = _init_session(client)
         resp = client.post("/mcp", headers=headers, json={
             "jsonrpc": "2.0", "id": 2, "method": "tools/call",
-            "params": {"name": "orchestrator_claim_task", "arguments": {}},
+            "params": {
+                "name": "orchestrator_claim_task",
+                "arguments": {
+                    "agent_id": "unregistered-agent",
+                    "agent_token": "invalid-agent-token",
+                },
+            },
         })
         assert resp.status_code == 200
         result = resp.json()["result"]
