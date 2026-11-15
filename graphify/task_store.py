@@ -198,6 +198,10 @@ class TaskStore:
                     payload_json TEXT NOT NULL,
                     created_at TEXT NOT NULL
                 );
+                CREATE INDEX IF NOT EXISTS idx_events_run_event
+                    ON events(run_id, event_id);
+                CREATE INDEX IF NOT EXISTS idx_events_run_task_event
+                    ON events(run_id, task_id, event_id);
                 """
             )
             con.execute("PRAGMA user_version = 1")
@@ -328,6 +332,7 @@ class TaskStore:
         since: str | None = None,
         until: str | None = None,
         limit: int = 100,
+        include_payload: bool = False,
     ) -> list[dict[str, Any]]:
         """Read a bounded chronological slice of the append-only run timeline."""
         run_id = _required_string(run_id, "run_id")
@@ -335,6 +340,8 @@ class TaskStore:
             raise ValueError("after_event_id must be an integer >= 0")
         if not isinstance(limit, int) or isinstance(limit, bool) or not 1 <= limit <= 500:
             raise ValueError("limit must be an integer between 1 and 500")
+        if not isinstance(include_payload, bool):
+            raise ValueError("include_payload must be a boolean")
         since_stamp = self._timeline_stamp(since, "since") if since is not None else None
         until_stamp = self._timeline_stamp(until, "until") if until is not None else None
         if since_stamp and until_stamp and since_stamp > until_stamp:
@@ -371,18 +378,36 @@ class TaskStore:
             ).fetchall()
         finally:
             con.close()
-        return [
-            {
+        events = []
+        summary_keys = (
+            "status", "reason", "result_id", "attempt", "new_task_status",
+            "direct_cost", "name", "duration_ms", "outcome", "stage",
+            "decision", "reason_code", "review_status", "strategy", "accepted",
+        )
+        for row in rows:
+            payload = _decode(row["payload_json"])
+            event = {
                 "event_id": int(row["event_id"]),
                 "run_id": row["run_id"],
                 "task_id": row["task_id"],
                 "agent_id": row["agent_id"],
                 "event_type": row["event_type"],
-                "payload": _decode(row["payload_json"]),
                 "created_at": row["created_at"],
             }
-            for row in rows
-        ]
+            if include_payload:
+                event["payload"] = payload
+            else:
+                summary = {key: payload[key] for key in summary_keys if key in payload}
+                if isinstance(payload.get("decision"), dict):
+                    summary["decision"] = {
+                        key: payload["decision"][key]
+                        for key in ("status", "reasons", "reason")
+                        if key in payload["decision"]
+                    }
+                if summary:
+                    event["summary"] = summary
+            events.append(event)
+        return events
 
     def observe_workflow_step(
         self,
@@ -399,6 +424,14 @@ class TaskStore:
         Only the task's current lease owner may report a step. Raw action/error/
         progress strings are not persisted; the guard stores normalized hashes.
         """
+        if not isinstance(action, str) or len(action) > 512:
+            raise ValueError("action must be a string of at most 512 characters")
+        if error is not None and (not isinstance(error, str) or len(error) > 1024):
+            raise ValueError("error must be a string of at most 1024 characters")
+        if progress_token is not None and (
+            not isinstance(progress_token, str) or len(progress_token) > 256
+        ):
+            raise ValueError("progress_token must be a string of at most 256 characters")
         with self._transaction() as con:
             row = self._owned_lease(con, task_id, agent_id, lease_token)
             task = _decode(row["task_json"])
