@@ -221,6 +221,160 @@ class TaskStore:
         )
 
     @staticmethod
+    @staticmethod
+    def _timeline_stamp(value: str, name: str) -> str:
+        if not isinstance(value, str) or not value.strip():
+            raise ValueError(f"{name} must be an ISO-8601 timestamp")
+        try:
+            stamp = datetime.fromisoformat(value.replace("Z", "+00:00"))
+        except ValueError as exc:
+            raise ValueError(f"{name} must be an ISO-8601 timestamp") from exc
+        if stamp.tzinfo is None:
+            raise ValueError(f"{name} must include a timezone")
+        return stamp.astimezone(timezone.utc).isoformat()
+
+    def record_span(
+        self,
+        run_id: str,
+        *,
+        name: str,
+        started_at: str,
+        finished_at: str,
+        task_id: str | None = None,
+        outcome: str = "ok",
+        attributes: Mapping[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """Append a small, content-free timing span to the existing event ledger."""
+        run_id = _required_string(run_id, "run_id")
+        name = _required_string(name, "name")
+        if outcome not in {"ok", "error", "cancelled", "skipped"}:
+            raise ValueError("outcome must be ok, error, cancelled, or skipped")
+        start = self._timeline_stamp(started_at, "started_at")
+        finish = self._timeline_stamp(finished_at, "finished_at")
+        start_dt = datetime.fromisoformat(start)
+        finish_dt = datetime.fromisoformat(finish)
+        duration_ms = (finish_dt - start_dt).total_seconds() * 1000
+        if duration_ms < 0:
+            raise ValueError("finished_at must not precede started_at")
+        if duration_ms > 7 * 24 * 60 * 60 * 1000:
+            raise ValueError("span duration cannot exceed seven days")
+
+        allowed_attributes = {
+            "stage", "provider", "model", "command", "test_id", "test_count",
+            "exit_code", "cache_hit", "token_count", "file_count",
+            "artifact_hash", "commit_sha", "review_status", "retry",
+            "reason_code", "error_type", "status",
+        }
+        supplied = dict(attributes or {})
+        if len(supplied) > 20:
+            raise ValueError("attributes cannot contain more than 20 fields")
+        safe_attributes: dict[str, Any] = {}
+        for key, value in supplied.items():
+            if key not in allowed_attributes:
+                raise ValueError(f"unsupported span attribute: {key}")
+            if isinstance(value, str):
+                if len(value) > 256 or "\n" in value or "\r" in value:
+                    raise ValueError(f"attributes.{key} must be a single line of at most 256 characters")
+            elif not isinstance(value, (int, float, bool)) or isinstance(value, bool) is False and not math.isfinite(value):
+                raise ValueError(f"attributes.{key} must be a string, finite number, or boolean")
+            safe_attributes[key] = value
+
+        span_id = secrets.token_hex(12)
+        with self._transaction() as con:
+            if con.execute("SELECT 1 FROM runs WHERE run_id=?", (run_id,)).fetchone() is None:
+                raise TaskNotFoundError(f"run not found: {run_id}")
+            if task_id is not None:
+                task_id = _required_string(task_id, "task_id")
+                if con.execute(
+                    "SELECT 1 FROM tasks WHERE task_id=? AND run_id=?",
+                    (task_id, run_id),
+                ).fetchone() is None:
+                    raise TaskNotFoundError(f"task {task_id} does not belong to run {run_id}")
+            payload = {
+                "span_id": span_id,
+                "name": name,
+                "started_at": start,
+                "finished_at": finish,
+                "duration_ms": round(duration_ms, 3),
+                "outcome": outcome,
+                "attributes": safe_attributes,
+            }
+            self._event(
+                con,
+                run_id=run_id,
+                task_id=task_id,
+                event_type="span_completed",
+                payload=payload,
+            )
+            event_id = int(con.execute("SELECT last_insert_rowid()").fetchone()[0])
+        return {"event_id": event_id, **payload, "task_id": task_id}
+
+    def list_events(
+        self,
+        run_id: str,
+        *,
+        task_id: str | None = None,
+        event_type: str | None = None,
+        after_event_id: int = 0,
+        since: str | None = None,
+        until: str | None = None,
+        limit: int = 100,
+    ) -> list[dict[str, Any]]:
+        """Read a bounded chronological slice of the append-only run timeline."""
+        run_id = _required_string(run_id, "run_id")
+        if not isinstance(after_event_id, int) or isinstance(after_event_id, bool) or after_event_id < 0:
+            raise ValueError("after_event_id must be an integer >= 0")
+        if not isinstance(limit, int) or isinstance(limit, bool) or not 1 <= limit <= 500:
+            raise ValueError("limit must be an integer between 1 and 500")
+        since_stamp = self._timeline_stamp(since, "since") if since is not None else None
+        until_stamp = self._timeline_stamp(until, "until") if until is not None else None
+        if since_stamp and until_stamp and since_stamp > until_stamp:
+            raise ValueError("since must not be later than until")
+        if event_type is not None:
+            event_type = _required_string(event_type, "event_type")
+        if task_id is not None:
+            task_id = _required_string(task_id, "task_id")
+
+        clauses = ["run_id = ?", "event_id > ?"]
+        params: list[Any] = [run_id, after_event_id]
+        if task_id is not None:
+            clauses.append("task_id = ?")
+            params.append(task_id)
+        if event_type is not None:
+            clauses.append("event_type = ?")
+            params.append(event_type)
+        if since_stamp is not None:
+            clauses.append("created_at >= ?")
+            params.append(since_stamp)
+        if until_stamp is not None:
+            clauses.append("created_at <= ?")
+            params.append(until_stamp)
+        params.append(limit)
+
+        con = self._connect()
+        try:
+            if con.execute("SELECT 1 FROM runs WHERE run_id=?", (run_id,)).fetchone() is None:
+                raise TaskNotFoundError(f"run not found: {run_id}")
+            rows = con.execute(
+                f"SELECT event_id, run_id, task_id, agent_id, event_type, payload_json, created_at "
+                f"FROM events WHERE {' AND '.join(clauses)} ORDER BY event_id ASC LIMIT ?",
+                params,
+            ).fetchall()
+        finally:
+            con.close()
+        return [
+            {
+                "event_id": int(row["event_id"]),
+                "run_id": row["run_id"],
+                "task_id": row["task_id"],
+                "agent_id": row["agent_id"],
+                "event_type": row["event_type"],
+                "payload": _decode(row["payload_json"]),
+                "created_at": row["created_at"],
+            }
+            for row in rows
+        ]
+
     def _set_task(
         con: sqlite3.Connection,
         row: sqlite3.Row,
