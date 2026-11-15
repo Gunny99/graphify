@@ -1351,17 +1351,26 @@ def rank_qualified_agents(
         if float(profile["hallucination_upper_bound"]) > best_hallucination + tolerance:
             continue
         agent = item["agent"]
+        cost_profile = item["cost_profile"]
         total = estimate_end_to_end_cost(
-            item["cost_profile"],
+            cost_profile,
             estimated_input_tokens,
             estimated_output_tokens,
             cached_input_tokens=estimated_cached_input_tokens,
         )
+        fixed_overhead = sum(float(cost_profile[key]) for key in (
+            "verification_cost_per_task",
+            "expected_retry_cost_per_task",
+            "expected_escalation_cost_per_task",
+            "orchestration_cost_per_task",
+        ))
+        generation_cost = max(0.0, total - fixed_overhead)
         ranked.append({
             "agent_id": agent["agent_id"],
             "provider": agent["provider"],
             "model": agent["model"],
             "quality_profile": profile,
+            "estimated_generation_cost": generation_cost,
             "estimated_total_cost": total,
             "currency": currency,
         })
