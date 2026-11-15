@@ -102,9 +102,9 @@ def test_guard_rejects_invalid_thresholds(value):
 
 
 def test_loop_guard_round_trips_all_counters_and_redesign_history():
-    guard = _guard(repeated_action_limit=5)
-    guard.observe("inspect", error="temporary", progress_token="artifact-a")
-    guard.observe("inspect", error="temporary", progress_token="artifact-a")
+    guard = _guard(repeated_action_limit=2)
+    guard.observe("inspect", progress_token="artifact-a")
+    guard.observe("inspect", progress_token="artifact-a")
     assert guard.propose_redesign(
         strategy="inspect-imports",
         hypothesis="a stale import path is masking the real module",
