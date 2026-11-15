@@ -1975,12 +1975,13 @@ _BACKEND_ADAPTERS: dict[str, BackendAdapter] = {
 
 
 def _invoke_backend_request(request: LLMRequest, context: BackendContext) -> LLMResult:
-    """Dispatch once through the shared, bounded transient-error retry policy.
+    """Dispatch through the single bounded provider retry policy.
 
-    SDK retry loops are disabled. This dispatcher owns transient retries for
-    both graph extraction and text-only requests. Context-window errors pass
-    through to extraction's bisection policy; auth/configuration errors do not
-    retry.
+    SDK retry loops are disabled. This dispatcher retries rate limits and
+    transient transport/server failures for graph and text requests. Context
+    overflow and timeouts are normalized but not retried here: extraction's
+    adaptive chunk policy handles them, while text callers receive the error.
+    Authentication/configuration failures are never retried.
     """
     adapter = _BACKEND_ADAPTERS.get(context.backend, _OPENAI_COMPAT_ADAPTER)
     max_retries = _resolve_max_retries()
@@ -2701,6 +2702,7 @@ def _normalize_backend_exception(exc: Exception) -> Exception:
 
     rate_markers = (
         "ratelimit", "rate_limit", "rate limit", "too many requests",
+        "toomanyrequests", "resource_exhausted", "quota_exceeded",
         "throttl", "provisionedthroughputexceeded", "requestlimitexceeded",
     )
     if status == 429 or any(marker in combined for marker in rate_markers):
@@ -2710,7 +2712,8 @@ def _normalize_backend_exception(exc: Exception) -> Exception:
         "authenticationerror", "permissiondenied", "unauthorized",
         "invalidapikey", "invalidclienttokenid", "unrecognizedclient",
         "invalidsignature", "signaturedoesnotmatch", "expiredtoken",
-        "accessdenied", "access denied", "invalid api key", "authentication failed",
+        "accessdenied", "access_denied", "access denied", "invalid api key",
+        "invalid credentials", "authentication failed", "auth failed",
     )
     if status in (401, 403) or any(marker in combined for marker in auth_markers):
         return AuthenticationError(str(exc))
