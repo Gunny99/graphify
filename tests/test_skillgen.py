@@ -951,6 +951,7 @@ def test_audit_allowlist_documents_only_consolidations():
     for hs in gen._CONSOLIDATION_ALLOWLIST.values():
         all_allowlisted |= set(hs)
     assert "## For native AGENTS.md integration (Trae)" not in all_allowlisted
+    assert "#### Part B - Semantic extraction (parallel subagents)" in all_allowlisted
     # Only the two minimal-body hosts carry per-host consolidations.
     assert set(gen._CONSOLIDATION_ALLOWLIST) == {"kilo", "vscode"}
 
