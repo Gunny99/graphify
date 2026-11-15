@@ -504,6 +504,10 @@ class TaskStore:
                 )
                 task_status = "needs_redesign" if decision.status == "redesign" else "failed"
                 self._set_task(con, row, task, task_status)
+                if decision.status == "stop" and task.get("task_type") == "verification":
+                    self._mark_verification_parent_needs_review(
+                        con, task, "verification workflow loop exhausted its redesign budget"
+                    )
                 # A loop trip pauses the whole Run. Requeue other leased tasks,
                 # release their leases, and preserve their estimated spend as
                 # unreported until the interrupted attempts can report usage.
@@ -651,6 +655,10 @@ class TaskStore:
             else:
                 task["last_failure"] = guard.snapshot().get("terminal_reason") or "workflow_redesign_rejected"
                 self._set_task(con, row, task, "failed")
+                if task.get("task_type") == "verification":
+                    self._mark_verification_parent_needs_review(
+                        con, task, "verification workflow redesign was rejected"
+                    )
                 # A rejected redesign is terminal for the entire Run. Never
                 # let a queued sibling bypass the failed redesign decision.
                 siblings = con.execute(
