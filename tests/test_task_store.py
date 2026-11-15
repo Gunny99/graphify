@@ -300,7 +300,9 @@ def test_claim_uses_lowest_cost_qualified_agent_and_enforces_dependency(tmp_path
     )
     for agent in (premium, budget, unqualified, verifier):
         _register(store, agent)
-    store.create_run(_run(), [_task("task-1"), _task("task-2", depends_on=["task-1"])])
+    first_task = _task("task-1")
+    first_task["deadline_at"] = "2030-01-01T00:00:00Z"
+    store.create_run(_run(), [first_task, _task("task-2", depends_on=["task-1"])])
 
     assert store.claim_task("premium") is None
     assert store.claim_task("cheap-unqualified") is None
@@ -320,6 +322,7 @@ def test_claim_uses_lowest_cost_qualified_agent_and_enforces_dependency(tmp_path
     verification = store.claim_task("verifier")
     assert verification is not None
     assert verification["task_type"] == "verification"
+    assert verification["deadline_at"] == "2030-01-01T00:00:00Z"
     payload = store.get_verification_payload(
         verification["task_id"], "verifier", verification["lease_token"]
     )
