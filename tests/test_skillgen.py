@@ -1346,21 +1346,26 @@ def test_coverage_check_flags_a_partly_read_file_and_clears_a_complete_one(
     tmp_path, capsys, monkeypatch
 ):
     """Run the Step B3.5 coverage script: a short read is named, a full read is not."""
+    import json
+
     monkeypatch.chdir(tmp_path)  # the emitted bodies address graphify-out/ relatively
     core, _ = _platform_artifacts("claude")
-    body = _substituted(_step_body(core, "covered[src] = max("), tmp_path)
+    body = _substituted(_step_body(core, "for key, sources in manifest.items():"), tmp_path)
     out = tmp_path / "graphify-out"
 
     doc = tmp_path / "big.md"
     doc.write_text("\n".join(f"line {i}" for i in range(1, 51)), encoding="utf-8")
     whole = tmp_path / "small.md"
     whole.write_text("\n".join(f"line {i}" for i in range(1, 11)), encoding="utf-8")
+    (out / ".graphify_chunk_manifest.json").write_text(
+        json.dumps({"01": [str(doc), str(whole)]}), encoding="utf-8"
+    )
 
     # big.md was only read to line 10 of 50; small.md was read to its end.
     _write_chunk(out, {"coverage": {str(doc): 10, str(whole): 10}, "nodes": []})
     exec(compile(body, "step-b35", "exec"), {"__name__": "__main__"})
     printed = capsys.readouterr().out
-    assert "WARNING" in printed and "partly read" in printed, printed
+    assert "WARNING" in printed and "incomplete read" in printed, printed
     assert "read 10 of 50 lines" in printed, printed
     flagged = (out / ".graphify_partial.txt").read_text(encoding="utf-8").splitlines()
     assert flagged == [str(doc)], f"only the partly-read file may be flagged, got {flagged}"
