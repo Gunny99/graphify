@@ -2284,3 +2284,25 @@ def test_retry_after_reads_botocore_response_metadata():
 
     assert llm._exception_status_code(error) == 429
     assert llm._retry_after_seconds(error) == 2.0
+
+
+def test_shared_dispatcher_passes_timeouts_to_adaptive_policy(monkeypatch):
+    calls = []
+
+    class _Adapter:
+        def call(self, request, context):
+            calls.append(1)
+            raise TimeoutError("request timed out")
+
+    monkeypatch.setitem(llm._BACKEND_ADAPTERS, "test-timeout", _Adapter())
+    monkeypatch.setattr(llm.time, "sleep", lambda _seconds: pytest.fail("timeout must not back off here"))
+    monkeypatch.setenv("GRAPHIFY_MAX_RETRIES", "5")
+
+    with pytest.raises(llm.BackendTimeout, match="request timed out") as raised:
+        llm._invoke_backend_request(
+            llm.LLMRequest(user_message="prompt", max_tokens=20),
+            llm.BackendContext(backend="test-timeout", api_key="", model="test-model"),
+        )
+
+    assert calls == [1]
+    assert llm._looks_like_timeout(raised.value)
