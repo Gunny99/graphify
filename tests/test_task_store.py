@@ -1285,3 +1285,19 @@ def test_loop_trip_pauses_run_and_revokes_other_worker_leases(tmp_path):
     assert new_a is not None and new_a["task_id"] == "parallel-a"
     new_b = store.claim_task("worker-b")
     assert new_b is not None and new_b["task_id"] == "parallel-b"
+
+
+def test_workflow_guard_requires_a_progress_fingerprint(tmp_path):
+    store = TaskStore(tmp_path / "orchestrator.sqlite3")
+    worker = _agent("fingerprint-worker", "fingerprint-provider", "fingerprint-model")
+    _register(store, worker)
+    store.create_run(_run(strategy="single_agent"), [_task("fingerprint-task")])
+    claimed = store.claim_task("fingerprint-worker")
+    assert claimed is not None
+    with pytest.raises(ValueError, match="progress_token is required"):
+        store.observe_workflow_step(
+            "fingerprint-task",
+            "fingerprint-worker",
+            claimed["lease_token"],
+            "inspect current state",
+        )
