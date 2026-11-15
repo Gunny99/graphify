@@ -1624,13 +1624,14 @@ def _call_ollama_native(
 
 class _OpenAICompatibleAdapter:
     def call(self, request: LLMRequest, context: BackendContext) -> LLMResult:
+        backend = context.backend
+        ollama_seed = _resolve_ollama_seed() if backend == "ollama" else None
         try:
             from openai import OpenAI
         except ImportError as exc:
             extra = context.backend if context.backend in ("kimi", "gemini", "openai", "ollama") else "openai"
             raise ImportError(_backend_pkg_hint("openai", extra)) from exc
 
-        backend = context.backend
         if not context.base_url:
             raise ValueError(f"OpenAI-compatible backend {backend!r} has no base_url")
         retries = _resolve_max_retries()
@@ -1660,10 +1661,8 @@ class _OpenAICompatibleAdapter:
             kwargs["temperature"] = request.temperature
         if request.reasoning_effort is not None:
             kwargs["reasoning_effort"] = request.reasoning_effort
-        if backend == "ollama":
-            seed = _resolve_ollama_seed()
-            if seed is not None:
-                kwargs["seed"] = seed
+        if ollama_seed is not None:
+            kwargs["seed"] = ollama_seed
         if request.extra_body is not None:
             kwargs["extra_body"] = dict(request.extra_body)
         elif "moonshot" in context.base_url:
@@ -3322,6 +3321,8 @@ def _call_llm(
     if backend not in BACKENDS:
         raise ValueError(f"Unknown backend {backend!r}")
     cfg = BACKENDS[backend]
+    if backend == "ollama":
+        _resolve_ollama_seed()
     key = _get_backend_api_key(backend)
     if not key and backend == "ollama":
         ollama_url = _resolve_ollama_base_url(cfg.get("base_url", ""))
@@ -3346,7 +3347,7 @@ def _call_llm(
             backend=backend, api_key=key, model=resolved_model,
             base_url=cfg.get("base_url"),
             endpoint=os.environ.get("AZURE_OPENAI_ENDPOINT", "").strip() or None,
-            model_override=model,
+            model_override=resolved_model if model is not None else None,
         ),
     )
     if usage_out is not None:
