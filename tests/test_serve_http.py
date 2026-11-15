@@ -388,6 +388,21 @@ def test_pr_tool_failure_sets_iserror(tmp_path, monkeypatch):
         assert "gh" in result["content"][0]["text"].lower()
 
 
+def test_orchestration_handler_exception_sets_iserror(tmp_path, monkeypatch):
+    """Orchestration validation/store failures must be protocol-level errors."""
+    app = serve_mod._build_http_app(_graph_file(tmp_path), json_response=True)
+    with _client(app) as client:
+        headers = _init_session(client)
+        resp = client.post("/mcp", headers=headers, json={
+            "jsonrpc": "2.0", "id": 2, "method": "tools/call",
+            "params": {"name": "orchestrator_claim_task", "arguments": {}},
+        })
+        assert resp.status_code == 200
+        result = resp.json()["result"]
+        assert result.get("isError") is True, result
+        assert "orchestrator_claim_task" in result["content"][0]["text"]
+
+
 def test_normal_tool_result_is_not_iserror(tmp_path):
     """A successful tool result must not be marked isError."""
     app = serve_mod._build_http_app(_graph_file(tmp_path), json_response=True)
