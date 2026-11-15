@@ -2139,8 +2139,10 @@ def test_shared_dispatcher_retries_rate_limit_and_honors_retry_after(monkeypatch
     sleeps = []
 
     class RateLimitError(Exception):
-        status_code = 429
-        response = SimpleNamespace(headers={"Retry-After": "0.25"})
+        def __init__(self, message):
+            super().__init__(message)
+            self.status_code = 429
+            self.response = SimpleNamespace(headers={"Retry-After": "0.25"})
 
     class _Adapter:
         def call(self, request, context):
@@ -2268,3 +2270,17 @@ def test_exception_normalizer_leaves_unknown_errors_unchanged():
     error = ValueError("programming mistake")
 
     assert llm._normalize_backend_exception(error) is error
+
+
+def test_retry_after_reads_botocore_response_metadata():
+    error = RuntimeError("ThrottlingException")
+    error.response = {
+        "Error": {"Code": "ThrottlingException"},
+        "ResponseMetadata": {
+            "HTTPStatusCode": 429,
+            "HTTPHeaders": {"retry-after": "2"},
+        },
+    }
+
+    assert llm._exception_status_code(error) == 429
+    assert llm._retry_after_seconds(error) == 2.0
