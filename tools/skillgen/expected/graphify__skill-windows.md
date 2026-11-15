@@ -71,24 +71,6 @@ Only when the path is one or more `https://github.com/...` URLs, or several loca
 
 ```powershell
 # Detect Python with graphify — uv/pipx-aware (fixes #831)
-$projectRoot = (Resolve-Path .).Path
-$outItem = Get-Item graphify-out -Force -ErrorAction SilentlyContinue
-if ($outItem -and (($outItem.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0)) {
-    throw "Refusing to use reparse-point graphify-out"
-}
-if ($outItem -and -not $outItem.PSIsContainer) {
-    throw "graphify-out exists but is not a directory"
-}
-if (-not $outItem) { New-Item -ItemType Directory -Path graphify-out | Out-Null }
-$resolvedOut = (Resolve-Path graphify-out).Path
-$expectedOut = [IO.Path]::GetFullPath((Join-Path $projectRoot 'graphify-out'))
-if ([IO.Path]::GetFullPath($resolvedOut) -ne $expectedOut) {
-    throw "graphify-out resolves outside the project root"
-}
-$pythonMarker = Get-Item graphify-out\.graphify_python -Force -ErrorAction SilentlyContinue
-if ($pythonMarker -and (($pythonMarker.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0)) {
-    throw "Refusing to read a reparse-point Python interpreter marker"
-}
 New-Item -ItemType Directory -Force -Path graphify-out | Out-Null
 $GRAPHIFY_PYTHON = $null
 
@@ -170,7 +152,7 @@ from graphify.detect import detect
 from pathlib import Path
 from graphify.paths import out_path
 from graphify.watch import _read_build_excludes, _read_build_gitignore
-INPUT_PATH = Path('graphify-out/.graphify_root').read_text(encoding="utf-8-sig").strip()
+INPUT_PATH = (out / '.graphify_root').read_text(encoding="utf-8-sig").strip()
 result = detect(Path(INPUT_PATH), extra_excludes=_read_build_excludes(out_path()), gitignore=_read_build_gitignore(out_path()))
 # Write the sidecar from Python, not a shell redirect, so the same block renders
 # on PowerShell hosts without console-encoding drift (#2528).
@@ -223,7 +205,7 @@ Print it once, then continue — do not wait for the user to supply a key. If `G
 
 > **No other API keys are read.** When `GEMINI_API_KEY`/`GOOGLE_API_KEY` are unset, semantic extraction falls to the host agent itself — the running session is the LLM. On a host that dispatches subagents (e.g. Claude Code), dispatch them as written in Part B. On a host that runs the CLI directly in a terminal and cannot dispatch subagents, do not stall: a code-only corpus has no semantic work, so write the empty semantic file (Part B "Fast path") and continue to Part C; for a corpus with docs/papers/images, either set a Gemini key or extract those inline yourself, but in no case prompt for `ANTHROPIC_API_KEY` — that prompt is a misread of this skill.
 
-Run structural extraction and semantic extraction as separate stages in this skill. Start them concurrently only when the host genuinely supports independent execution and the measured time/cost benefit justifies it. Otherwise keep the work in the main session and run the stages sequentially. Do not create a team of planner, developer, tester, and reviewer roles for one extraction task.
+Run structural extraction and semantic extraction as separate stages in this skill. Start them concurrently only when the host genuinely supports independent execution and the measured time/cost benefit justifies it. Otherwise keep the work in the main session and run the stages sequentially. Do not create a planner/developer/tester/reviewer team for one extraction task.
 
 #### Part A - Structural extraction for code files
 
@@ -279,8 +261,8 @@ Before dispatching any subagents, check which files already have cached extracti
 
 SPEC_PATH below is the **absolute** path of the `references/extraction-spec.md` that ships beside this SKILL.md — the same file Step B2 loads and hands to every subagent. It is the extraction prompt, so cache entries are attributed to it: when a graphify upgrade changes the prompt, entries produced by the old one are re-extracted instead of replayed, and unchanged prompts keep their entries (#1939). Substitute the real path in both Step B0 and Step B3 — pass the same one to each, and do not drop the argument.
 
-```bash
-$(cat graphify-out/.graphify_python) -c "
+```powershell
+@'
 import json
 from graphify.cache import check_semantic_cache
 from pathlib import Path
@@ -295,22 +277,22 @@ out = out.resolve(strict=True)
 if out.parent != project_root:
     raise SystemExit("graphify-out resolves outside the project root")
 
-detect = json.loads((out / '.graphify_detect.json').read_text(encoding=\"utf-8\"))
+detect = json.loads((out / '.graphify_detect.json').read_text(encoding="utf-8"))
 # Only content files go to semantic extraction. Code is already covered structurally
 # by the AST pass (Part A); flattening every category here makes subagents re-read
 # every source file (#1392). Video is transcribed to a document in Step 2.5 first.
 all_files = [f for cat in ('document', 'paper', 'image') for f in detect['files'].get(cat, [])]
 
-INPUT_PATH = Path('graphify-out/.graphify_root').read_text(encoding=\"utf-8-sig\").strip()
+INPUT_PATH = Path('graphify-out/.graphify_root').read_text(encoding="utf-8-sig").strip()
 cached_nodes, cached_edges, cached_hyperedges, uncached = check_semantic_cache(all_files, root=INPUT_PATH, prompt_file='SPEC_PATH')
 
 # Always (re)write the cache file: write hits, else DELETE any leftover from a prior
 # run so Part C never merges a stale .graphify_cached.json (#1392).
 if cached_nodes or cached_edges or cached_hyperedges:
-    (out / '.graphify_cached.json').write_text(json.dumps({'nodes': cached_nodes, 'edges': cached_edges, 'hyperedges': cached_hyperedges}, ensure_ascii=False), encoding=\"utf-8\")
+    (out / '.graphify_cached.json').write_text(json.dumps({'nodes': cached_nodes, 'edges': cached_edges, 'hyperedges': cached_hyperedges}, ensure_ascii=False), encoding="utf-8")
 else:
     (out / '.graphify_cached.json').unlink(missing_ok=True)
-(out / '.graphify_uncached.txt').write_text('\n'.join(uncached), encoding=\"utf-8\")
+(out / '.graphify_uncached.txt').write_text('\n'.join(uncached), encoding="utf-8")
 # Nothing has been dispatched yet, so any chunk file on disk is a leftover from an
 # interrupted run, and Step B3 merges every .graphify_chunk_*.json it finds.
 for stale in out.glob('.graphify_chunk_*.json'):
@@ -330,9 +312,9 @@ elif manifest.exists():
         raise SystemExit("Refusing to remove non-regular chunk manifest")
     manifest.unlink()
 if not uncached:
-    manifest.write_text('{}', encoding=\"utf-8\")
+    manifest.write_text('{}', encoding="utf-8")
 print(f'Cache: {len(all_files)-len(uncached)} files hit, {len(uncached)} files need extraction')
-"
+'@ | & (Get-Content graphify-out\.graphify_python) -
 ```
 
 Only process files listed in `graphify-out/.graphify_uncached.txt`. If all files are cached, skip Steps B1 and B2 but still run Step B3's commands: its merge is the only Part B step that writes `graphify-out/.graphify_semantic.json`, and Part C reads that file unconditionally. Do not write an empty `.graphify_semantic.json` instead, because that drops every cached node.
@@ -386,10 +368,10 @@ The preflight below is authoritative. It checks every expected chunk filename, r
 
 If more than half the expected chunks are missing or invalid, the command exits with an error. **Stop the pipeline immediately in that case** — do not run Step B3.5, write semantic cache entries, or continue to Part C. If half or fewer failed, continue using only the valid chunk files; files belonging to failed chunks remain uncached and will be retried by the next `--update`.
 
-If same-run retry is supported and appropriate, re-dispatch the affected chunk with the host's writable worker. Re-run with @@WRITER_AGENT@@. Ensure @@WRITER_AGENT_ARG@@ is used. Otherwise retain the failed source files for the next `--update`; never convert a failed chunk into an empty success.
+If same-run retry is supported and appropriate, re-dispatch the affected chunk with the host's writable worker. Re-run with general-purpose agent. Ensure `subagent_type="general-purpose"` is used. Otherwise retain the failed source files for the next `--update`; never convert a failed chunk into an empty success.
 
-```bash
-$(cat graphify-out/.graphify_python) -c "
+```powershell
+@'
 import json
 import os
 import stat
@@ -480,23 +462,23 @@ if failed:
     print(f'Continuing with {len(valid)} valid chunk(s); failed source files remain uncached for --update retry.')
 else:
     print(f'Chunk preflight OK: {len(valid)} of {EXPECTED_CHUNKS} expected chunk(s) are valid.')
-"
+'@ | & (Get-Content graphify-out\.graphify_python) -
 ```
 **Step B3.5 - Verify each reported file was actually read to its end**
 
 A subagent that only read the first Read call's worth of a long file still writes a well-formed chunk, so "chunk file exists and parses" is not evidence of coverage. Compare each file's self-reported `coverage` against its real length:
 
-```bash
-$(cat graphify-out/.graphify_python) -c "
+```powershell
+@'
 import json, glob
 from pathlib import Path
 
-root = Path(Path('graphify-out/.graphify_root').read_text(encoding=\"utf-8-sig\").strip()).resolve()
+root = Path(Path('graphify-out/.graphify_root').read_text(encoding="utf-8-sig").strip()).resolve()
 out = Path('graphify-out').resolve(strict=True)
 manifest_path = out / '.graphify_chunk_manifest.json'
 if manifest_path.is_symlink() or not manifest_path.is_file():
     raise SystemExit('Missing or unsafe chunk manifest; refusing to certify coverage')
-manifest = json.loads(manifest_path.read_text(encoding=\"utf-8\"))
+manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
 if not isinstance(manifest, dict):
     raise SystemExit('Chunk manifest must be a JSON object')
 chunks = sorted(
@@ -525,7 +507,7 @@ for key, sources in manifest.items():
         continue
     if chunk_path.is_symlink() or not chunk_path.is_file():
         raise SystemExit(f'Unsafe chunk file: {chunk_path.name}')
-    data = json.loads(chunk_path.read_text(encoding=\"utf-8\"))
+    data = json.loads(chunk_path.read_text(encoding="utf-8"))
     coverage = data.get('coverage')
     if not isinstance(coverage, dict) or set(coverage) != set(sources):
         missing = sorted(set(sources) - set(coverage or {})) if isinstance(coverage, dict) else list(sources)
@@ -555,7 +537,7 @@ for key, sources in manifest.items():
         if n < total:
             partial.append((src, n, total, 'incomplete read'))
 
-Path('graphify-out/.graphify_partial.txt').write_text('\n'.join(src for src, _, _, _ in partial), encoding=\"utf-8\")
+Path('graphify-out/.graphify_partial.txt').write_text('\n'.join(src for src, _, _, _ in partial), encoding="utf-8")
 if partial:
     print(f'WARNING: {len(partial)} file(s) are partial or lack exact coverage and will be retried on the next --update:')
     for src, n, total, reason in partial:
@@ -563,13 +545,13 @@ if partial:
         print(f'  {src}: {reason}{suffix}')
 else:
     print('Coverage OK - every assigned file was reported and read to its last line')
-"
+'@ | & (Get-Content graphify-out\.graphify_python) -
 
 ```
 
 Tell the user which files came up short and what was lost (the line counts are printed above). The nodes already extracted for those files are kept - they are still true - but the file is cached as partial and left unstamped in the manifest below, so the next `--update` re-dispatches it and replace-on-re-extract swaps the partial node set for a complete one. This is the same mechanism the library path uses for a truncated LLM response (#933, #1950), so both paths now recover instead of silently keeping a half-read file forever. A file a subagent did not report at all is not counted as partial - there is nothing to compare against - which is why the prompt rule in `references/extraction-spec.md` asks for the count in the first place.
 
-Merge all chunk files into `.graphify_semantic_new.json`. **After each Agent call completes, read the real token counts from the Agent tool result's `usage` field and write them back into the chunk JSON before merging** — the chunk JSON itself always has placeholder zeros. Then run:
+Merge all valid chunk files into `.graphify_semantic_new.json`. If the host exposes per-worker token usage metadata, copy the actual counts into that worker's chunk file before merging. Otherwise preserve the validated `input_tokens` and `output_tokens` values returned in the chunk JSON; never invent usage numbers. Then run:
 ```powershell
 @'
 import json, glob

@@ -1479,6 +1479,7 @@ def _is_single_session_first_fix_line(line: str) -> bool:
         "**Inline path:**",
         "**Delegated path:**",
         "Semantic extraction: N files (sequential — Aider)",
+        "Semantic extraction: N files (single-session sequential — Aider)",
         "Dispatch ALL subagents in the same response so they run in parallel.",
         "On the delegated path, dispatch all approved independent subagents",
         "Wait for all subagents. For each result:",

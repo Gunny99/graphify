@@ -527,7 +527,8 @@ def test_single_session_first_policy_is_rendered_for_every_host():
     artifacts = gen.render_all(platforms)
     skills = [
         artifact for artifact in artifacts
-        if artifact.path.startswith("graphify/skill") and artifact.path.endswith(".md")
+        if artifact.path == "graphify/skill.md"
+        or (artifact.path.startswith("graphify/skill-") and artifact.path.endswith(".md"))
     ]
     assert skills
     for artifact in skills:
@@ -540,7 +541,7 @@ def test_single_session_first_policy_is_rendered_for_every_host():
         assert "Run Part A (AST) and Part B (semantic) in parallel." not in body, artifact.path
 
     aider = next(a.content for a in skills if a.path == "graphify/skill-aider.md")
-    assert "sequential extraction (Aider)" in aider
+    assert "Semantic extraction: N files (single-session sequential — Aider)" in aider
     assert "Process each file one at a time" in aider
 
 
@@ -593,13 +594,13 @@ def test_pi_never_names_the_claude_general_purpose_agent():
     pi, _ = _platform_artifacts("pi")
     assert "general-purpose" not in pi
     assert "Re-run with the `delegate` agent." in pi
-    assert "ensure the `delegate` agent is used." in pi
+    assert "Ensure the `delegate` agent is used." in pi
     claude, _ = _platform_artifacts("claude")
     assert "Re-run with general-purpose agent." in claude
-    assert 'ensure `subagent_type="general-purpose"` is used.' in claude
+    assert 'Ensure `subagent_type="general-purpose"` is used.' in claude
     codex, _ = _platform_artifacts("codex")
     assert "Re-run with the Codex `worker` agent." in codex
-    assert 'ensure `agent_type="worker"` is used.' in codex
+    assert 'Ensure `agent_type="worker"` is used.' in codex
 
 
 def test_compact_extraction_hosts_use_the_compact_spec():
@@ -1339,7 +1340,7 @@ def test_core_bounds_semantic_chunks_by_lines_as_well_as_file_count():
     assert "2000 lines gets a chunk to itself" in b1, (
         "a file past the Read cap must be dispatched alone"
     )
-    assert "replace `EXPECTED_CHUNKS` with that exact integer" in b1
+    assert "replace `EXPECTED_CHUNKS` with the exact integer" in b1
 
 
 def test_coverage_check_flags_a_partly_read_file_and_clears_a_complete_one(
@@ -1496,7 +1497,7 @@ def test_chunk_dispatch_paths_use_two_digit_chunk_numbers():
         assert ".graphify_chunk_0N.json" not in body
 
     powershell = gen._read_fragment("dispatch/agent-tool-disk-powershell.md")
-    assert '"{0:D2}" -f $CHUNK_NUM' in powershell
+    assert '".graphify_chunk_{0:D2}.json" -f $CHUNK_NUM' in powershell
     assert ".graphify_chunk_0N.json" not in powershell
 
 

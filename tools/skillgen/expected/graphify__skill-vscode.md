@@ -177,7 +177,7 @@ Print it once, then continue — do not wait for the user to supply a key. If `G
 
 > **No other API keys are read.** When `GEMINI_API_KEY`/`GOOGLE_API_KEY` are unset, semantic extraction falls to the host agent itself — the running session is the LLM. On a host that dispatches subagents (e.g. Claude Code), dispatch them as written in Part B. On a host that runs the CLI directly in a terminal and cannot dispatch subagents, do not stall: a code-only corpus has no semantic work, so write the empty semantic file (Part B "Fast path") and continue to Part C; for a corpus with docs/papers/images, either set a Gemini key or extract those inline yourself, but in no case prompt for `ANTHROPIC_API_KEY` — that prompt is a misread of this skill.
 
-Run structural extraction and semantic extraction as separate stages in this skill. Start them concurrently only when the host genuinely supports independent execution and the measured time/cost benefit justifies it. Otherwise keep the work in the main session and run the stages sequentially. Do not create a team of planner, developer, tester, and reviewer roles for one extraction task.
+Run structural extraction and semantic extraction as separate stages in this skill. Start them concurrently only when the host genuinely supports independent execution and the measured time/cost benefit justifies it. Otherwise keep the work in the main session and run the stages sequentially. Do not create a planner/developer/tester/reviewer team for one extraction task.
 
 #### Part A - Structural extraction for code files
 
@@ -309,13 +309,20 @@ Use the decision above. On the inline path, the main session writes all numbered
 > extraction is driven by hand. Dispatch a subagent per chunk however the host
 > allows (a fresh conversation, a parallel pane), then paste each response back.
 
-For each chunk of uncached files (20-25 per chunk), give a subagent the extraction prompt below. When it returns, paste its JSON response and write it to that chunk's file so Step B3 can collect it:
+For each chunk of uncached files (20-25 per chunk), resolve a unique absolute output path before dispatching. CHUNK_PATH must be an **absolute** path.
+
+```bash
+PROJECT_ROOT=$(pwd)  # cwd — where Step B3 runs
+# Set CHUNK_NUM to the integer assigned in Step B1 (1, 2, ...).
+CHUNK_NUM=1  # replace with the actual chunk number
+CHUNK_PATH="${PROJECT_ROOT}/graphify-out/.graphify_chunk_$(printf '%02d' "$CHUNK_NUM").json"
+```
+
+Give the subagent the extraction prompt below with FILE_LIST, CHUNK_NUM, TOTAL_CHUNKS, DEEP_MODE, and that chunk's CHUNK_PATH substituted. When it returns, paste its JSON response and write it to the same chunk file so Step B3 can collect it:
 
 ```bash
 # After pasting a subagent's JSON for chunk N, save it (replace N and PASTED_JSON):
 PROJECT_ROOT=$(pwd)  # cwd — where Part C globs graphify-out/ (NOT .graphify_root/scan dir, #1392)
-CHUNK_NUM=1  # replace with the actual chunk number
-CHUNK_PATH="${PROJECT_ROOT}/graphify-out/.graphify_chunk_$(printf '%02d' "$CHUNK_NUM").json"
 cat > "${CHUNK_PATH}" <<'CHUNK_JSON'
 PASTED_JSON
 CHUNK_JSON
@@ -325,7 +332,7 @@ Repeat for every chunk. Each chunk's JSON must land in its own `graphify-out/.gr
 
 Subagent prompt template:
 
-See `references/extraction-spec.md` for the exact subagent prompt (JSON schema, node-ID rules, confidence rubric, hyperedge, and vision rules). Load it only here, only when at least one chunk holds a doc, paper, or image; a pure-code corpus has skipped Part B and never reads it. Pass each subagent that prompt verbatim with FILE_LIST, CHUNK_NUM, TOTAL_CHUNKS, and DEEP_MODE substituted, and write its response to that chunk's file.
+See `references/extraction-spec.md` for the exact subagent prompt (JSON schema, node-ID rules, confidence rubric, hyperedge, and vision rules). Load it only here, only when at least one chunk holds a doc, paper, or image; a pure-code corpus has skipped Part B and never reads it. Pass each subagent that prompt verbatim with FILE_LIST, CHUNK_NUM, TOTAL_CHUNKS, DEEP_MODE, and its own absolute CHUNK_PATH substituted. If the subagent cannot write to the shared workspace, paste its returned JSON into CHUNK_PATH as shown above.
 
 **Step B3 - Collect, cache, and merge**
 
@@ -335,7 +342,7 @@ The preflight below is authoritative. It checks every expected chunk filename, r
 
 If more than half the expected chunks are missing or invalid, the command exits with an error. **Stop the pipeline immediately in that case** — do not run Step B3.5, write semantic cache entries, or continue to Part C. If half or fewer failed, continue using only the valid chunk files; files belonging to failed chunks remain uncached and will be retried by the next `--update`.
 
-If same-run retry is supported and appropriate, re-dispatch the affected chunk with the host's writable worker. Re-run with @@WRITER_AGENT@@. Ensure @@WRITER_AGENT_ARG@@ is used. Otherwise retain the failed source files for the next `--update`; never convert a failed chunk into an empty success.
+If same-run retry is supported and appropriate, re-dispatch the affected chunk with the host's writable worker. Re-run with a manually dispatched worker. Ensure the worker's chunk-specific absolute `CHUNK_PATH` is used. Otherwise retain the failed source files for the next `--update`; never convert a failed chunk into an empty success.
 
 ```bash
 $(cat graphify-out/.graphify_python) -c "
@@ -518,7 +525,7 @@ else:
 
 Tell the user which files came up short and what was lost (the line counts are printed above). The nodes already extracted for those files are kept - they are still true - but the file is cached as partial and left unstamped in the manifest below, so the next `--update` re-dispatches it and replace-on-re-extract swaps the partial node set for a complete one. This is the same mechanism the library path uses for a truncated LLM response (#933, #1950), so both paths now recover instead of silently keeping a half-read file forever. A file a subagent did not report at all is not counted as partial - there is nothing to compare against - which is why the prompt rule in `references/extraction-spec.md` asks for the count in the first place.
 
-Merge all chunk files into `.graphify_semantic_new.json`. **After each Agent call completes, read the real token counts from the Agent tool result's `usage` field and write them back into the chunk JSON before merging** — the chunk JSON itself always has placeholder zeros. Then run:
+Merge all valid chunk files into `.graphify_semantic_new.json`. If the host exposes per-worker token usage metadata, copy the actual counts into that worker's chunk file before merging. Otherwise preserve the validated `input_tokens` and `output_tokens` values returned in the chunk JSON; never invent usage numbers. Then run:
 ```bash
 $(cat graphify-out/.graphify_python) -c "
 import json, glob
