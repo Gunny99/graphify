@@ -2306,3 +2306,67 @@ def test_shared_dispatcher_passes_timeouts_to_adaptive_policy(monkeypatch):
 
     assert calls == [1]
     assert llm._looks_like_timeout(raised.value)
+
+
+def test_ollama_graph_requests_keep_no_retry_default(monkeypatch):
+    calls = []
+
+    class _Adapter:
+        def call(self, request, context):
+            calls.append(request.response_format)
+            raise llm.RateLimited("Ollama request throttled")
+
+    monkeypatch.setitem(llm._BACKEND_ADAPTERS, "ollama", _Adapter())
+    monkeypatch.delenv("GRAPHIFY_MAX_RETRIES", raising=False)
+
+    with pytest.raises(llm.RateLimited):
+        llm._invoke_backend_request(
+            llm.LLMRequest(
+                user_message="source", max_tokens=100, response_format="graph_json"
+            ),
+            llm.BackendContext(backend="ollama", api_key="ollama", model="qwen"),
+        )
+
+    assert calls == ["graph_json"]
+
+
+def test_ollama_text_requests_use_explicit_shared_retries(monkeypatch):
+    calls = []
+
+    class _Adapter:
+        def call(self, request, context):
+            calls.append(request.response_format)
+            if len(calls) == 1:
+                raise llm.RateLimited("Ollama rate limit")
+            return llm.LLMResult(text="ok", model=context.model)
+
+    monkeypatch.setitem(llm._BACKEND_ADAPTERS, "ollama", _Adapter())
+    monkeypatch.setattr(llm.time, "sleep", lambda _seconds: None)
+    monkeypatch.setenv("GRAPHIFY_MAX_RETRIES", "1")
+
+    result = llm._invoke_backend_request(
+        llm.LLMRequest(user_message="label", max_tokens=100, response_format="text"),
+        llm.BackendContext(backend="ollama", api_key="ollama", model="qwen"),
+    )
+
+    assert result.text == "ok"
+    assert calls == ["text", "text"]
+
+
+def test_openai_adapter_preserves_nonstandard_finish_reason(monkeypatch):
+    fake_resp = _fake_openai_response(
+        '{"nodes":[{"id":"a"}],"edges":[],"hyperedges":[]}',
+        finish_reason="content_filter",
+        completion_tokens=20,
+    )
+    _install_fake_openai(monkeypatch, fake_resp)
+
+    result = llm._call_openai_compat(
+        "https://api.openai.com/v1",
+        "sk-test",
+        "model",
+        "source",
+        backend="openai",
+    )
+
+    assert result["finish_reason"] == "content_filter"
