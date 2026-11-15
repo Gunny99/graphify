@@ -2170,7 +2170,12 @@ def test_shared_dispatcher_retries_transient_server_errors(monkeypatch):
     sleeps = []
 
     class ServiceUnavailable(Exception):
-        status_code = 503
+        def __init__(self, message):
+            super().__init__(message)
+            self.status_code = 503
+            self.response = SimpleNamespace(headers={"Retry-After": "0.5"})
+
+    from types import SimpleNamespace
 
     class _Adapter:
         def call(self, request, context):
@@ -2190,7 +2195,7 @@ def test_shared_dispatcher_retries_transient_server_errors(monkeypatch):
 
     assert result.text == "recovered"
     assert calls == [1, 1]
-    assert sleeps == [1]
+    assert sleeps == [0.5]
 
 
 def test_shared_dispatcher_does_not_retry_authentication_failures(monkeypatch):
