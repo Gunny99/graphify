@@ -140,6 +140,7 @@ def test_mcp_exposes_authenticated_timeline_record_and_query(tmp_path, monkeypat
             "run_id": "mcp-timeline-run",
             "event_type": "span_completed",
             "limit": 10,
+            "include_payload": True,
             "coordinator_token": "test-coordinator-token",
         },
     ))
