@@ -12,7 +12,8 @@ import re
 import subprocess
 import sys
 import time
-from collections.abc import Callable, Iterator
+from collections.abc import Callable, Iterator, Mapping
+from typing import Protocol
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, replace
 from pathlib import Path
@@ -922,6 +923,52 @@ class _ImageRef:
         return self.media_type.split("/", 1)[-1]
 
 
+
+@dataclass(frozen=True)
+class LLMRequest:
+    """Provider-neutral description of one model invocation."""
+
+    user_message: str
+    max_tokens: int
+    system_prompt: str | None = None
+    deep_mode: bool = False
+    images: tuple[_ImageRef, ...] = ()
+    response_format: str = "text"
+    temperature: float | None = None
+    reasoning_effort: str | None = None
+    extra_body: Mapping[str, object] | None = None
+    extra_headers: Mapping[str, str] | None = None
+
+
+@dataclass(frozen=True)
+class LLMResult:
+    """Normalized provider response."""
+
+    text: str
+    input_tokens: int = 0
+    output_tokens: int = 0
+    model: str = ""
+    stop_reason: str = "stop"
+
+
+@dataclass(frozen=True)
+class BackendContext:
+    """Resolved provider identity and credentials for one invocation."""
+
+    backend: str
+    api_key: str
+    model: str
+    base_url: str | None = None
+    endpoint: str | None = None
+    model_override: str | None = None
+
+
+class BackendAdapter(Protocol):
+    """Transport interface shared by graph extraction and text callers."""
+
+    def call(self, request: LLMRequest, context: BackendContext) -> LLMResult: ...
+
+
 def _is_vision_image(path: Path) -> bool:
     return path.suffix.lower() in _VISION_IMAGE_EXTENSIONS
 
@@ -1574,129 +1621,378 @@ def _call_ollama_native(
     )
 
 
-def _call_openai_compat(
-    base_url: str,
-    api_key: str,
-    model: str,
-    user_message: str,
-    temperature: float | None = 0,
-    reasoning_effort: str | None = None,
-    max_completion_tokens: int = 8192,
-    *,
-    backend: str = "",
-    deep_mode: bool = False,
-    images: list[_ImageRef] | None = None,
-    extra_body: dict | None = None,
-    extra_headers: dict[str, str] | None = None,
-) -> dict:
-    """Call any OpenAI-compatible API (Kimi, OpenAI, etc.) and return parsed JSON."""
-    ollama_seed = _resolve_ollama_seed() if backend == "ollama" else None
-    try:
-        from openai import OpenAI
-    except ImportError as exc:
-        extra = backend if backend in ("kimi", "gemini", "openai", "ollama") else "openai"
-        raise ImportError(_backend_pkg_hint("openai", extra)) from exc
 
-    # Local backends (ollama, llama.cpp, vLLM) routinely take >60s for a
-    # single chunk on a large model — far longer than the openai SDK's
-    # default. Honour GRAPHIFY_API_TIMEOUT (seconds) for explicit override;
-    # default to 600s, which is long enough for a 31B model on a 16k chunk
-    # but still bounds runaway connections (issue #792 addendum).
-    # The SDK's transient-error retries (default 6) exist for cloud rate limits
-    # (429). A local Ollama server does not rate-limit, and if it wedges it will
-    # not recover by retrying, so 6 retries turn a 180s --api-timeout into a
-    # ~21min block (7 attempts x 180s) with no progress (#1686). Default ollama
-    # to 0 SDK retries so --api-timeout is the hard wall-clock bound and a hung
-    # request fails fast into the chunk-level retry/skip. An explicit
-    # GRAPHIFY_MAX_RETRIES still wins for users who want it.
-    _retries = _resolve_max_retries()
-    if backend == "ollama" and not os.environ.get("GRAPHIFY_MAX_RETRIES", "").strip():
-        _retries = 0
-    client = OpenAI(api_key=api_key, base_url=base_url, timeout=_resolve_api_timeout(),
-                    max_retries=_retries,
-                    **({"default_headers": extra_headers} if extra_headers else {}))
-    kwargs: dict = {
-        "model": model,
-        "messages": [
-            {"role": "system", "content": _extraction_system(deep=deep_mode)},
-            {"role": "user", "content": _openai_content(user_message, images or [])},
-        ],
-        **_openai_max_tokens_kwarg(backend, max_completion_tokens),
-        "stream": False,
-    }
-    if temperature is not None:
-        kwargs["temperature"] = temperature
-    if reasoning_effort is not None:
-        kwargs["reasoning_effort"] = reasoning_effort
-    if ollama_seed is not None:
-        kwargs["seed"] = ollama_seed
-    # A custom provider in providers.json can pass its own extra_body (e.g.
-    # `chat_template_kwargs.enable_thinking=false` for self-hosted Qwen3 served
-    # by vLLM). When supplied, it wins over the moonshot default — the user has
-    # explicitly chosen the request shape for their endpoint.
-    if extra_body is not None:
-        kwargs["extra_body"] = extra_body
-    # Kimi-k2.6 is a reasoning model — disable thinking so content isn't empty
-    elif "moonshot" in base_url:
-        kwargs["extra_body"] = {"thinking": {"type": "disabled"}}
-    # Opt-in only: disable thinking for reasoning models like deepseek-v4-flash
-    # (#1621). Not a default — see _thinking_disabled_via_env for the tradeoff.
-    elif _thinking_disabled_via_env():
-        kwargs["extra_body"] = {"thinking": {"type": "disabled"}}
-    # The ollama num_ctx auto-derive is a default. A custom provider that
-    # explicitly sets extra_body has opted out — respect their request shape.
-    if backend == "ollama" and extra_body is None:
-        # Merge, don't assign: GRAPHIFY_DISABLE_THINKING may have set extra_body
-        # above, and replacing it here made the flag silently inert on ollama (#3988).
-        kwargs["extra_body"] = {
-            **kwargs.get("extra_body", {}),
-            **_ollama_request_extras(user_message, max_completion_tokens,
-                                     kwargs["messages"][0]["content"]),
-        }
-    native = None
-    if backend == "ollama" and extra_body is None:
-        native = _call_ollama_native(client, base_url, kwargs, user_message, images or [])
-    if native is not None:
-        raw_content, input_tokens, output_tokens, finish_reason = native
-    else:
-        resp = client.chat.completions.create(**kwargs)
-        if not resp.choices or resp.choices[0].message is None:
-            raise ValueError("LLM returned empty or filtered response")
-        raw_content = resp.choices[0].message.content
-        # Some OpenAI-compatible gateways report null token counts (#4325) — coerce
-        # to 0 so the ollama low-token warning and the per-chunk merge below don't
-        # crash comparing/adding None.
-        input_tokens = (resp.usage.prompt_tokens or 0) if resp.usage else 0
-        output_tokens = (resp.usage.completion_tokens or 0) if resp.usage else 0
-        finish_reason = resp.choices[0].finish_reason
-    result = _parse_llm_json(raw_content or "{}")
-    result["input_tokens"] = input_tokens
-    result["output_tokens"] = output_tokens
-    result["model"] = model
-    # `finish_reason == "length"` means the model hit max_completion_tokens
-    # mid-generation. The JSON we got back is truncated; callers should
-    # treat this as a signal to retry with smaller input.
-    result["finish_reason"] = finish_reason
-    # An overwhelmed local model (typically Ollama) can return HTTP 200 with
-    # empty / null content or unparseable half-generated JSON. The call looks
-    # successful, `finish_reason` is `"stop"`, and the chunk would be silently
-    # dropped from the corpus. Label it hollow so the adaptive retry layer
-    # retries the same chunk — see _mark_hollow for why not bisection.
-    _mark_hollow(result, raw_content, backend)
-    output_tokens = result["output_tokens"]
-    if output_tokens < 50 and backend == "ollama":
-        print(
-            "[graphify] warning: ollama returned very few tokens — likely causes: "
-            "(1) VRAM pressure: check `nvidia-smi` and reduce chunk size with "
-            "--token-budget (e.g. --token-budget 4096) or set "
-            "GRAPHIFY_OLLAMA_NUM_CTX to a smaller value; "
-            "(2) model too small for JSON instruction following — "
-            "try a larger model with --model (e.g. --model qwen2.5-coder:14b).",
-            file=sys.stderr,
+class _OpenAICompatibleAdapter:
+    def call(self, request: LLMRequest, context: BackendContext) -> LLMResult:
+        try:
+            from openai import OpenAI
+        except ImportError as exc:
+            extra = context.backend if context.backend in ("kimi", "gemini", "openai", "ollama") else "openai"
+            raise ImportError(_backend_pkg_hint("openai", extra)) from exc
+
+        backend = context.backend
+        if not context.base_url:
+            raise ValueError(f"OpenAI-compatible backend {backend!r} has no base_url")
+        retries = _resolve_max_retries()
+        if backend == "ollama" and not os.environ.get("GRAPHIFY_MAX_RETRIES", "").strip():
+            retries = 0
+        client = OpenAI(
+            api_key=context.api_key,
+            base_url=context.base_url,
+            timeout=_resolve_api_timeout(),
+            max_retries=retries,
+            **({"default_headers": dict(request.extra_headers)} if request.extra_headers else {}),
         )
+        messages: list[dict] = []
+        if request.system_prompt is not None:
+            messages.append({"role": "system", "content": request.system_prompt})
+        messages.append({
+            "role": "user",
+            "content": _openai_content(request.user_message, list(request.images)),
+        })
+        kwargs: dict = {
+            "model": context.model,
+            "messages": messages,
+            **_openai_max_tokens_kwarg(backend, request.max_tokens),
+            "stream": False,
+        }
+        if request.temperature is not None:
+            kwargs["temperature"] = request.temperature
+        if request.reasoning_effort is not None:
+            kwargs["reasoning_effort"] = request.reasoning_effort
+        if backend == "ollama":
+            seed = _resolve_ollama_seed()
+            if seed is not None:
+                kwargs["seed"] = seed
+        if request.extra_body is not None:
+            kwargs["extra_body"] = dict(request.extra_body)
+        elif "moonshot" in context.base_url:
+            kwargs["extra_body"] = {"thinking": {"type": "disabled"}}
+        elif _thinking_disabled_via_env():
+            kwargs["extra_body"] = {"thinking": {"type": "disabled"}}
+
+        if backend == "ollama" and request.extra_body is None:
+            kwargs["extra_body"] = {
+                **kwargs.get("extra_body", {}),
+                **_ollama_request_extras(
+                    request.user_message,
+                    request.max_tokens,
+                    request.system_prompt or "",
+                ),
+            }
+        native = None
+        if backend == "ollama" and request.extra_body is None:
+            native = _call_ollama_native(
+                client, context.base_url, kwargs, request.user_message, list(request.images)
+            )
+        if native is not None:
+            raw_text, input_tokens, output_tokens, finish_reason = native
+        else:
+            response = client.chat.completions.create(**kwargs)
+            if not response.choices or response.choices[0].message is None:
+                raise ValueError("LLM returned empty or filtered response")
+            raw_text = response.choices[0].message.content
+            usage = response.usage
+            input_tokens = (usage.prompt_tokens or 0) if usage else 0
+            output_tokens = (usage.completion_tokens or 0) if usage else 0
+            finish_reason = response.choices[0].finish_reason
+        return LLMResult(
+            text=raw_text or "",
+            input_tokens=int(input_tokens or 0),
+            output_tokens=int(output_tokens or 0),
+            model=context.model,
+            stop_reason="length" if finish_reason == "length" else "stop",
+        )
+
+
+class _AnthropicAdapter:
+    def call(self, request: LLMRequest, context: BackendContext) -> LLMResult:
+        try:
+            import anthropic
+        except ImportError as exc:
+            raise ImportError(_backend_pkg_hint("anthropic", "anthropic")) from exc
+        client = anthropic.Anthropic(
+            api_key=context.api_key,
+            base_url=context.base_url,
+            timeout=_resolve_api_timeout(),
+            max_retries=_resolve_max_retries(),
+        )
+        kwargs: dict = {
+            "model": context.model,
+            "max_tokens": request.max_tokens,
+            "messages": [{
+                "role": "user",
+                "content": _anthropic_content(request.user_message, list(request.images)),
+            }],
+        }
+        if request.system_prompt is not None:
+            if _claude_prompt_cache_enabled():
+                kwargs["system"] = [{
+                    "type": "text",
+                    "text": request.system_prompt,
+                    "cache_control": {"type": "ephemeral"},
+                }]
+            else:
+                kwargs["system"] = request.system_prompt
+        response = client.messages.create(**kwargs)
+        raw_text = _anthropic_response_text(response.content, default="") or ""
+        usage = response.usage
+        input_tokens = (
+            (usage.input_tokens or 0)
+            + (getattr(usage, "cache_read_input_tokens", 0) or 0)
+            + (getattr(usage, "cache_creation_input_tokens", 0) or 0)
+        ) if usage else 0
+        output_tokens = (usage.output_tokens or 0) if usage else 0
+        return LLMResult(
+            text=raw_text,
+            input_tokens=int(input_tokens or 0),
+            output_tokens=int(output_tokens or 0),
+            model=context.model,
+            stop_reason="length" if response.stop_reason == "max_tokens" else "stop",
+        )
+
+
+class _ClaudeCLIAdapter:
+    def call(self, request: LLMRequest, context: BackendContext) -> LLMResult:
+        import platform
+        import shutil
+        import subprocess
+
+        claude_cmd = "claude"
+        if platform.system() == "Windows":
+            cmd_path = shutil.which("claude.cmd")
+            if cmd_path:
+                claude_cmd = cmd_path
+            elif shutil.which("claude") is None:
+                raise RuntimeError(
+                    "Claude Code CLI not found on $PATH. Install from "
+                    "https://claude.ai/code and run claude once to authenticate."
+                )
+        elif shutil.which("claude") is None:
+            raise RuntimeError(
+                "Claude Code CLI not found on $PATH. Install from "
+                "https://claude.ai/code and run claude once to authenticate."
+            )
+
+        user_message = request.user_message
+        add_dir_args: list[str] = []
+        if request.images:
+            user_message = _with_image_notes(user_message, list(request.images), with_paths=True)
+            seen_dirs: set[str] = set()
+            for image in request.images:
+                directory = str(image.path.parent)
+                if directory not in seen_dirs:
+                    seen_dirs.add(directory)
+                    add_dir_args.extend(["--add-dir", directory])
+
+        if request.response_format == "graph_json":
+            system_prompt = request.system_prompt or _extraction_system(deep=request.deep_mode)
+            combined_message = (
+                system_prompt
+                + "\n\n---\n"
+                + "Now extract the knowledge graph from the following source file(s) "
+                + "and output ONLY the JSON object described above. No prose, no "
+                + "preamble, no markdown fences.\n\n"
+                + user_message
+            )
+        elif request.system_prompt is not None:
+            combined_message = request.system_prompt + "\n\n---\n" + user_message
+        else:
+            combined_message = user_message
+
+        cli_args = [
+            claude_cmd, "-p", "--output-format", "json", "--no-session-persistence",
+            *add_dir_args,
+        ]
+        cli_model = (
+            context.model_override
+            if context.model_override is not None
+            else os.environ.get("GRAPHIFY_CLAUDE_CLI_MODEL", "").strip()
+        )
+        if cli_model:
+            cli_args.extend(["--model", cli_model])
+        if request.response_format == "graph_json" and _claude_cli_supports_json_schema(claude_cmd):
+            cli_args.extend(["--json-schema", _EXTRACTION_JSON_SCHEMA])
+
+        proc = subprocess.run(
+            cli_args,
+            input=combined_message,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=_resolve_api_timeout(),
+            check=False,
+            **_no_window_kwargs(),
+        )
+        cli_error = _claude_cli_error(proc.stdout)
+        if proc.returncode != 0:
+            detail = proc.stderr.strip() or cli_error or "(no stderr, no error envelope)"
+            raise RuntimeError(f"claude -p exited {proc.returncode}: {detail[:500]}")
+        if cli_error:
+            raise RuntimeError(f"claude -p reported an error: {cli_error[:500]}")
+        envelope = _claude_cli_envelope(proc.stdout)
+        structured = envelope.get("structured_output")
+        if request.response_format == "graph_json" and isinstance(structured, dict):
+            raw_text = json.dumps(structured)
+        else:
+            raw_text = envelope.get("result", "")
+        usage = envelope.get("usage") or {}
+        input_tokens = (
+            int(usage.get("input_tokens", 0) or 0)
+            + int(usage.get("cache_read_input_tokens", 0) or 0)
+            + int(usage.get("cache_creation_input_tokens", 0) or 0)
+        )
+        output_tokens = int(usage.get("output_tokens", 0) or 0)
+        model_usage = envelope.get("modelUsage") or {}
+        used_model = next(iter(model_usage), context.model)
+        return LLMResult(
+            text=raw_text or "",
+            input_tokens=input_tokens,
+            output_tokens=output_tokens,
+            model=used_model,
+            stop_reason="length" if envelope.get("stop_reason") == "max_tokens" else "stop",
+        )
+
+
+class _AzureAdapter:
+    def call(self, request: LLMRequest, context: BackendContext) -> LLMResult:
+        if not context.endpoint:
+            raise ValueError(
+                "Azure OpenAI backend requires AZURE_OPENAI_ENDPOINT to be set "
+                "(e.g. https://my-resource.openai.azure.com/)."
+            )
+        client = _azure_client(context.api_key, context.endpoint)
+        messages: list[dict] = []
+        if request.system_prompt is not None:
+            messages.append({"role": "system", "content": request.system_prompt})
+        messages.append({"role": "user", "content": request.user_message})
+        kwargs: dict = {
+            "model": context.model,
+            "messages": messages,
+            "max_completion_tokens": request.max_tokens,
+        }
+        if request.temperature is not None:
+            kwargs["temperature"] = request.temperature
+        response = client.chat.completions.create(**kwargs)
+        if not response.choices or response.choices[0].message is None:
+            raise ValueError("Azure OpenAI returned empty or filtered response")
+        usage = response.usage
+        return LLMResult(
+            text=response.choices[0].message.content or "",
+            input_tokens=int((usage.prompt_tokens or 0) if usage else 0),
+            output_tokens=int((usage.completion_tokens or 0) if usage else 0),
+            model=context.model,
+            stop_reason="length" if response.choices[0].finish_reason == "length" else "stop",
+        )
+
+
+class _BedrockAdapter:
+    def call(self, request: LLMRequest, context: BackendContext) -> LLMResult:
+        try:
+            import boto3
+            import botocore.config
+            import botocore.exceptions
+        except ImportError as exc:
+            raise ImportError(
+                "AWS Bedrock extraction requires boto3. Run: pip install graphifyy[bedrock]"
+            ) from exc
+        region = os.environ.get("AWS_REGION") or os.environ.get("AWS_DEFAULT_REGION") or "us-east-1"
+        profile = os.environ.get("AWS_PROFILE")
+        session = boto3.Session(profile_name=profile, region_name=region)
+        client = session.client(
+            "bedrock-runtime",
+            config=botocore.config.Config(
+                read_timeout=_resolve_api_timeout(),
+                connect_timeout=10,
+                retries={"max_attempts": _resolve_max_retries() + 1, "mode": "adaptive"},
+            ),
+        )
+        kwargs: dict = {
+            "modelId": context.model,
+            "messages": [{
+                "role": "user",
+                "content": _bedrock_content(request.user_message, list(request.images)),
+            }],
+            "inferenceConfig": _bedrock_inference_config(request.max_tokens, context.model),
+        }
+        if request.system_prompt is not None:
+            kwargs["system"] = [{"text": request.system_prompt}]
+        try:
+            response = client.converse(**kwargs)
+        except botocore.exceptions.ClientError as exc:
+            code = exc.response["Error"]["Code"]
+            message = exc.response["Error"]["Message"]
+            raise RuntimeError(f"Bedrock API error ({code}): {message}") from exc
+        fallback = "{}" if request.response_format == "graph_json" else ""
+        raw_text = _bedrock_response_text(response, default=fallback)
+        usage = response.get("usage", {})
+        return LLMResult(
+            text=raw_text or "",
+            input_tokens=int(usage.get("inputTokens", 0) or 0),
+            output_tokens=int(usage.get("outputTokens", 0) or 0),
+            model=context.model,
+            stop_reason="length" if response.get("stopReason") == "max_tokens" else "stop",
+        )
+
+
+_OPENAI_COMPAT_ADAPTER = _OpenAICompatibleAdapter()
+_BACKEND_ADAPTERS: dict[str, BackendAdapter] = {
+    "claude": _AnthropicAdapter(),
+    "claude-cli": _ClaudeCLIAdapter(),
+    "azure": _AzureAdapter(),
+    "bedrock": _BedrockAdapter(),
+}
+
+
+def _invoke_backend_request(request: LLMRequest, context: BackendContext) -> LLMResult:
+    """Dispatch one call and enforce the normalized adapter result."""
+    adapter = _BACKEND_ADAPTERS.get(context.backend, _OPENAI_COMPAT_ADAPTER)
+    result = adapter.call(request, context)
+    if not isinstance(result, LLMResult):
+        raise TypeError(f"backend adapter returned {type(result).__name__}, expected LLMResult")
+    if not isinstance(result.text, str):
+        raise TypeError("backend adapter returned non-text response content")
     return result
 
 
+def _graph_result_from_response(response: LLMResult, backend: str) -> dict:
+    result = _parse_llm_json(response.text or "{}")
+    result["input_tokens"] = int(response.input_tokens or 0)
+    result["output_tokens"] = int(response.output_tokens or 0)
+    result["model"] = response.model
+    result["finish_reason"] = response.stop_reason
+    _mark_hollow(result, response.text, backend)
+    return result
+
+
+def _call_openai_compat(
+    base_url: str, api_key: str, model: str, user_message: str,
+    temperature: float | None = 0, reasoning_effort: str | None = None,
+    max_completion_tokens: int = 8192, *, backend: str = "",
+    deep_mode: bool = False, images: list[_ImageRef] | None = None,
+    extra_body: dict | None = None, extra_headers: dict[str, str] | None = None,
+) -> dict:
+    """Compatibility wrapper for structured OpenAI-compatible extraction."""
+    request = LLMRequest(
+        user_message=user_message, system_prompt=_extraction_system(deep=deep_mode),
+        max_tokens=max_completion_tokens, deep_mode=deep_mode,
+        images=tuple(images or ()), response_format="graph_json",
+        temperature=temperature, reasoning_effort=reasoning_effort,
+        extra_body=extra_body, extra_headers=extra_headers,
+    )
+    response = _invoke_backend_request(
+        request, BackendContext(backend=backend, api_key=api_key, model=model, base_url=base_url)
+    )
+    result = _graph_result_from_response(response, backend)
+    if result["output_tokens"] < 50 and backend == "ollama":
+        print(
+            "[graphify] warning: ollama returned very few tokens — likely causes: "
+            "(1) VRAM pressure: reduce chunk size with --token-budget or set "
+            "GRAPHIFY_OLLAMA_NUM_CTX; (2) model too small for JSON instruction following.",
+            file=sys.stderr,
+        )
+    return result
 def _claude_prompt_cache_enabled() -> bool:
     """Keep prompt caching on by default; allow incompatible endpoints to opt out."""
     raw = os.environ.get("GRAPHIFY_CLAUDE_PROMPT_CACHE", "").strip().lower()
@@ -1709,52 +2005,24 @@ def _claude_prompt_cache_enabled() -> bool:
     )
 
 
-def _call_claude(api_key: str, model: str, user_message: str, max_tokens: int = 8192, *, deep_mode: bool = False, images: list[_ImageRef] | None = None) -> dict:
-    """Call Anthropic Claude directly (not via OpenAI compat layer)."""
-    try:
-        import anthropic
-    except ImportError as exc:
-        raise ImportError(_backend_pkg_hint("anthropic", "anthropic")) from exc
-
-    cache_enabled = _claude_prompt_cache_enabled()
-    client = anthropic.Anthropic(
-        api_key=api_key,
-        base_url=BACKENDS["claude"]["base_url"],
-        timeout=_resolve_api_timeout(),
-        max_retries=_resolve_max_retries(),
+def _call_claude(
+    api_key: str, model: str, user_message: str, max_tokens: int = 8192,
+    *, deep_mode: bool = False, images: list[_ImageRef] | None = None,
+) -> dict:
+    """Compatibility wrapper for structured Anthropic extraction."""
+    request = LLMRequest(
+        user_message=user_message, system_prompt=_extraction_system(deep=deep_mode),
+        max_tokens=max_tokens, deep_mode=deep_mode,
+        images=tuple(images or ()), response_format="graph_json",
     )
-    resp = client.messages.create(
-        model=model,
-        max_tokens=max_tokens,
-        # The system prompt is identical on every per-file call, so mark it
-        # cacheable: later calls bill it as a cache read, not full input (#4835).
-        system=[{
-            "type": "text",
-            "text": _extraction_system(deep=deep_mode),
-            "cache_control": {"type": "ephemeral"},
-        }] if cache_enabled else _extraction_system(deep=deep_mode),
-        messages=[{"role": "user", "content": _anthropic_content(user_message, images or [])}],
+    response = _invoke_backend_request(
+        request,
+        BackendContext(
+            backend="claude", api_key=api_key, model=model,
+            base_url=BACKENDS["claude"]["base_url"],
+        ),
     )
-    raw_content = _anthropic_response_text(resp.content)
-    result = _parse_llm_json(raw_content or "{}")
-    # Anthropic reports the cached system prompt in its own cache_* fields, not
-    # in input_tokens; add them back so cost.json still counts the whole prompt.
-    usage = resp.usage
-    result["input_tokens"] = (
-        (usage.input_tokens or 0)
-        + (getattr(usage, "cache_read_input_tokens", 0) or 0)
-        + (getattr(usage, "cache_creation_input_tokens", 0) or 0)
-    ) if usage else 0
-    result["output_tokens"] = (usage.output_tokens or 0) if usage else 0
-    result["model"] = model
-    # Normalise Anthropic's `stop_reason` to the OpenAI-compat `finish_reason`
-    # vocabulary so the adaptive-retry layer doesn't have to know which
-    # backend produced the result.
-    result["finish_reason"] = "length" if resp.stop_reason == "max_tokens" else "stop"
-    _mark_hollow(result, raw_content, "claude")
-    return result
-
-
+    return _graph_result_from_response(response, "claude")
 def _envelope_after_preamble(stdout: str):
     """Recover the envelope when `claude -p` prefixes it with a diagnostic line.
 
@@ -1903,152 +2171,23 @@ def _claude_cli_supports_json_schema(claude_cmd: str) -> bool:
     return supported
 
 
-def _call_claude_cli(user_message: str, max_tokens: int = 8192, *, deep_mode: bool = False, images: list[_ImageRef] | None = None) -> dict:
-    """Call Claude via the locally-installed Claude Code CLI (`claude -p`).
-
-    Routes through the user's Claude Code subscription auth instead of a separate
-    ANTHROPIC_API_KEY. Useful for Pro/Max subscribers who don't want to provision
-    a pay-as-you-go API key just to run graphify's semantic pass.
-
-    Images are passed by absolute path rather than inline base64: the prompt asks
-    the model to open each one with its Read tool, and each containing directory
-    is allowlisted with `--add-dir` so the read is permitted.
-    """
-    import platform
-    import shutil
-    import subprocess
-
-    # On Windows, npm installs `claude` as both `claude.ps1` and `claude.cmd`
-    # alongside each other. When PATHEXT lists `.PS1` before `.CMD`,
-    # `shutil.which("claude")` returns `claude.ps1`, which `CreateProcess`
-    # cannot execute directly — it raises `[WinError 2] The system cannot
-    # find the file specified`. `claude.cmd` IS executable by CreateProcess,
-    # so prefer it explicitly on Windows. See issue #1072.
-    claude_cmd = "claude"
-    if platform.system() == "Windows":
-        cmd_path = shutil.which("claude.cmd")
-        if cmd_path:
-            claude_cmd = cmd_path
-        elif shutil.which("claude") is None:
-            raise RuntimeError(
-                "Claude Code CLI not found on $PATH. Install from "
-                "https://claude.ai/code and run `claude` once to authenticate."
-            )
-    elif shutil.which("claude") is None:
-        raise RuntimeError(
-            "Claude Code CLI not found on $PATH. Install from "
-            "https://claude.ai/code and run `claude` once to authenticate."
-        )
-
-    # Deliver the extraction instructions in the USER turn rather than via
-    # --system-prompt. Newer Claude Code CLIs (>= ~2.1) do not treat a
-    # --system-prompt as the sole authority: they still layer in the local
-    # coding-agent context (CLAUDE.md/AGENTS.md in cwd, skills, MCP) and, when
-    # the user turn is only a raw file dump with no request, reply
-    # conversationally ("I see the file, but there's no actual request
-    # attached — what would you like me to do with it?"). That prose parses to
-    # zero nodes/edges, so _response_is_hollow flags it and the chunk is
-    # retried and then failed rather than extracted (verified against Claude
-    # Code 2.1.197). Before #2880 it was misread as truncation and bisected
-    # indefinitely, never converging and never writing graph.json.
-    #
-    # Putting the full extraction schema plus an explicit imperative in the
-    # user turn — and dropping --system-prompt — makes the CLI emit the JSON
-    # object directly. The <untrusted_source> guardrails in _extraction_system
-    # still apply because the schema text is carried verbatim; only its
-    # delivery channel changes.
-    #
-    # When images are present, append the Read-the-paths instruction and
-    # allowlist each containing directory so the CLI's Read tool can open them.
-    add_dir_args: list[str] = []
-    if images:
-        user_message = _with_image_notes(user_message, images, with_paths=True)
-        seen_dirs: set[str] = set()
-        for r in images:
-            d = str(r.path.parent)
-            if d not in seen_dirs:
-                seen_dirs.add(d)
-                add_dir_args.extend(["--add-dir", d])
-
-    combined_message = (
-        _extraction_system(deep=deep_mode)
-        + "\n\n---\n"
-        + "Now extract the knowledge graph from the following source file(s) "
-        + "and output ONLY the JSON object described above. No prose, no "
-        + "preamble, no markdown fences.\n\n"
-        + user_message
+def _call_claude_cli(
+    user_message: str, max_tokens: int = 8192, *,
+    deep_mode: bool = False, images: list[_ImageRef] | None = None,
+) -> dict:
+    """Compatibility wrapper for structured Claude Code CLI extraction."""
+    request = LLMRequest(
+        user_message=user_message, system_prompt=_extraction_system(deep=deep_mode),
+        max_tokens=max_tokens, deep_mode=deep_mode,
+        images=tuple(images or ()), response_format="graph_json",
     )
-    cli_args = [
-        claude_cmd, "-p",
-        "--output-format", "json",
-        "--no-session-persistence",
-        *add_dir_args,
-    ]
-    # claude-cli defaults to Opus, which is overkill for the structured-JSON
-    # extraction graphify performs. GRAPHIFY_CLAUDE_CLI_MODEL=haiku (or
-    # sonnet, or a full model ID like claude-haiku-4-5-20251001) lets users
-    # opt into a cheaper / faster model. Default behaviour unchanged when
-    # the env var is unset.
-    cli_model = os.environ.get("GRAPHIFY_CLAUDE_CLI_MODEL", "").strip()
-    if cli_model:
-        cli_args.extend(["--model", cli_model])
-    # Constrain the output shape structurally where the CLI supports it. Newer
-    # Claude Code releases increasingly treat a bare file-dump prompt as an
-    # agentic task and REPORT the extraction in prose ("Knowledge graph
-    # extracted — 21 nodes, 20 edges…") instead of returning it; that parses to
-    # zero nodes and reads as hollow (#2076 — and before #2880, as truncation
-    # to be bisected without ever converging). --json-schema pins the shape regardless of
-    # that framing; the user-turn prompt above stays as the fallback for older
-    # CLIs that predate the flag.
-    if _claude_cli_supports_json_schema(claude_cmd):
-        cli_args.extend(["--json-schema", _EXTRACTION_JSON_SCHEMA])
-    proc = subprocess.run(
-        cli_args,
-        input=combined_message,
-        capture_output=True,
-        text=True,
-        encoding="utf-8",  # Force UTF-8 — prevents UnicodeEncodeError on Windows cp1252
-        errors="replace",  # Tolerate non-UTF-8 bytes (e.g. GBK/cp936 from claude.cmd on Chinese Windows)
-        timeout=_resolve_api_timeout(),
-        check=False,
-        **_no_window_kwargs(),
+    response = _invoke_backend_request(
+        request,
+        BackendContext(
+            backend="claude-cli", api_key="", model=_default_model_for_backend("claude-cli")
+        ),
     )
-    cli_error = _claude_cli_error(proc.stdout)
-    if proc.returncode != 0:
-        detail = proc.stderr.strip() or cli_error or "(no stderr, no error envelope)"
-        raise RuntimeError(f"claude -p exited {proc.returncode}: {detail[:500]}")
-    if cli_error:
-        raise RuntimeError(f"claude -p reported an error: {cli_error[:500]}")
-
-    envelope = _claude_cli_envelope(proc.stdout)
-
-    # When --json-schema is in effect the CLI puts the CONSTRAINED object in the
-    # `structured_output` envelope field; `result` stays the model's discretionary
-    # text, which on a "reporting" turn is prose even with the flag set (verified
-    # live on Claude Code 2.1.185). Prefer the structured channel and route it
-    # through the same _parse_llm_json normalizer; fall back to parsing `result`
-    # for older CLIs that don't emit structured_output (#2076 review).
-    structured = envelope.get("structured_output")
-    if isinstance(structured, dict):
-        raw_content = json.dumps(structured)
-    else:
-        raw_content = envelope.get("result", "")
-    result = _parse_llm_json(raw_content or "{}")
-    usage = envelope.get("usage") or {}
-    result["input_tokens"] = (
-        int(usage.get("input_tokens", 0) or 0)
-        + int(usage.get("cache_read_input_tokens", 0) or 0)
-        + int(usage.get("cache_creation_input_tokens", 0) or 0)
-    )
-    result["output_tokens"] = int(usage.get("output_tokens", 0) or 0)
-    model_usage = envelope.get("modelUsage") or {}
-    result["model"] = next(iter(model_usage), "claude-code-plan")
-    stop_reason = envelope.get("stop_reason", "")
-    result["finish_reason"] = "length" if stop_reason == "max_tokens" else "stop"
-    _mark_hollow(result, raw_content, "claude-cli")
-    return result
-
-
+    return _graph_result_from_response(response, "claude-cli")
 def _azure_client(api_key: str, endpoint: str):
     """Construct an AzureOpenAI client with env-driven api_version and timeout."""
     try:
@@ -2072,91 +2211,37 @@ def _azure_client(api_key: str, endpoint: str):
 
 
 def _call_azure(
-    api_key: str,
-    endpoint: str,
-    model: str,
-    user_message: str,
-    temperature: float | None = 0,
-    max_tokens: int = 8192,
-    *,
+    api_key: str, endpoint: str, model: str, user_message: str,
+    temperature: float | None = 0, max_tokens: int = 8192, *,
     deep_mode: bool = False,
 ) -> dict:
-    """Call Azure OpenAI Service via the AzureOpenAI SDK client."""
-    client = _azure_client(api_key, endpoint)
-    kwargs: dict = {
-        "model": model,
-        "messages": [
-            {"role": "system", "content": _extraction_system(deep=deep_mode)},
-            {"role": "user", "content": user_message},
-        ],
-        "max_completion_tokens": max_tokens,
-    }
-    if temperature is not None:
-        kwargs["temperature"] = temperature
-    resp = client.chat.completions.create(**kwargs)
-    if not resp.choices or resp.choices[0].message is None:
-        raise ValueError("Azure OpenAI returned empty or filtered response")
-    raw_content = resp.choices[0].message.content
-    result = _parse_llm_json(raw_content or "{}")
-    result["input_tokens"] = (resp.usage.prompt_tokens or 0) if resp.usage else 0
-    result["output_tokens"] = (resp.usage.completion_tokens or 0) if resp.usage else 0
-    result["model"] = model
-    result["finish_reason"] = resp.choices[0].finish_reason
-    _mark_hollow(result, raw_content, "azure")
-    return result
-
-
-def _call_bedrock(model: str, user_message: str, max_tokens: int = 8192, *, deep_mode: bool = False, images: list[_ImageRef] | None = None) -> dict:
-    """Call AWS Bedrock via boto3 Converse API using the standard AWS credential chain."""
-    try:
-        import boto3
-        import botocore.config
-        import botocore.exceptions
-    except ImportError as exc:
-        raise ImportError(
-            "AWS Bedrock extraction requires boto3. Run: pip install graphifyy[bedrock]"
-        ) from exc
-
-    region = os.environ.get("AWS_REGION") or os.environ.get("AWS_DEFAULT_REGION") or "us-east-1"
-    profile = os.environ.get("AWS_PROFILE")
-    session = boto3.Session(profile_name=profile, region_name=region)
-    # Wire GRAPHIFY_API_TIMEOUT into the botocore read timeout. Without an
-    # explicit config, Converse uses botocore's 60s default and a long
-    # generation dies with "Read timeout on endpoint URL" no matter what the
-    # env var / --api-timeout is set to — the same gap #1112/#1442 closed for
-    # the claude-cli and secondary-dispatch paths, on the last cloud backend.
-    client = session.client(
-        "bedrock-runtime",
-        config=botocore.config.Config(
-            read_timeout=_resolve_api_timeout(),
-            connect_timeout=10,
-            retries={"max_attempts": _resolve_max_retries() + 1, "mode": "adaptive"},
+    """Compatibility wrapper for structured Azure OpenAI extraction."""
+    request = LLMRequest(
+        user_message=user_message, system_prompt=_extraction_system(deep=deep_mode),
+        max_tokens=max_tokens, deep_mode=deep_mode,
+        response_format="graph_json", temperature=temperature,
+    )
+    response = _invoke_backend_request(
+        request,
+        BackendContext(
+            backend="azure", api_key=api_key, model=model, endpoint=endpoint
         ),
     )
-
-    try:
-        resp = client.converse(
-            modelId=model,
-            system=[{"text": _extraction_system(deep=deep_mode)}],
-            messages=[{"role": "user", "content": _bedrock_content(user_message, images or [])}],
-            inferenceConfig=_bedrock_inference_config(max_tokens, model),
-        )
-    except botocore.exceptions.ClientError as exc:
-        code = exc.response["Error"]["Code"]
-        msg = exc.response["Error"]["Message"]
-        raise RuntimeError(f"Bedrock API error ({code}): {msg}") from exc
-
-    text = _bedrock_response_text(resp, default="{}")
-    result = _parse_llm_json(text)
-    usage = resp.get("usage", {})
-    result["input_tokens"] = usage.get("inputTokens", 0) or 0
-    result["output_tokens"] = usage.get("outputTokens", 0) or 0
-    result["model"] = model
-    result["finish_reason"] = "length" if resp.get("stopReason") == "max_tokens" else "stop"
-    _mark_hollow(result, text, "bedrock")
-    return result
-
-
+    return _graph_result_from_response(response, "azure")
+def _call_bedrock(
+    model: str, user_message: str, max_tokens: int = 8192, *,
+    deep_mode: bool = False, images: list[_ImageRef] | None = None,
+) -> dict:
+    """Compatibility wrapper for structured Bedrock extraction."""
+    request = LLMRequest(
+        user_message=user_message, system_prompt=_extraction_system(deep=deep_mode),
+        max_tokens=max_tokens, deep_mode=deep_mode,
+        images=tuple(images or ()), response_format="graph_json",
+    )
+    response = _invoke_backend_request(
+        request, BackendContext(backend="bedrock", api_key="", model=model)
+    )
+    return _graph_result_from_response(response, "bedrock")
 def extract_files_direct(
     files: list[Path],
     backend: str | None = None,
@@ -3226,32 +3311,16 @@ def _merge_into(merged: dict, result: dict) -> None:
 
 
 def _call_llm(
-    prompt: str,
-    *,
-    backend: str,
-    max_tokens: int = 200,
-    model: str | None = None,
-    usage_out: dict | None = None,
+    prompt: str, *, backend: str, max_tokens: int = 200,
+    model: str | None = None, usage_out: dict | None = None,
 ) -> str:
-    """Send a plain-text prompt to `backend` and return the model's text reply.
+    """Send a text prompt through the same adapter registry as graph extraction.
 
-    When ``usage_out`` is provided it is accumulated in place with ``input`` and
-    ``output`` token counts from the response, so callers (community labeling)
-    can total the cost of otherwise-uninstrumented LLM calls (#1694). Existing
-    callers that omit it are unaffected.
-
-    Used by lightweight callers (e.g. `graphify.dedup` LLM tiebreaker) that
-    don't need the full extraction prompt or JSON-shaped output. Mirrors the
-    backend dispatch logic of `extract_files_direct` but skips the
-    `_EXTRACTION_SYSTEM` prompt and JSON parsing.
-
-    Previously `graphify.dedup` imported a `_call_llm` symbol that did not
-    exist in this module, so the LLM tiebreaker silently no-op'd on
-    `ImportError` (F-038). Adding the function here re-enables it.
+    The adapter performs one call only; the caller remains the owner of retry
+    policy, budgets, and fallback behaviour.
     """
     if backend not in BACKENDS:
         raise ValueError(f"Unknown backend {backend!r}")
-    ollama_seed = _resolve_ollama_seed() if backend == "ollama" else None
     cfg = BACKENDS[backend]
     key = _get_backend_api_key(backend)
     if not key and backend == "ollama":
@@ -3262,185 +3331,28 @@ def _call_llm(
         raise ValueError(
             f"No API key for backend '{backend}'. Set {_format_backend_env_keys(backend)}."
         )
-    mdl = model or _default_model_for_backend(backend)
 
-    def _rec(inp, out) -> None:
-        if usage_out is not None:
-            usage_out["input"] = usage_out.get("input", 0) + int(inp or 0)
-            usage_out["output"] = usage_out.get("output", 0) + int(out or 0)
-
-    if backend == "claude":
-        try:
-            import anthropic
-        except ImportError as exc:
-            raise ImportError(_backend_pkg_hint("anthropic", "anthropic")) from exc
-        client = anthropic.Anthropic(api_key=key, base_url=cfg["base_url"], timeout=_resolve_api_timeout(), max_retries=_resolve_max_retries())
-        resp = client.messages.create(
-            model=mdl,
-            max_tokens=max_tokens,
-            messages=[{"role": "user", "content": prompt}],
-        )
-        u = getattr(resp, "usage", None)
-        if u is not None:
-            _rec(getattr(u, "input_tokens", 0), getattr(u, "output_tokens", 0))
-        return _anthropic_response_text(resp.content, default="")
-
-    if backend == "claude-cli":
-        import platform, shutil, subprocess
-        # Mirror the extraction-path resolution: on Windows the npm shim is
-        # claude.cmd, which CreateProcess can't resolve from a bare "claude"
-        # (PATHEXT doesn't apply), so pass the resolved .cmd path explicitly.
-        claude_cmd = "claude"
-        if platform.system() == "Windows":
-            cmd_path = shutil.which("claude.cmd")
-            if cmd_path:
-                claude_cmd = cmd_path
-            elif shutil.which("claude") is None:
-                raise RuntimeError("Claude Code CLI not found on $PATH")
-        elif shutil.which("claude") is None:
-            raise RuntimeError("Claude Code CLI not found on $PATH")
-        cli_args = [claude_cmd, "-p", "--output-format", "json", "--no-session-persistence"]
-        cli_model = (
-            mdl if model is not None
-            else os.environ.get("GRAPHIFY_CLAUDE_CLI_MODEL", "").strip()
-        )
-        if cli_model:
-            cli_args.extend(["--model", cli_model])
-        proc = subprocess.run(
-            cli_args,
-            input=prompt,
-            capture_output=True,
-            text=True,
-            encoding="utf-8",  # Force UTF-8 — prevents UnicodeEncodeError on Windows cp1252
-            errors="replace",  # Tolerate non-UTF-8 bytes (e.g. GBK/cp936 from claude.cmd on Chinese Windows)
-            timeout=_resolve_api_timeout(),
-            check=False,
-            **_no_window_kwargs(),
-        )
-        cli_error = _claude_cli_error(proc.stdout)
-        if proc.returncode != 0:
-            detail = proc.stderr.strip() or cli_error or "(no stderr, no error envelope)"
-            raise RuntimeError(f"claude -p exited {proc.returncode}: {detail[:500]}")
-        if cli_error:
-            # Without this the error text is returned as the model's reply and
-            # the caller writes it into the graph as a community label (#2554).
-            raise RuntimeError(f"claude -p reported an error: {cli_error[:500]}")
-        envelope = _claude_cli_envelope(proc.stdout)
-        cli_usage = envelope.get("usage") or {}
-        if cli_usage:
-            _rec(
-                (cli_usage.get("input_tokens", 0) or 0)
-                + (cli_usage.get("cache_read_input_tokens", 0) or 0)
-                + (cli_usage.get("cache_creation_input_tokens", 0) or 0),
-                cli_usage.get("output_tokens", 0),
-            )
-        return envelope.get("result", "")
-
-
-    if backend == "bedrock":
-        try:
-            import boto3
-            import botocore.config
-        except ImportError as exc:
-            raise ImportError(_backend_pkg_hint("boto3", "bedrock")) from exc
-        region = os.environ.get("AWS_REGION") or os.environ.get("AWS_DEFAULT_REGION") or "us-east-1"
-        profile = os.environ.get("AWS_PROFILE")
-        session = boto3.Session(profile_name=profile, region_name=region)
-        client = session.client(
-            "bedrock-runtime",
-            config=botocore.config.Config(
-                read_timeout=_resolve_api_timeout(),
-                connect_timeout=10,
-                retries={"max_attempts": _resolve_max_retries() + 1, "mode": "adaptive"},
-            ),
-        )
-        resp = client.converse(
-            modelId=mdl,
-            messages=[{"role": "user", "content": [{"text": prompt}]}],
-            inferenceConfig=_bedrock_inference_config(max_tokens, mdl),
-        )
-        bu = resp.get("usage") or {}
-        if bu:
-            _rec(bu.get("inputTokens", 0), bu.get("outputTokens", 0))
-        return _bedrock_response_text(resp, default="")
-
-    if backend == "azure":
-        endpoint = os.environ.get("AZURE_OPENAI_ENDPOINT", "").strip()
-        if not endpoint:
-            raise ValueError(
-                "Azure OpenAI backend requires AZURE_OPENAI_ENDPOINT to be set."
-            )
-        azure_client = _azure_client(key, endpoint)
-        azure_kwargs: dict = {
-            "model": mdl,
-            "messages": [{"role": "user", "content": prompt}],
-            "max_completion_tokens": max_tokens,
-        }
-        azure_temp = _resolve_temperature(cfg.get("temperature", 0), mdl)
-        if azure_temp is not None:
-            azure_kwargs["temperature"] = azure_temp
-        resp = azure_client.chat.completions.create(**azure_kwargs)
-        if not resp.choices or resp.choices[0].message is None:
-            raise ValueError("Azure OpenAI returned empty or filtered response")
-        au = getattr(resp, "usage", None)
-        if au is not None:
-            _rec(getattr(au, "prompt_tokens", 0), getattr(au, "completion_tokens", 0))
-        return resp.choices[0].message.content or ""
-
-    # OpenAI-compatible (kimi, openai, gemini, ollama)
-    try:
-        from openai import OpenAI
-    except ImportError as exc:
-        raise ImportError(_backend_pkg_hint("openai", "openai")) from exc
-    _headers = _provider_extra_headers(cfg.get("extra_headers"), backend)
-    client = OpenAI(api_key=key, base_url=cfg["base_url"], timeout=_resolve_api_timeout(), max_retries=_resolve_max_retries(),
-                    **({"default_headers": _headers} if _headers else {}))
-    kwargs: dict = {
-        "model": mdl,
-        "messages": [{"role": "user", "content": prompt}],
-        **_openai_max_tokens_kwarg(backend, max_tokens),
-        # Force a single non-streamed response: some OpenAI-compatible gateways
-        # default to SSE streaming when `stream` is omitted, but the result here
-        # is always read as resp.choices[0]. Same fix as _call_openai_compat
-        # (#1223) — this path feeds the --dedup-llm tiebreaker.
-        "stream": False,
-    }
-    temperature = _resolve_temperature(cfg.get("temperature", 0), mdl)
-    if temperature is not None:
-        kwargs["temperature"] = temperature
-    if cfg.get("reasoning_effort"):
-        kwargs["reasoning_effort"] = cfg["reasoning_effort"]
-    if ollama_seed is not None:
-        kwargs["seed"] = ollama_seed
-    # Custom providers can override via providers.json `extra_body`; falls back
-    # to the moonshot default to preserve existing behavior.
-    if cfg.get("extra_body") is not None:
-        kwargs["extra_body"] = cfg["extra_body"]
-    elif "moonshot" in cfg["base_url"]:
-        kwargs["extra_body"] = {"thinking": {"type": "disabled"}}
-    elif _thinking_disabled_via_env():
-        kwargs["extra_body"] = {"thinking": {"type": "disabled"}}
-    # Community-labeling batches are sized for a 16k context, so without this
-    # Ollama cut them to its default the same way as extraction chunks (#4413).
-    if backend == "ollama" and cfg.get("extra_body") is None:
-        kwargs["extra_body"] = {
-            **kwargs.get("extra_body", {}),
-            **_ollama_request_extras(prompt, max_tokens),
-        }
-        native = _call_ollama_native(client, cfg["base_url"], kwargs, prompt, [])
-        if native is not None:
-            content, input_tokens, output_tokens, _finish = native
-            _rec(input_tokens, output_tokens)
-            return content or ""
-    resp = client.chat.completions.create(**kwargs)
-    if not resp.choices or resp.choices[0].message is None:
-        raise ValueError("LLM returned empty or filtered response")
-    ou = getattr(resp, "usage", None)
-    if ou is not None:
-        _rec(getattr(ou, "prompt_tokens", 0), getattr(ou, "completion_tokens", 0))
-    return resp.choices[0].message.content or ""
-
-
+    resolved_model = model or _default_model_for_backend(backend)
+    temperature = _resolve_temperature(cfg.get("temperature", 0), resolved_model)
+    request = LLMRequest(
+        user_message=prompt, max_tokens=max_tokens, response_format="text",
+        temperature=temperature, reasoning_effort=cfg.get("reasoning_effort"),
+        extra_body=cfg.get("extra_body"),
+        extra_headers=_provider_extra_headers(cfg.get("extra_headers"), backend),
+    )
+    response = _invoke_backend_request(
+        request,
+        BackendContext(
+            backend=backend, api_key=key, model=resolved_model,
+            base_url=cfg.get("base_url"),
+            endpoint=os.environ.get("AZURE_OPENAI_ENDPOINT", "").strip() or None,
+            model_override=model,
+        ),
+    )
+    if usage_out is not None:
+        usage_out["input"] = usage_out.get("input", 0) + int(response.input_tokens or 0)
+        usage_out["output"] = usage_out.get("output", 0) + int(response.output_tokens or 0)
+    return response.text or ""
 def estimate_cost(backend: str, input_tokens: int, output_tokens: int) -> float:
     """Estimate USD cost for a given token count using published pricing."""
     if backend not in BACKENDS:
