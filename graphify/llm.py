@@ -2597,10 +2597,16 @@ def _exception_chain(exc: BaseException):
 
 def _exception_status_code(exc: BaseException) -> int | None:
     response = getattr(exc, "response", None)
+    aws_status = None
+    if isinstance(response, dict):
+        metadata = response.get("ResponseMetadata")
+        if isinstance(metadata, dict):
+            aws_status = metadata.get("HTTPStatusCode")
     for value in (
         getattr(exc, "status_code", None),
         getattr(response, "status_code", None),
         getattr(response, "status", None),
+        aws_status,
     ):
         try:
             if value is not None:
@@ -2628,6 +2634,10 @@ def _retry_after_seconds(exc: BaseException) -> float | None:
     for item in _exception_chain(exc):
         response = getattr(item, "response", None)
         headers = getattr(response, "headers", None)
+        if headers is None and isinstance(response, dict):
+            metadata = response.get("ResponseMetadata")
+            if isinstance(metadata, dict):
+                headers = metadata.get("HTTPHeaders")
         if headers is None:
             headers = getattr(item, "headers", None)
         if not isinstance(headers, Mapping):
@@ -2686,8 +2696,9 @@ def _normalize_backend_exception(exc: Exception) -> Exception:
 
     auth_markers = (
         "authenticationerror", "permissiondenied", "unauthorized",
-        "invalidapikey", "invalidclienttokenid", "accessdenied",
-        "access denied", "invalid api key", "authentication failed",
+        "invalidapikey", "invalidclienttokenid", "unrecognizedclient",
+        "invalidsignature", "signaturedoesnotmatch", "expiredtoken",
+        "accessdenied", "access denied", "invalid api key", "authentication failed",
     )
     if status in (401, 403) or any(marker in combined for marker in auth_markers):
         return AuthenticationError(str(exc))
@@ -2698,7 +2709,8 @@ def _normalize_backend_exception(exc: Exception) -> Exception:
     transient_markers = (
         "apiconnectionerror", "internalservererror", "serviceunavailable",
         "modelnotready", "temporarily unavailable", "connection reset",
-        "connection aborted", "server disconnected",
+        "connection aborted", "server disconnected", "internal server error",
+        "service unavailable", "overloaded",
     )
     if status in (408, 409, 425) or (status is not None and 500 <= status <= 599) or any(
         marker in combined for marker in transient_markers
