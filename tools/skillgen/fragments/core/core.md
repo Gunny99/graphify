@@ -377,8 +377,9 @@ if not isinstance(manifest, dict):
     raise SystemExit('Chunk manifest must be a JSON object')
 chunks = sorted(glob.glob('graphify-out/.graphify_chunk_*.json'))
 expected_names = {f'.graphify_chunk_{key}.json' for key in manifest}
-if {Path(path).name for path in chunks} != expected_names:
-    raise SystemExit('Chunk files do not match the authoritative chunk manifest')
+actual_names = {Path(path).name for path in chunks}
+if not actual_names.issubset(expected_names):
+    raise SystemExit('Unexpected chunk file is present outside the authoritative chunk manifest')
 partial = []
 seen_sources = set()
 
@@ -391,8 +392,12 @@ for key, sources in manifest.items():
         raise SystemExit(f'Duplicate source assignment in chunk manifest: {key}')
     seen_sources.update(sources)
     chunk_path = out / f'.graphify_chunk_{key}.json'
+    if chunk_path.name not in actual_names:
+        for src in sources:
+            partial.append((src, 0, None, 'chunk missing or rejected by preflight'))
+        continue
     if chunk_path.is_symlink() or not chunk_path.is_file():
-        raise SystemExit(f'Unsafe or missing chunk file: {chunk_path.name}')
+        raise SystemExit(f'Unsafe chunk file: {chunk_path.name}')
     data = json.loads(chunk_path.read_text(encoding=\"utf-8\"))
     coverage = data.get('coverage')
     if not isinstance(coverage, dict) or set(coverage) != set(sources):
