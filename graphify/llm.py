@@ -1730,7 +1730,7 @@ class _OpenAICompatibleAdapter:
             input_tokens=int(input_tokens or 0),
             output_tokens=int(output_tokens or 0),
             model=context.model,
-            stop_reason="length" if finish_reason == "length" else "stop",
+            stop_reason=finish_reason or "stop",
         )
 
 
@@ -1912,7 +1912,7 @@ class _AzureAdapter:
             input_tokens=int(getattr(usage, "prompt_tokens", 0) or 0),
             output_tokens=int(getattr(usage, "completion_tokens", 0) or 0),
             model=context.model,
-            stop_reason="length" if response.choices[0].finish_reason == "length" else "stop",
+            stop_reason=response.choices[0].finish_reason or "stop",
         )
 
 
@@ -1984,6 +1984,16 @@ def _invoke_backend_request(request: LLMRequest, context: BackendContext) -> LLM
     """
     adapter = _BACKEND_ADAPTERS.get(context.backend, _OPENAI_COMPAT_ADAPTER)
     max_retries = _resolve_max_retries()
+    # Preserve the historical Ollama structured-extraction hard wall: local
+    # Ollama hangs do not benefit from repeated SDK-style retries. An explicit
+    # GRAPHIFY_MAX_RETRIES opt-in still overrides the default, while text-only
+    # requests retain the shared retry count.
+    if (
+        context.backend == "ollama"
+        and request.response_format == "graph_json"
+        and not os.environ.get("GRAPHIFY_MAX_RETRIES", "").strip()
+    ):
+        max_retries = 0
     for attempt in range(max_retries + 1):
         try:
             result = adapter.call(request, context)
