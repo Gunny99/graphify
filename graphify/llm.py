@@ -1765,19 +1765,19 @@ class _AnthropicAdapter:
                 kwargs["system"] = request.system_prompt
         response = client.messages.create(**kwargs)
         raw_text = _anthropic_response_text(response.content, default="") or ""
-        usage = response.usage
+        usage = getattr(response, "usage", None)
         input_tokens = (
-            (usage.input_tokens or 0)
+            (getattr(usage, "input_tokens", 0) or 0)
             + (getattr(usage, "cache_read_input_tokens", 0) or 0)
             + (getattr(usage, "cache_creation_input_tokens", 0) or 0)
         ) if usage else 0
-        output_tokens = (usage.output_tokens or 0) if usage else 0
+        output_tokens = (getattr(usage, "output_tokens", 0) or 0) if usage else 0
         return LLMResult(
             text=raw_text,
             input_tokens=int(input_tokens or 0),
             output_tokens=int(output_tokens or 0),
             model=context.model,
-            stop_reason="length" if response.stop_reason == "max_tokens" else "stop",
+            stop_reason="length" if getattr(response, "stop_reason", None) == "max_tokens" else "stop",
         )
 
 
