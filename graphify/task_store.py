@@ -634,6 +634,7 @@ class TaskStore:
             self._refresh_run_status(con, run_id)
             return self._run_status_in_transaction(con, run_id)
 
+    @staticmethod
     def _set_task(
         con: sqlite3.Connection,
         row: sqlite3.Row,
