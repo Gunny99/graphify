@@ -3105,6 +3105,10 @@ def _build_server(graph_path: str):
                 inputSchema={
                     "type": "object",
                     "properties": {
+                        "project_path": {
+                            "type": "string",
+                            "description": "Optional project root; defaults to the server's configured graph project."
+                        },
                         "run": {"type": "object", "description": "Versioned run envelope including execution_policy, quality_policy, and cost_policy."},
                         "tasks": {"type": "array", "items": {"type": "object"}, "description": "Validated task envelopes for this run."},
                         "coordinator_token": {"type": "string"},
@@ -3115,7 +3119,11 @@ def _build_server(graph_path: str):
             types.Tool(
                 name="orchestrator_list_agents",
                 description="List locally registered agents, capabilities, and trusted quality-profile status. Authentication tokens and token hashes are never returned.",
-                inputSchema={"type": "object", "properties": {}},
+                inputSchema={"type": "object", "properties": {
+                        "project_path": {
+                            "type": "string",
+                            "description": "Optional project root; defaults to the server's configured graph project."
+                        },}},
             ),
             types.Tool(
                 name="orchestrator_claim_task",
@@ -3123,6 +3131,10 @@ def _build_server(graph_path: str):
                 inputSchema={
                     "type": "object",
                     "properties": {
+                        "project_path": {
+                            "type": "string",
+                            "description": "Optional project root; defaults to the server's configured graph project."
+                        },
                         "agent_id": {"type": "string"},
                         "agent_token": {"type": "string"},
                         "lease_seconds": {"type": "integer", "default": 300},
@@ -3136,6 +3148,10 @@ def _build_server(graph_path: str):
                 inputSchema={
                     "type": "object",
                     "properties": {
+                        "project_path": {
+                            "type": "string",
+                            "description": "Optional project root; defaults to the server's configured graph project."
+                        },
                         "task_id": {"type": "string"},
                         "agent_id": {"type": "string"},
                         "agent_token": {"type": "string"},
@@ -3151,6 +3167,10 @@ def _build_server(graph_path: str):
                 inputSchema={
                     "type": "object",
                     "properties": {
+                        "project_path": {
+                            "type": "string",
+                            "description": "Optional project root; defaults to the server's configured graph project."
+                        },
                         "result": {"type": "object"},
                         "agent_token": {"type": "string"},
                         "lease_token": {"type": "string"},
@@ -3164,6 +3184,10 @@ def _build_server(graph_path: str):
                 inputSchema={
                     "type": "object",
                     "properties": {
+                        "project_path": {
+                            "type": "string",
+                            "description": "Optional project root; defaults to the server's configured graph project."
+                        },
                         "task_id": {"type": "string"},
                         "agent_id": {"type": "string"},
                         "agent_token": {"type": "string"},
@@ -3178,6 +3202,10 @@ def _build_server(graph_path: str):
                 inputSchema={
                     "type": "object",
                     "properties": {
+                        "project_path": {
+                            "type": "string",
+                            "description": "Optional project root; defaults to the server's configured graph project."
+                        },
                         "review": {"type": "object"},
                         "agent_token": {"type": "string"},
                         "lease_token": {"type": "string"},
@@ -3191,6 +3219,10 @@ def _build_server(graph_path: str):
                 inputSchema={
                     "type": "object",
                     "properties": {
+                        "project_path": {
+                            "type": "string",
+                            "description": "Optional project root; defaults to the server's configured graph project."
+                        },
                         "task_id": {"type": "string"},
                         "agent_id": {"type": "string"},
                         "agent_token": {"type": "string"},
@@ -3207,6 +3239,10 @@ def _build_server(graph_path: str):
                 inputSchema={
                     "type": "object",
                     "properties": {
+                        "project_path": {
+                            "type": "string",
+                            "description": "Optional project root; defaults to the server's configured graph project."
+                        },
                         "run_id": {"type": "string"},
                         "coordinator_token": {"type": "string"},
                     },
@@ -3219,6 +3255,10 @@ def _build_server(graph_path: str):
                 inputSchema={
                     "type": "object",
                     "properties": {
+                        "project_path": {
+                            "type": "string",
+                            "description": "Optional project root; defaults to the server's configured graph project."
+                        },
                         "run_id": {"type": "string"},
                         "coordinator_token": {"type": "string"},
                     },
