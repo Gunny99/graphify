@@ -4,8 +4,7 @@ on:
   push:
     branches: ["v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "main", "fix/opencode-agent-pipeline-handoff", "feat/single-agent-first-workflow"]
   pull_request:
-    types: [opened, synchronize, reopened, edited]
-    branches: ["v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "main", "fix/opencode-agent-pipeline-handoff", "feat/single-agent-first-workflow"]
+    branches: ["v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "main", "fix/opencode-agent-pipeline-handoff"]
   workflow_dispatch:
 
 jobs:
