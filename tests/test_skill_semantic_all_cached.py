@@ -23,8 +23,6 @@ if str(REPO_ROOT) not in sys.path:
 from graphify.cache import save_semantic_cache  # noqa: E402
 from tools.skillgen import gen  # noqa: E402
 
-_ROUTING_PREFIX = "Only dispatch subagents for files listed in"
-
 
 def _split_host_bodies():
     arts = gen.render_all(gen.load_platforms())
@@ -37,7 +35,7 @@ def _split_host_bodies():
 
 def test_all_cached_run_is_routed_through_the_b3_merge():
     for a in _split_host_bodies():
-        routing = next(ln for ln in a.content.splitlines() if ln.startswith(_ROUTING_PREFIX))
+        routing = next(ln for ln in a.content.splitlines() if "If all files are cached" in ln)
         assert "skip to Part C directly" not in routing, a.path
         assert "still run Step B3" in routing, a.path
 
@@ -59,9 +57,9 @@ def test_all_cached_run_reaches_part_c_with_cached_nodes_and_no_stale_chunks(tmp
     b0 = _python_blocks(body, "**Step B0", "**Step B1")
     b3 = _python_blocks(body, "**Step B3", "#### Part C")
     part_c = _python_blocks(body, "#### Part C", "\n### ")[:1]
-    # b3 spans Step B3 (merge) through Step B3.5 (the partial-read coverage
-    # check added in #3987), so the range carries four blocks, not three.
-    assert len(b0) == 1 and len(b3) == 4 and len(part_c) == 1
+    # Keep the B3 block count aligned with the same rendered range checked by
+    # test_skill_codex_semantic_merge; it includes the B3.5 coverage scripts.
+    assert len(b0) == 1 and len(b3) == 5 and len(part_c) == 1
 
     corpus = tmp_path / "corpus"
     corpus.mkdir()
