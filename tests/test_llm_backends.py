@@ -2400,6 +2400,36 @@ def test_shared_dispatcher_does_not_retry_permanent_client_errors(
     assert calls == [1]
 
 
+def test_known_permanent_status_overrides_retry_markers_in_error_identity(monkeypatch):
+    calls = []
+
+    class RateLimitError(_FakeAPIStatusError):
+        pass
+
+    class _Adapter:
+        def call(self, request, context):
+            calls.append(1)
+            error = RateLimitError("invalid request", 400)
+            error.code = "rate_limit_exceeded"
+            raise error
+
+    monkeypatch.setitem(llm._BACKEND_ADAPTERS, "test-identity-status", _Adapter())
+    monkeypatch.setattr(
+        llm.time, "sleep", lambda _seconds: pytest.fail("known 400 must not retry")
+    )
+    monkeypatch.setenv("GRAPHIFY_MAX_RETRIES", "5")
+
+    with pytest.raises(RateLimitError, match="invalid request"):
+        llm._invoke_backend_request(
+            llm.LLMRequest(user_message="prompt", max_tokens=20),
+            llm.BackendContext(
+                backend="test-identity-status", api_key="", model="test-model"
+            ),
+        )
+
+    assert calls == [1]
+
+
 def test_retry_after_reads_botocore_response_metadata():
     error = RuntimeError("ThrottlingException")
     error.response = {
