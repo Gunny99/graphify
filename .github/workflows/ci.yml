@@ -25,6 +25,9 @@ jobs:
           # (rather than skipping). The other jobs stay shallow.
           fetch-depth: 0
 
+      - name: Install RTK
+        uses: ./.github/actions/setup-rtk
+
       - name: Install uv
         uses: astral-sh/setup-uv@v8.1.0
         with:
@@ -33,19 +36,19 @@ jobs:
       # --frozen keeps uv from re-resolving and rewriting uv.lock as a side
       # effect of `uv run`; the lock is committed and must not churn in CI.
       - name: Check generated skill artifacts are up to date
-        run: uv run --frozen python -m tools.skillgen --check
+        run: rtk uv run --frozen python -m tools.skillgen --check
 
       - name: Audit per-host v8 coverage
-        run: uv run --frozen python -m tools.skillgen --audit-coverage
+        run: rtk uv run --frozen python -m tools.skillgen --audit-coverage
 
       - name: Check the file_type enum is a singleton
-        run: uv run --frozen python -m tools.skillgen --schema-singleton
+        run: rtk uv run --frozen python -m tools.skillgen --schema-singleton
 
       - name: Round-trip the monoliths against v8
-        run: uv run --frozen python -m tools.skillgen --monolith-roundtrip
+        run: rtk uv run --frozen python -m tools.skillgen --monolith-roundtrip
 
       - name: Round-trip the always-on blocks against v8
-        run: uv run --frozen python -m tools.skillgen --always-on-roundtrip
+        run: rtk uv run --frozen python -m tools.skillgen --always-on-roundtrip
 
   test:
     runs-on: ubuntu-latest
@@ -61,6 +64,9 @@ jobs:
           # and the baseline tests fail. Full history mirrors the skillgen-check job.
           fetch-depth: 0
 
+      - name: Install RTK
+        uses: ./.github/actions/setup-rtk
+
       - name: Install uv
         uses: astral-sh/setup-uv@v8.1.0
         with:
@@ -69,15 +75,15 @@ jobs:
       # --frozen installs straight from the committed uv.lock without re-resolving
       # or rewriting it, so CI never churns the lock.
       - name: Install dependencies
-        run: uv sync --all-extras --frozen
+        run: rtk uv sync --all-extras --frozen
 
       - name: Run tests
-        run: uv run --frozen pytest tests/ -q --tb=short
+        run: rtk uv run --frozen pytest tests/ -q --tb=short
 
       - name: Verify install works end-to-end
         run: |
-          uv run --frozen graphify --help
-          uv run --frozen graphify install
+          rtk uv run --frozen graphify --help
+          rtk uv run --frozen graphify install
 
   pi-guard:
     # tests/pi.test.ts loads the real extension (Node built-ins only, no
@@ -85,6 +91,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+
+      - name: Install RTK
+        uses: ./.github/actions/setup-rtk
 
       - name: Install uv
         uses: astral-sh/setup-uv@v8.1.0
@@ -97,10 +106,10 @@ jobs:
           bun-version: 1.4.0
 
       - name: Install dependencies
-        run: uv sync --frozen
+        run: rtk uv sync --frozen
 
       - name: Run Pi guard tests
-        run: GRAPHIFY_TEST_CLI=$PWD/.venv/bin/graphify bun test tests/pi.test.ts
+        run: GRAPHIFY_TEST_CLI=$PWD/.venv/bin/graphify rtk test bun test tests/pi.test.ts
 
   security-scan:
     # The dev deps include bandit and pip-audit. Run them in CI so a new
@@ -113,18 +122,21 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
+      - name: Install RTK
+        uses: ./.github/actions/setup-rtk
+
       - name: Install uv
         uses: astral-sh/setup-uv@v8.1.0
         with:
           python-version: "3.12"
 
       - name: Install dependencies
-        run: uv sync --frozen
+        run: rtk uv sync --frozen
 
       - name: bandit (static security analysis)
         continue-on-error: true
-        run: uv run --frozen bandit -r graphify -ll
+        run: rtk uv run --frozen bandit -r graphify -ll
 
       - name: pip-audit (dependency vulnerabilities)
         continue-on-error: true
-        run: uv run --frozen pip-audit --strict
+        run: rtk uv run --frozen pip-audit --strict
