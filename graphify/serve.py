@@ -3197,6 +3197,15 @@ def _build_server(graph_path: str):
                         "lease_token": {"type": "string"},
                         "reason": {"type": "string"},
                         "retryable": {"type": "boolean", "default": True},
+                        "error_signature": {
+                            "type": "string",
+                            "maxLength": 256,
+                            "description": (
+                                "Optional stable signature for a deterministic failure. "
+                                "The same signature on consecutive attempts with unchanged "
+                                "task input stops retries. Omit for transient failures."
+                            ),
+                        },
                     },
                     "required": ["task_id", "agent_id", "agent_token", "lease_token", "reason"],
                 },
@@ -3584,6 +3593,7 @@ def _build_server(graph_path: str):
                 arguments["lease_token"],
                 arguments["reason"],
                 retryable=arguments.get("retryable", True),
+                error_signature=arguments.get("error_signature"),
             )
         )
 
