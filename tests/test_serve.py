@@ -2401,6 +2401,21 @@ def test_orchestrator_failures_are_protocol_errors_and_auth_schema_is_consistent
 
     tools = asyncio.run(server.handlers["list_tools"]())
     schemas = {tool.name: tool.inputSchema for tool in tools}
+    orchestration_tools = (
+        "orchestrator_create_run",
+        "orchestrator_list_agents",
+        "orchestrator_claim_task",
+        "orchestrator_heartbeat_task",
+        "orchestrator_submit_result",
+        "orchestrator_get_verification_payload",
+        "orchestrator_submit_review",
+        "orchestrator_fail_task",
+        "orchestrator_get_run_status",
+        "orchestrator_cancel_run",
+    )
+    for name in orchestration_tools:
+        assert "project_path" in schemas[name]["properties"], name
+        assert "project_path" not in schemas[name].get("required", []), name
     for name in ("orchestrator_get_run_status", "orchestrator_cancel_run"):
         schema = schemas[name]
         assert "coordinator_token" in schema["properties"]
