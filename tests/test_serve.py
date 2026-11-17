@@ -2492,5 +2492,5 @@ def test_mcp_2x_marks_orchestrator_exceptions_as_tool_errors(tmp_path, monkeypat
     )
     result = asyncio.run(server.handlers["on_call_tool"](None, params))
 
-    assert result.isError is True
+    assert result.is_error is True
     assert "Error executing orchestrator_create_run" in result.content[0].text
