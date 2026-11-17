@@ -1415,3 +1415,43 @@ def test_fail_task_accepts_missing_error_signature_for_legacy_callers(tmp_path):
             "SELECT task_json FROM tasks WHERE task_id='task-1'"
         ).fetchone()
     assert "failure_history" not in json.loads(row["task_json"])
+
+
+
+def test_deterministic_failure_task_history_is_bounded_by_two_events(tmp_path):
+    store = TaskStore(tmp_path / "orchestrator.sqlite3")
+    _register(store, _agent("agent-1", "provider-1", "model-1"))
+    task = _task("task-1")
+    task["max_attempts"] = 6
+    store.create_run(_run(strategy="single_agent"), [task])
+
+    for index in range(4):
+        lease = store.claim_task("agent-1")
+        assert lease is not None
+        status = store.fail_task(
+            "task-1",
+            "agent-1",
+            lease["lease_token"],
+            f"distinct failure {index}",
+            retryable=True,
+            error_signature=f"failure-kind:{index}",
+        )
+        assert status["tasks"][0]["status"] == "queued"
+
+    with store._connect() as con:
+        row = con.execute(
+            "SELECT task_json FROM tasks WHERE task_id='task-1'"
+        ).fetchone()
+        event_rows = con.execute(
+            "SELECT payload_json FROM events "
+            "WHERE task_id='task-1' AND event_type='task_failed' "
+            "ORDER BY event_id ASC"
+        ).fetchall()
+
+    persisted = json.loads(row["task_json"])
+    assert [item["attempt"] for item in persisted["failure_history"]] == [3, 4]
+    assert len(event_rows) == 4
+    assert [
+        json.loads(event["payload_json"])["error_signature"]
+        for event in event_rows
+    ] == [f"failure-kind:{index}" for index in range(4)]
