@@ -2723,6 +2723,21 @@ def _normalize_backend_exception(exc: Exception) -> Exception:
     if any(marker in messages for marker in _CONTEXT_EXCEEDED_MARKERS):
         return ContextWindowExceeded(str(exc))
 
+    # A known HTTP status is authoritative. In particular, provider SDK class
+    # names or error codes may contain retry-like words even when the server
+    # returned a permanent 4xx response. Only the explicitly retryable status
+    # codes below may override the status-based classification.
+    if status == 429:
+        return RateLimited(str(exc), retry_after=_retry_after_seconds(exc))
+    if status in (401, 403):
+        return AuthenticationError(str(exc))
+    if status in (408, 409, 425) or (
+        status is not None and 500 <= status <= 599
+    ):
+        return TransientBackendError(str(exc))
+    if status is not None and 400 <= status < 500:
+        return exc
+
     rate_markers = (
         "ratelimit", "rate_limit", "rate limit", "too many requests",
         "toomanyrequests", "resource_exhausted", "quota_exceeded",
@@ -2730,8 +2745,7 @@ def _normalize_backend_exception(exc: Exception) -> Exception:
     )
     error_identity = f"{names} {codes}"
     if (
-        status == 429
-        or any(marker in error_identity for marker in rate_markers)
+        any(marker in error_identity for marker in rate_markers)
         or (status is None and any(marker in messages for marker in rate_markers))
     ):
         return RateLimited(str(exc), retry_after=_retry_after_seconds(exc))
