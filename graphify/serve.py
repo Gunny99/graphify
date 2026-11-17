@@ -3779,7 +3779,7 @@ def _build_server(graph_path: str):
             except ToolError as exc:
                 return types.CallToolResult(
                     content=[types.TextContent(type="text", text=str(exc))],
-                    isError=True,
+                    is_error=True,
                 )
             return types.CallToolResult(content=content)
 
