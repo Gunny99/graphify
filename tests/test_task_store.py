@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import math
+import sqlite3
 from datetime import datetime, timezone
 
 import pytest
@@ -988,7 +989,7 @@ def test_retryable_fail_task_keeps_unreported_reserve_across_reclaim(tmp_path):
     store.create_run(_run(strategy="single_agent"), [_task("task-1")])
     claimed = store.claim_task("agent-1")
     assert claimed is not None
-    original_reserve = claimed["estimated_cost_reserved"]
+    original_reserve = claimed["estimated_generation_cost_reserved"]
 
     status = store.fail_task(
         "task-1", "agent-1", claimed["lease_token"],
@@ -1023,7 +1024,7 @@ def test_expired_retryable_lease_keeps_unreported_reserve_across_reclaim(tmp_pat
     store.create_run(_run(strategy="single_agent"), [_task("task-1")])
     claimed = store.claim_task("agent-1")
     assert claimed is not None
-    original_reserve = claimed["estimated_cost_reserved"]
+    original_reserve = claimed["estimated_generation_cost_reserved"]
 
     with store._transaction() as con:
         con.execute(
@@ -1053,6 +1054,166 @@ def test_expired_retryable_lease_keeps_unreported_reserve_across_reclaim(tmp_pat
         original_reserve + second["estimated_cost_reserved"]
     )
 
+
+
+def test_retry_reservation_does_not_double_count_fixed_end_to_end_overhead(tmp_path):
+    store = TaskStore(tmp_path / "orchestrator.sqlite3")
+    agent = _agent(
+        "agent-1", "provider-1", "model-1",
+        input_cost=100.0, cached_cost=0.0, output_cost=0.0,
+    )
+    agent["cost_profile"].update({
+        "verification_cost_per_task": 10.0,
+        "expected_retry_cost_per_task": 10.0,
+        "expected_escalation_cost_per_task": 5.0,
+        "orchestration_cost_per_task": 5.0,
+    })
+    _register(store, agent)
+    task = _task("task-1", estimate=1_000_000)
+    task["input"]["estimated_output_tokens"] = 0
+    task["input"]["estimated_cached_input_tokens"] = 0
+    task["cost_budget"]["max_total"] = 240.0
+    store.create_run(_run(max_total=240.0, strategy="single_agent"), [task])
+
+    first = store.claim_task("agent-1")
+    assert first is not None
+    assert first["estimated_generation_cost_reserved"] == pytest.approx(100.0)
+    assert first["estimated_cost_reserved"] == pytest.approx(130.0)
+
+    failed = store.fail_task(
+        "task-1", "agent-1", first["lease_token"],
+        "worker terminated without usage telemetry", retryable=True,
+    )
+    assert failed["tasks"][0]["status"] == "queued"
+    with store._connect() as con:
+        row = con.execute(
+            "SELECT task_json FROM tasks WHERE task_id='task-1'"
+        ).fetchone()
+    persisted = json.loads(row["task_json"])
+    assert persisted["unreported_cost_reserved"] == pytest.approx(100.0)
+
+    # The prior attempt reserves only generation spend; fixed E2E overhead is
+    # included once in the new attempt's 130 USD estimate, not twice.
+    second = store.claim_task("agent-1")
+    assert second is not None
+    assert second["estimated_cost_reserved"] == pytest.approx(130.0)
+    status = store.get_run_status("run-1")
+    assert status["reserved_cost"] == pytest.approx(230.0)
+
+
+def test_heartbeat_task_refreshes_agent_liveness_timestamp(tmp_path):
+    store = TaskStore(tmp_path / "orchestrator.sqlite3")
+    _register(store, _agent("agent-1", "provider-1", "model-1"))
+    store.create_run(_run(strategy="single_agent"), [_task("task-1")])
+    claimed = store.claim_task("agent-1")
+    assert claimed is not None
+
+    stale = "2000-01-01T00:00:00+00:00"
+    with store._transaction() as con:
+        con.execute(
+            "UPDATE agents SET updated_at=? WHERE agent_id=?",
+            (stale, "agent-1"),
+        )
+
+    store.heartbeat_task("task-1", "agent-1", claimed["lease_token"])
+    with store._connect() as con:
+        row = con.execute(
+            "SELECT updated_at FROM agents WHERE agent_id='agent-1'"
+        ).fetchone()
+    assert row["updated_at"] != stale
+    assert datetime.fromisoformat(row["updated_at"]) > datetime.fromisoformat(stale)
+
+
+def test_list_events_is_ordered_and_supports_incremental_reads(tmp_path):
+    store = TaskStore(tmp_path / "orchestrator.sqlite3")
+    store.create_run(_run(strategy="single_agent"), [_task("task-1")])
+
+    with store._transaction() as con:
+        TaskStore._event(
+            con, run_id="run-1", event_type="test_event",
+            payload={"ordinal": 1},
+        )
+        TaskStore._event(
+            con, run_id="run-1", event_type="test_event",
+            payload={"ordinal": 2},
+        )
+
+    events = store.list_events("run-1")
+    assert [event["event_id"] for event in events] == sorted(
+        event["event_id"] for event in events
+    )
+    assert [event["payload"]["ordinal"] for event in events[-2:]] == [1, 2]
+    assert store.list_events("run-1", after_event_id=events[-2]["event_id"]) == events[-1:]
+    with pytest.raises(ValueError, match="non-negative integer"):
+        store.list_events("run-1", after_event_id=-1)
+
+
+def test_orchestration_evidence_and_events_are_immutable_at_database_level(tmp_path):
+    store = TaskStore(tmp_path / "orchestrator.sqlite3")
+    producer = _agent("producer", "producer-provider", "producer-model")
+    verifier = _agent("verifier", "verifier-provider", "verifier-model", role="verifier")
+    _register(store, producer)
+    _register(store, verifier)
+    store.create_run(_run(), [_task("task-1")])
+    lease = store.claim_task("producer")
+    assert lease is not None
+    result = _result("task-1", producer)
+    store.submit_result(result, lease["lease_token"])
+    verification = store.claim_task("verifier")
+    assert verification is not None
+    review = _review(result, verifier, review_task_id=verification["task_id"])
+    store.submit_review(review, verification["lease_token"])
+
+    with pytest.raises(sqlite3.IntegrityError, match="immutable orchestration record"):
+        with store._transaction() as con:
+            con.execute("UPDATE results SET result_json='{}' WHERE result_id=?", (result["result_id"],))
+    with pytest.raises(sqlite3.IntegrityError, match="immutable orchestration record"):
+        with store._transaction() as con:
+            con.execute("DELETE FROM reviews WHERE result_id=?", (result["result_id"],))
+    with pytest.raises(sqlite3.IntegrityError, match="immutable orchestration record"):
+        with store._transaction() as con:
+            con.execute("UPDATE events SET event_type='rewritten' WHERE run_id='run-1'")
+    with pytest.raises(sqlite3.IntegrityError, match="immutable orchestration record"):
+        with store._transaction() as con:
+            con.execute("DELETE FROM events WHERE run_id='run-1'")
+    # Cascading removal of a run must not erase accepted result/review evidence.
+    with pytest.raises(sqlite3.IntegrityError, match="immutable orchestration record"):
+        with store._transaction() as con:
+            con.execute("DELETE FROM runs WHERE run_id='run-1'")
+    assert store.get_run_status("run-1")["run"]["run_id"] == "run-1"
+
+
+def test_v1_task_store_migrates_to_immutable_v2_schema(tmp_path):
+    path = tmp_path / "orchestrator.sqlite3"
+    TaskStore(path)
+    with sqlite3.connect(path) as con:
+        for trigger_name in (
+            "immutable_events_before_update",
+            "immutable_events_before_delete",
+            "immutable_results_before_update",
+            "immutable_results_before_delete",
+            "immutable_reviews_before_update",
+            "immutable_reviews_before_delete",
+        ):
+            con.execute(f"DROP TRIGGER IF EXISTS {trigger_name}")
+        con.execute("PRAGMA user_version = 1")
+
+    TaskStore(path)
+    with sqlite3.connect(path) as con:
+        assert con.execute("PRAGMA user_version").fetchone()[0] == 2
+        trigger_names = {
+            row[0] for row in con.execute(
+                "SELECT name FROM sqlite_master WHERE type='trigger'"
+            ).fetchall()
+        }
+    assert {
+        "immutable_events_before_update",
+        "immutable_events_before_delete",
+        "immutable_results_before_update",
+        "immutable_results_before_delete",
+        "immutable_reviews_before_update",
+        "immutable_reviews_before_delete",
+    }.issubset(trigger_names)
 
 
 def test_unreported_retry_spend_counts_against_task_budget(tmp_path):
