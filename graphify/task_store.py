@@ -1364,6 +1364,11 @@ class TaskStore:
                     "reason": reason,
                     "created_at": _utc_now(),
                 })
+                # The immutable events table is the complete audit history.
+                # Task state only needs a bounded window for consecutive-loop
+                # detection, regardless of the caller-supplied max_attempts.
+                if len(history) > 2:
+                    del history[:-2]
                 if loop_detected:
                     new_status = "failed"
                     task["failure_loop_detected"] = {
