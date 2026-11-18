@@ -3105,6 +3105,10 @@ def _build_server(graph_path: str):
                 inputSchema={
                     "type": "object",
                     "properties": {
+                        "project_path": {
+                            "type": "string",
+                            "description": "Optional project root; defaults to the server's configured graph project."
+                        },
                         "run": {"type": "object", "description": "Versioned run envelope including execution_policy, quality_policy, and cost_policy."},
                         "tasks": {"type": "array", "items": {"type": "object"}, "description": "Validated task envelopes for this run."},
                         "coordinator_token": {"type": "string"},
@@ -3115,7 +3119,11 @@ def _build_server(graph_path: str):
             types.Tool(
                 name="orchestrator_list_agents",
                 description="List locally registered agents, capabilities, and trusted quality-profile status. Authentication tokens and token hashes are never returned.",
-                inputSchema={"type": "object", "properties": {}},
+                inputSchema={"type": "object", "properties": {
+                        "project_path": {
+                            "type": "string",
+                            "description": "Optional project root; defaults to the server's configured graph project."
+                        },}},
             ),
             types.Tool(
                 name="orchestrator_claim_task",
@@ -3123,6 +3131,10 @@ def _build_server(graph_path: str):
                 inputSchema={
                     "type": "object",
                     "properties": {
+                        "project_path": {
+                            "type": "string",
+                            "description": "Optional project root; defaults to the server's configured graph project."
+                        },
                         "agent_id": {"type": "string"},
                         "agent_token": {"type": "string"},
                         "lease_seconds": {"type": "integer", "default": 300},
@@ -3136,6 +3148,10 @@ def _build_server(graph_path: str):
                 inputSchema={
                     "type": "object",
                     "properties": {
+                        "project_path": {
+                            "type": "string",
+                            "description": "Optional project root; defaults to the server's configured graph project."
+                        },
                         "task_id": {"type": "string"},
                         "agent_id": {"type": "string"},
                         "agent_token": {"type": "string"},
@@ -3151,6 +3167,10 @@ def _build_server(graph_path: str):
                 inputSchema={
                     "type": "object",
                     "properties": {
+                        "project_path": {
+                            "type": "string",
+                            "description": "Optional project root; defaults to the server's configured graph project."
+                        },
                         "result": {"type": "object"},
                         "agent_token": {"type": "string"},
                         "lease_token": {"type": "string"},
@@ -3164,6 +3184,10 @@ def _build_server(graph_path: str):
                 inputSchema={
                     "type": "object",
                     "properties": {
+                        "project_path": {
+                            "type": "string",
+                            "description": "Optional project root; defaults to the server's configured graph project."
+                        },
                         "task_id": {"type": "string"},
                         "agent_id": {"type": "string"},
                         "agent_token": {"type": "string"},
@@ -3178,6 +3202,10 @@ def _build_server(graph_path: str):
                 inputSchema={
                     "type": "object",
                     "properties": {
+                        "project_path": {
+                            "type": "string",
+                            "description": "Optional project root; defaults to the server's configured graph project."
+                        },
                         "review": {"type": "object"},
                         "agent_token": {"type": "string"},
                         "lease_token": {"type": "string"},
@@ -3191,6 +3219,10 @@ def _build_server(graph_path: str):
                 inputSchema={
                     "type": "object",
                     "properties": {
+                        "project_path": {
+                            "type": "string",
+                            "description": "Optional project root; defaults to the server's configured graph project."
+                        },
                         "task_id": {"type": "string"},
                         "agent_id": {"type": "string"},
                         "agent_token": {"type": "string"},
@@ -3207,6 +3239,10 @@ def _build_server(graph_path: str):
                 inputSchema={
                     "type": "object",
                     "properties": {
+                        "project_path": {
+                            "type": "string",
+                            "description": "Optional project root; defaults to the server's configured graph project."
+                        },
                         "run_id": {"type": "string"},
                         "coordinator_token": {"type": "string"},
                     },
@@ -3219,6 +3255,10 @@ def _build_server(graph_path: str):
                 inputSchema={
                     "type": "object",
                     "properties": {
+                        "project_path": {
+                            "type": "string",
+                            "description": "Optional project root; defaults to the server's configured graph project."
+                        },
                         "run_id": {"type": "string"},
                         "coordinator_token": {"type": "string"},
                     },
@@ -3691,13 +3731,20 @@ def _build_server(graph_path: str):
         raise ValueError(f"Unknown resource: {uri_str}")
 
     async def call_tool(name: str, arguments: dict) -> list[types.TextContent]:
+        nonlocal active_graph_path
         arguments = dict(arguments or {})
         project_path = arguments.pop("project_path", None)
         handler = _handlers.get(name)
         if not handler:
             return [types.TextContent(type="text", text=f"Unknown tool: {name}")]
         try:
-            _select_graph(project_path)  # bind G/communities to the target graph
+            if name.startswith("orchestrator_"):
+                # Durable orchestration is scoped to the project, not to the
+                # presence of an extracted graph. This permits a run to be
+                # created before the first graphify extraction has completed.
+                active_graph_path = str(Path(_resolve_graph_path(project_path)).resolve())
+            else:
+                _select_graph(project_path)  # bind G/communities to the target graph
             return [types.TextContent(type="text", text=handler(arguments))]
         except ToolError:
             # A handler-signalled error: propagate so the result is marked
@@ -3705,6 +3752,10 @@ def _build_server(graph_path: str):
             # an error result; the 2.x path catches it in _on_call_tool).
             raise
         except Exception as exc:
+            if name.startswith("orchestrator_"):
+                # MCP clients must receive protocol-level tool failure, not a
+                # successful text result containing an error message.
+                raise ToolError(f"Error executing {name}: {exc}") from exc
             return [types.TextContent(type="text", text=f"Error executing {name}: {exc}")]
 
     if hasattr(Server, "list_tools"):
@@ -3728,7 +3779,7 @@ def _build_server(graph_path: str):
             except ToolError as exc:
                 return types.CallToolResult(
                     content=[types.TextContent(type="text", text=str(exc))],
-                    isError=True,
+                    is_error=True,
                 )
             return types.CallToolResult(content=content)
 
