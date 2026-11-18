@@ -40,7 +40,7 @@ def test_codex_b2_persists_valid_chunks_and_defers_failure_policy_to_shared_b3()
     skill = _codex_skill()
     b2 = skill.split("**Step B2", 1)[1].split("**Step B3", 1)[0]
 
-    assert "write each valid result separately" in b2
+    assert "write each valid result separately" in b2.lower()
     assert "graphify-out/.graphify_chunk_NN.json" in b2
     assert "Do not aggregate results or write" in b2
     assert "leave that chunk's expected file absent" in b2
