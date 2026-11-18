@@ -1,12 +1,13 @@
 //! 달밭(dalbat1) 블로그 원문 색인기. 사용법: dalbat-index <01_raw 경로> <출력 md 경로>
 //! 각 dalbat1_<카테고리>/NNN_<글ID>_<제목>.txt 를 읽어 카테고리별 목록(번호|제목|자수)을 만든다.
-use std::{env, fs, path::Path};
+//! 파일을 읽지 못하면 0자로 세지 않고 오류로 종료한다. UTF-8이 아닌 바이트는 대체 문자로 셈다.
+use std::{env, fs, path::Path, process};
 
 fn main() {
     let a: Vec<String> = env::args().collect();
     if a.len() < 3 {
         eprintln!("usage: dalbat-index <01_raw> <out.md>");
-        std::process::exit(2);
+        process::exit(2);
     }
     let mut cats: Vec<_> = fs::read_dir(&a[1])
         .expect("01_raw")
@@ -31,8 +32,14 @@ fn main() {
         let mut chars = 0usize;
         for f in &fs_ {
             let fname = f.file_name().to_string_lossy().to_string();
-            let body = fs::read_to_string(f.path()).unwrap_or_default();
-            let n = body.chars().count();
+            let bytes = match fs::read(f.path()) {
+                Ok(b) => b,
+                Err(e) => {
+                    eprintln!("read failed: {}: {e}", f.path().display());
+                    process::exit(1);
+                }
+            };
+            let n = String::from_utf8_lossy(&bytes).chars().count();
             chars += n;
             let mut it = fname.trim_end_matches(".txt").splitn(3, '_');
             let (no, _id, title) = (it.next().unwrap_or(""), it.next().unwrap_or(""), it.next().unwrap_or(""));
