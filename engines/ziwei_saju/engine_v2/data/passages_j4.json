@@ -3453,11 +3453,25 @@
     "negate": true,
     "scope": "동궁",
     "word": "無四殺"
+   },
+   {
+    "kind": "동궁",
+    "values": [
+     "태양"
+    ],
+    "negate": false,
+    "scope": "동궁",
+    "word": "太陽同"
    }
   ],
   "result": "加諧老天机同内𦔳美貌天同匕性聦之妻並頭",
   "polarity": "길",
-  "parse": "auto"
+  "parse": "auto",
+  "joins": [
+   "妻:46"
+  ],
+  "text_full": "太陽同。無四殺，加諧老天机同内𦔳美貌天同匕性聦之妻並頭。",
+  "note": "문장 이음: 앞 행 \"太陽同。\"에 이어짐"
  },
  {
   "file": "4_三妻妾.txt",
@@ -4948,8 +4962,9 @@
      "태양"
     ],
     "negate": false,
-    "scope": "동궁",
-    "word": "太陽照"
+    "scope": "삼방대궁",
+    "word": "太陽照",
+    "note": "照=삼방과 대궁(명세 5절 12번 차)"
    }
   ],
   "result": "夜生最怕太陽照",
@@ -6496,11 +6511,25 @@
     "negate": false,
     "scope": "삼방대궁",
     "word": "見羊陀火鈴，空刼必尅"
+   },
+   {
+    "kind": "동궁",
+    "values": [
+     "무곡"
+    ],
+    "negate": false,
+    "scope": "동궁",
+    "word": "武曲同"
    }
   ],
   "result": "空刼必尅，冝偏室生",
   "polarity": "흉",
-  "parse": "auto"
+  "parse": "auto",
+  "joins": [
+   "子:54"
+  ],
+  "text_full": "武曲同。有二人，見羊陀火鈴，空刼必尅，冝偏室生。",
+  "note": "문장 이음: 앞 행 \"武曲同。\"에 이어짐"
  },
  {
   "file": "4_四子女.txt",
@@ -6703,7 +6732,12 @@
   "result": "再加吉星",
   "polarity": "길",
   "parse": "auto",
-  "inherits": "子:60"
+  "inherits": "子:60",
+  "joins": [
+   "子:60"
+  ],
+  "text_full": "紫微同。再加吉星。",
+  "note": "문장 이음: 更·又·再가 아닌 再加이나 inherits(子:60)가 이미 앞 조건을 잇고 있어 joins만 단다"
  },
  {
   "file": "4_四子女.txt",
@@ -7676,11 +7710,25 @@
     ],
     "negate": false,
     "word": "入庙"
+   },
+   {
+    "kind": "동궁",
+    "values": [
+     "주성"
+    ],
+    "negate": true,
+    "scope": "동궁",
+    "word": "獨守"
    }
   ],
   "result": "許庶出",
   "polarity": "중",
-  "parse": "auto"
+  "parse": "auto",
+  "joins": [
+   "子:76"
+  ],
+  "text_full": "鈴星獨守。孤单，加吉星入庙，許庶出。",
+  "note": "문장 이음: 앞 행 \"鈴星獨守。\"에 이어짐(子:76과 같은 獨守 조건)"
  },
  {
   "file": "4_四子女.txt",
@@ -11730,11 +11778,25 @@
     "negate": false,
     "scope": "동궁",
     "word": "加四殺"
+   },
+   {
+    "kind": "동궁",
+    "values": [
+     "무곡"
+    ],
+    "negate": false,
+    "scope": "동궁",
+    "word": "武曲同"
    }
   ],
   "result": "手足傷残",
   "polarity": "흉",
-  "parse": "auto"
+  "parse": "auto",
+  "joins": [
+   "疾:50"
+  ],
+  "text_full": "武曲同。加四殺，手足傷残。",
+  "note": "문장 이음: 앞 행 \"武曲同。\"의 마침표는 줄 나눔의 흔적(같은 편 47행 \"武曲同，加四殺破相\"과 같은 꼴)"
  },
  {
   "file": "4_六疾厄.txt",
@@ -11875,11 +11937,25 @@
     "negate": false,
     "scope": "동궁",
     "word": "加羊火"
+   },
+   {
+    "kind": "동궁",
+    "values": [
+     "염정"
+    ],
+    "negate": false,
+    "scope": "동궁",
+    "word": "𤎉貞同"
    }
   ],
   "result": "四肢有傷殘",
   "polarity": "흉",
-  "parse": "auto"
+  "parse": "auto",
+  "joins": [
+   "疾:57"
+  ],
+  "text_full": "𤎉貞同。加羊火，四肢有傷殘。",
+  "note": "문장 이음: 앞 행 \"𤎉貞同。\"에 이어짐"
  },
  {
   "file": "4_六疾厄.txt",
@@ -16007,11 +16083,30 @@
     "negate": false,
     "scope": "동궁",
     "role": "주체"
+   },
+   {
+    "kind": "살",
+    "values": [
+     "경양",
+     "타라",
+     "화성",
+     "영성",
+     "지공",
+     "지겁"
+    ],
+    "negate": false,
+    "scope": "동궁",
+    "word": "加羊陀火鈴空刼"
    }
   ],
   "result": "羊陀火鈴空刼全難招",
   "polarity": "흉",
-  "parse": "auto"
+  "parse": "auto",
+  "joins": [
+   "奴:47"
+  ],
+  "text_full": "武曲同背主，𤎉貞欠力加。羊陀火鈴空刼全難招。",
+  "note": "문장 이음: 앞 행이 \"𤎉貞欠力加\"로 끝남: 加+羊陀火鈴空刼, 동궁(명세 5절 10번 加)"
  },
  {
   "file": "4_八奴僕.txt",
@@ -24741,7 +24836,9 @@
   "conds": [],
   "result": "以太陽星為父，太隂星為母",
   "polarity": "중",
-  "id": "父:3"
+  "id": "父:3",
+  "nature": true,
+  "note": "성질 서술: 조건어 없는 읽는 법 문장(凢看父母，以太陽星為父，太隂星為母). 4_十二父母.txt 0002"
  },
  {
   "file": "4_十二父母.txt",
@@ -25523,11 +25620,25 @@
     "negate": false,
     "scope": "동궁",
     "word": "加四殺，空刼尅早"
+   },
+   {
+    "kind": "동궁",
+    "values": [
+     "거문"
+    ],
+    "negate": false,
+    "scope": "동궁",
+    "word": "巨門同"
    }
   ],
   "result": "空刼尅早",
   "polarity": "흉",
-  "parse": "auto"
+  "parse": "auto",
+  "joins": [
+   "父:22"
+  ],
+  "text_full": "巨門同。加四殺，空刼尅早。",
+  "note": "문장 이음: 앞 행 \"巨門同。\"에 이어짐"
  },
  {
   "file": "4_十二父母.txt",
@@ -26524,11 +26635,25 @@
     "negate": false,
     "scope": "동궁",
     "word": "加四殺"
+   },
+   {
+    "kind": "동궁",
+    "values": [
+     "천동"
+    ],
+    "negate": false,
+    "scope": "동궁",
+    "word": "天同同"
    }
   ],
   "result": "有刑",
   "polarity": "흉",
-  "parse": "auto"
+  "parse": "auto",
+  "joins": [
+   "父:56"
+  ],
+  "text_full": "天同同。加四殺，有刑，無殺無刑。",
+  "note": "문장 이음: 앞 행 \"天同同。\"에 이어짐"
  },
  {
   "file": "4_十二父母.txt",
@@ -26551,11 +26676,25 @@
     "negate": true,
     "scope": "동궁",
     "word": "無殺"
+   },
+   {
+    "kind": "동궁",
+    "values": [
+     "천동"
+    ],
+    "negate": false,
+    "scope": "동궁",
+    "word": "天同同"
    }
   ],
   "result": "無殺無刑",
   "polarity": "길",
-  "parse": "auto"
+  "parse": "auto",
+  "joins": [
+   "父:56"
+  ],
+  "text_full": "天同同。加四殺，有刑，無殺無刑。",
+  "note": "문장 이음: 앞 행 \"天同同。\"에 이어짐"
  },
  {
   "file": "4_十二父母.txt",
@@ -26731,11 +26870,25 @@
     "negate": false,
     "scope": "동궁",
     "word": "加吉星"
+   },
+   {
+    "kind": "동궁",
+    "values": [
+     "자미"
+    ],
+    "negate": false,
+    "scope": "동궁",
+    "word": "紫微同"
    }
   ],
   "result": "無刑",
   "polarity": "길",
-  "parse": "auto"
+  "parse": "auto",
+  "joins": [
+   "父:62"
+  ],
+  "text_full": "紫微同。加吉星，無刑，加羊陀火鈴空刼，父母不周全。",
+  "note": "문장 이음: 앞 행 \"紫微同。\"에 이어짐"
  },
  {
   "file": "4_十二父母.txt",
@@ -26758,11 +26911,25 @@
     "negate": false,
     "scope": "동궁",
     "word": "加羊陀火鈴空刼"
+   },
+   {
+    "kind": "동궁",
+    "values": [
+     "자미"
+    ],
+    "negate": false,
+    "scope": "동궁",
+    "word": "紫微同"
    }
   ],
   "result": "父母不周全",
   "polarity": "흉",
-  "parse": "auto"
+  "parse": "auto",
+  "joins": [
+   "父:62"
+  ],
+  "text_full": "紫微同。加吉星，無刑，加羊陀火鈴空刼，父母不周全。",
+  "note": "문장 이음: 앞 행 \"紫微同。\"에 이어짐"
  },
  {
   "file": "4_十二父母.txt",

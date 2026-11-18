@@ -316,6 +316,8 @@ def evaluate_palace(ctx, z, passages, role):
             v = '서지 않는다'
         item = {'id': p['id'], 'verdict': v, 'met': met, 'half': half, 'total': total, 'failed': failed + unknown,
                 'unknown': unknown, 'polarity': p['polarity'], 'enum': enum}
+        if p.get('nature') and total == 0 and v == '선다':   # 조건 없는 읽는 법·성질 서술(명세 5절 12번 라·차): 선다로 세지 않는다
+            item['verdict'] = '성질'
         if p.get('half') and v == '선다':      # 減半 구절(명세 11-2 3번): 수를 곱하지 않고 글만 곁에 적는다
             item['half_note'] = p['half']['note']
         out.append(item)
@@ -417,6 +419,8 @@ def _expand_limit(passages3, kinds=None):
             q = {'id': b['id'], 'palace': '명', 'line': p['line'], 'text': p['text'], 'clause': b['clause'], 'result': b['clause'],
                  'star': b['star'], 'conds': b['conds'], 'polarity': b['polarity'], 'scope': '限',
                  'parse': 'unparsed' if b.get('unparsed') else 'manual', 'limit_kind': lim.get('kind'), 'limit_type': lim.get('type')}
+            if b.get('nature'):
+                q['nature'] = True
             if b.get('inherits'):
                 q['inherits'] = b['inherits']
             if b.get('unparsed'):
@@ -456,7 +460,7 @@ def evaluate_limit(result, daehan_index, passages=None, kinds=None):
     rank = {'흉': 0, '길': 1}
     for it in items:
         q = by[it['id']]
-        if it['total'] == 0:                  # 주체 별이 이 대한 명궁에 든 것이 곧 조건이다(조건 하나가 선 것으로 센다)
+        if it['total'] == 0 and it['verdict'] != '성질':                  # 주체 별이 이 대한 명궁에 든 것이 곧 조건이다(조건 하나가 선 것으로 센다)
             it['met'] = it['total'] = 1
             it['subject_only'] = True
         it.update(line=q['line'], text=q['clause'], limit_kind=q['limit_kind'], limit_type=q['limit_type'], wide=_wide(q))
