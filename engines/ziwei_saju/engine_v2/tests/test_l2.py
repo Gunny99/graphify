@@ -64,7 +64,8 @@ def test_table_integrity():
             assert p.get('reason')
             continue
         for c in p['conds']:
-            assert c['kind'] in ('동궁', '삼방대궁', '밝기', '궁지', '생년간', '성별', '살', '길', '공망') and 'negate' in c
+            assert c['kind'] in ('동궁', '삼방대궁', '밝기', '궁지', '생년간', '성별', '살', '길', '공망',
+                            '생년지지', '생시', '대궁', '삼합', '협', '타궁별') and 'negate' in c      # 뒤 여섯은 해독 2차(2026-11-18)에 더한 종류
 
 
 def test_text_verbatim():
@@ -216,3 +217,157 @@ def test_half_needs_dong_gung_star_somewhere():
     s = _j3_items('신궁')
     assert s.get('入限:387#3', {}).get('verdict', N) == N           # 창곡이 없는데 밝기만 맞아 반만이던 것
     assert _j3_items('명궁')['入限:766']['verdict'] == H           # 주체 조합은 섰고 밝기만 안 섬(ㄴ)
+
+
+# ---- 해독 2차(2026-11-18): 새 조건 종류 합성 시험. 각 종류마다 참, 거짓, 미확인 ----
+from engine_v2.common import BR as _BR, bi as _bi, bz as _bz, roles_from as _roles_from, sanfang as _sanfang
+
+
+def _synth(put=None, year_gz='甲子', hour='午', ming='子', drop=()):
+    """12궁 합성 명반. put = {지지: [별 이름...]}"""
+    roles = _roles_from(ming)
+    put = put or {}
+    pal = {z: {'role': roles[z], 'stem': '甲', 'stars': [{'name': n, 'kind': '주성' if n in ('자미', '태양', '태음') else '보좌', 'cls': '미확인', 'hua': None}
+                                                         for n in put.get(z, [])]} for z in _BR if z not in drop}
+    chart = {'palaces': pal, 'year_gz': year_gz, 'year_stem': year_gz[0] if year_gz else None, 'male': True, 'ming': ming, 'shen': ming,
+             'pos': {}, 'kong': {}, 'birth': {'hour_branch': hour}}
+    if year_gz is None:
+        chart.pop('year_gz')
+    return {'chart': chart, 'l1': {}}
+
+
+def _chk(res, c, z='子', p=None):
+    c = dict({'negate': False}, **c)
+    return l2._check(l2._Ctx(res), z, p or {'star': None}, c)
+
+
+def test_new_kind_birth_year_branch():
+    c = {'kind': '생년지지', 'values': ['寅', '午', '戌']}
+    assert _chk(_synth(year_gz='甲寅'), c) is True
+    assert _chk(_synth(year_gz='甲子'), c) is False
+    assert _chk(_synth(year_gz=None), c) is None
+    assert _chk(_synth(year_gz='甲子'), dict(c, negate=True)) is True
+
+
+def test_new_kind_day_night_birth():
+    day, night = {'kind': '생시', 'values': ['日生']}, {'kind': '생시', 'values': ['夜生']}
+    for h, d in (('辰', True), ('巳', True), ('午', True), ('未', True), ('戌', False), ('亥', False), ('子', False), ('丑', False)):
+        assert _chk(_synth(hour=h), day) is d and _chk(_synth(hour=h), night) is (not d), h
+    for h in '寅卯申酉':                      # 11-3 3번: 정의가 없으면 미확인
+        assert _chk(_synth(hour=h), day) is None and _chk(_synth(hour=h), night) is None, h
+    assert _chk(_synth(hour=None), day) is None
+
+
+def test_new_kind_opposite_palace_only():
+    base = {'kind': '대궁', 'values': ['자미']}
+    assert _chk(_synth({'午': ['자미']}), base) is True          # 子의 대궁은 午
+    assert _chk(_synth({'申': ['자미']}), base) is False         # 삼합 자리에 있으면 대궁이 아니다
+    assert _chk(_synth({'子': ['자미']}), base) is False         # 동궁도 아니다
+    assert _chk(_synth({'午': ['자미']}, drop=('午',)), base) is None
+    assert _chk(_synth({'午': ['태양']}), {'kind': '대궁', 'values': ['주성']}) is True
+    assert _chk(_synth({'午': ['좌보']}), {'kind': '대궁', 'values': ['주성']}) is False
+    # 기존 값 only: 대궁(권4 子:74#3, 子:79#1)도 같은 범위로 읽는다
+    gil = {'kind': '길', 'values': ['좌보', '우필'], 'scope': '삼방대궁', 'only': '대궁'}
+    assert _chk(_synth({'午': ['좌보']}), gil) is True and _chk(_synth({'申': ['좌보']}), gil) is False
+
+
+def test_new_kind_sanhe_without_opposite():
+    base = {'kind': '삼합', 'values': ['자미']}
+    assert _l2_scope('子', '삼합') == ['申', '辰']
+    assert _chk(_synth({'辰': ['자미']}), base) is True and _chk(_synth({'申': ['자미']}), base) is True
+    assert _chk(_synth({'午': ['자미']}), base) is False         # 대궁은 삼합에서 뺀다
+    assert _chk(_synth({'子': ['자미']}), base) is False
+    assert _chk(_synth({'辰': ['자미']}, drop=('辰',)), base) is None
+    gil = {'kind': '길', 'values': ['좌보', '우필'], 'scope': '삼합'}      # 범위로도 쓴다
+    assert _chk(_synth({'辰': ['좌보']}), gil) is True and _chk(_synth({'午': ['좌보']}), gil) is False
+
+
+def _l2_scope(z, scope):
+    return l2._scope_palaces(z, scope)
+
+
+def test_new_kind_jia():
+    c = {'kind': '협', 'values': ['좌보', '우필'], 'scope': '양옆'}
+    assert _chk(_synth({'亥': ['좌보'], '丑': ['우필']}), c) is True
+    assert _chk(_synth({'丑': ['좌보'], '亥': ['우필']}), c) is True
+    assert _chk(_synth({'亥': ['좌보'], '午': ['우필']}), c) is False
+    assert _chk(_synth({'亥': ['좌보', '우필']}), c) is False      # 한쪽에 둘이 몰리면 협이 아니다
+    two = dict(c, values=['좌보', '우필', '문창', '문곡'], sets=[['좌보', '우필'], ['문창', '문곡']])
+    assert _chk(_synth({'亥': ['문창'], '丑': ['문곡']}), two) is True
+    assert _chk(_synth({'亥': ['좌보'], '丑': ['문곡']}), two) is False   # 다른 짝끼리는 협이 아니다
+    assert _chk(_synth({'亥': ['좌보'], '丑': ['우필']}), dict(c, values=['좌보'])) is None
+
+
+def test_new_kind_other_palace_star():
+    ming = '子'
+    res = _synth({}, ming=ming)
+    z = l2._Ctx(res).role_palace('복덕')
+    res = _synth({z: ['자미']}, ming=ming)
+    c = {'kind': '타궁별', 'values': {'복덕': ['자미']}}
+    assert _chk(res, c) is True
+    assert _chk(_synth({}, ming=ming), c) is False
+    assert _chk(res, {'kind': '타궁별', 'values': {'없는궁': ['자미']}}) is None
+    assert _chk(res, {'kind': '타궁별', 'values': {'복덕': ['자미', '태양']}}) is True            # 별은 하나 이상
+    assert _chk(res, {'kind': '타궁별', 'values': {'복덕': ['자미', '태양']}, 'all': True}) is False
+
+
+def test_new_kind_unknown_goes_to_unknown_list():
+    res = _synth(hour='寅')
+    ctx = l2._Ctx(res)
+    p = {'id': 'x', 'palace': '형제', 'star': None, 'parse': 'manual', 'polarity': '미정', 'conds': [{'kind': '생시', 'values': ['日生'], 'negate': False}]}
+    z = [q for q, v in ctx.pal.items() if v['role'] == '형제'][0]
+    items, unp = l2.evaluate_palace(ctx, z, [p], '형제')
+    assert unp == [] and items[0]['unknown'] == ['생시(日生)'] and items[0]['verdict'] == '서지 않는다' and items[0]['met'] == 0
+
+
+def test_new_kinds_hard_when_false():
+    res = _synth(year_gz='甲子')
+    ctx = l2._Ctx(res)
+    z = [q for q, v in ctx.pal.items() if v['role'] == '형제'][0]
+    p = {'id': 'x', 'palace': '형제', 'star': None, 'parse': 'manual', 'polarity': '길',
+         'conds': [{'kind': '생년지지', 'values': ['寅'], 'negate': False}, {'kind': '대궁', 'values': ['주성'], 'negate': True}]}
+    items, _ = l2.evaluate_palace(ctx, z, [p], '형제')
+    assert items[0]['verdict'] == '서지 않는다' and items[0]['met'] == 1     # 생년 지지가 맞지 않으면 다른 조건이 맞아도 서지 않는다
+    # 전제 조건(premise): 자녀궁에 주성이 있으면(전제 '주성 없음'이 거짓) 대궁 조건이 맞아도 서지 않는다
+    z2 = [q for q, v in l2._Ctx(_synth()).pal.items() if v['role'] == '형제'][0]
+    res2 = _synth({z2: ['자미'], _bz(_bi(z2) + 6): ['태양']})
+    ctx2 = l2._Ctx(res2)
+    pp = {'id': 'y', 'palace': '형제', 'star': None, 'parse': 'manual', 'polarity': '미정',
+          'conds': [{'kind': '동궁', 'values': ['주성'], 'negate': True, 'scope': '동궁', 'premise': True}, {'kind': '대궁', 'values': ['주성'], 'negate': False}]}
+    it, _ = l2.evaluate_palace(ctx2, z2, [pp], '형제')
+    assert it[0]['met'] == 1 and it[0]['verdict'] == '서지 않는다'
+    pp['conds'][0].pop('premise')
+    it, _ = l2.evaluate_palace(ctx2, z2, [pp], '형제')
+    assert it[0]['verdict'] == '반만'
+
+
+def test_new_kinds_in_tables_and_scripts(tmp_path):
+    import importlib.util
+    kinds = {'생년지지', '생시', '대궁', '삼합', '협', '타궁별'}
+    seen = {}
+    for path in (l2.DATA3, l2.DATA):
+        for p in l2.load_passages(path):
+            for c in p['conds']:
+                if c['kind'] in kinds:
+                    seen.setdefault(c['kind'], []).append(p['id'])
+                    assert p['parse'] == 'manual' and 'O25 해독2' in p['note'], p['id']
+    assert kinds <= set(seen), seen
+    here = os.path.dirname(l2.__file__) + '/data/'
+    for name, src in (('apply_decode2_j3', l2.DATA3), ('apply_decode2_j4', l2.DATA)):
+        spec = importlib.util.spec_from_file_location(name, here + name + '.py')
+        m = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(m)
+        cp = str(tmp_path / (name + '.json'))
+        open(cp, 'w', encoding='utf-8').write(open(src, encoding='utf-8').read())
+        before = open(cp, encoding='utf-8').read()
+        m.main(cp)
+        assert open(cp, encoding='utf-8').read() == before       # 다시 돌려도 같다(이미 처리된 구절은 건너뜀)
+
+
+def test_population_grammar_has_no_new_kind_tokens():
+    """population.py의 사전 문법(별도 TSV)과 l2의 조건 종류는 겹치지 않는다. l2를 가져오지도 않는다."""
+    from engine_v2 import population as P
+    assert not hasattr(P, 'l2')
+    rules, _ = P.load_dictionary()
+    keys = {t.partition('=')[0] for r in rules for t in r.cond_text.split(';') if t.strip() and not t.strip().startswith('#')}
+    assert not keys & {'생년지지', '생시', '대궁', '삼합', '협', '타궁별', '생년', '일생', '야생'}, keys
