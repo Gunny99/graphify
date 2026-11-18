@@ -98,8 +98,9 @@ _ERROR_ENVELOPE = {
 }
 
 
-def test_nonzero_exit_surfaces_envelope_error_when_stderr_empty():
+def test_nonzero_exit_surfaces_envelope_error_when_stderr_empty(monkeypatch):
     # The CLI reports API failures in the stdout JSON envelope, not on stderr.
+    monkeypatch.setenv("GRAPHIFY_MAX_RETRIES", "0")
     # Without reading it the user gets a bare "exited 1: " and no cause (#2554).
     completed = MagicMock(
         returncode=1, stdout=json.dumps(_ERROR_ENVELOPE), stderr="",
@@ -110,7 +111,8 @@ def test_nonzero_exit_surfaces_envelope_error_when_stderr_empty():
             llm._call_claude_cli("dummy", max_tokens=8192)
 
 
-def test_raises_on_error_envelope_with_zero_exit():
+def test_raises_on_error_envelope_with_zero_exit(monkeypatch):
+    monkeypatch.setenv("GRAPHIFY_MAX_RETRIES", "0")
     # `claude -p` exits 0 on a rate limit and flags it as is_error in the
     # envelope. Parsing `result` as model output yields an empty graph that
     # _response_is_hollow then misreads as truncation, so adaptive retry
@@ -124,7 +126,8 @@ def test_raises_on_error_envelope_with_zero_exit():
             llm._call_claude_cli("dummy", max_tokens=8192)
 
 
-def test_raises_on_array_shaped_error_envelope():
+def test_raises_on_array_shaped_error_envelope(monkeypatch):
+    monkeypatch.setenv("GRAPHIFY_MAX_RETRIES", "0")
     # Newer CLIs (>= ~2.1) stream a JSON ARRAY of events with the result
     # object last; the is_error flag must be honoured in that shape too (#2554).
     streamed = [
@@ -138,27 +141,28 @@ def test_raises_on_array_shaped_error_envelope():
             llm._call_claude_cli("dummy", max_tokens=8192)
 
 
-def test_call_llm_raises_on_error_envelope():
-    # _call_llm returns envelope["result"] verbatim, so a rate-limited call
-    # hands "API Error: Rate limit reached" back to its callers as if it were
-    # model output — the dedup tiebreaker and community labeling then write
-    # that string into the graph as a label (#2554).
+def test_call_llm_raises_on_error_envelope(monkeypatch):
+    # The CLI reports rate limits inside its result envelope. With retries
+    # disabled here, assert the normalized failure is surfaced, not returned
+    # as model text or mislabeled as an empty extraction.
+    monkeypatch.setenv("GRAPHIFY_MAX_RETRIES", "0")
     completed = MagicMock(
         returncode=0, stdout=json.dumps(_ERROR_ENVELOPE), stderr="",
     )
     with patch("shutil.which", return_value="/fake/bin/claude"), \
          patch("subprocess.run", return_value=completed):
-        with pytest.raises(RuntimeError, match="Rate limit reached"):
+        with pytest.raises(llm.RateLimited, match="Rate limit reached"):
             llm._call_llm("dummy", backend="claude-cli")
 
 
-def test_call_llm_nonzero_exit_surfaces_envelope_error():
+def test_call_llm_nonzero_exit_surfaces_envelope_error(monkeypatch):
+    monkeypatch.setenv("GRAPHIFY_MAX_RETRIES", "0")
     completed = MagicMock(
         returncode=1, stdout=json.dumps(_ERROR_ENVELOPE), stderr="",
     )
     with patch("shutil.which", return_value="/fake/bin/claude"), \
          patch("subprocess.run", return_value=completed):
-        with pytest.raises(RuntimeError, match="Rate limit reached"):
+        with pytest.raises(llm.RateLimited, match="Rate limit reached"):
             llm._call_llm("dummy", backend="claude-cli")
 
 
@@ -558,3 +562,22 @@ def test_prefers_structured_output_over_prose_result(monkeypatch):
     assert len(result["nodes"]) == 2, "must parse structured_output, not the prose result"
     assert len(result["edges"]) == 1
     assert result["finish_reason"] == "stop"
+
+
+def test_claude_cli_rate_limit_retries_through_shared_dispatcher(monkeypatch):
+    success = dict(_ENVELOPE, result="label from successful retry")
+    failed = MagicMock(
+        returncode=0, stdout=json.dumps(_ERROR_ENVELOPE), stderr="",
+    )
+    recovered = MagicMock(
+        returncode=0, stdout=json.dumps(success), stderr="",
+    )
+    monkeypatch.setenv("GRAPHIFY_MAX_RETRIES", "1")
+    monkeypatch.setattr(llm.time, "sleep", lambda _seconds: None)
+    monkeypatch.setattr(llm, "_response_is_hollow", lambda raw, parsed: False)
+    with patch("shutil.which", return_value="/fake/bin/claude"), \\
+         patch("subprocess.run", side_effect=[failed, recovered]) as run:
+        result = llm._call_llm("name this", backend="claude-cli")
+
+    assert result == "label from successful retry"
+    assert run.call_count == 2
