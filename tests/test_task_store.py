@@ -816,7 +816,7 @@ def test_agent_profile_is_immutable_while_result_awaits_verification(
     changed = dict(producer)
     changed["model_version"] = "2"
     changed["auth_token"] = producer_token
-    with pytest.raises(TaskStoreError, match="pending verification results"):
+    with pytest.raises(TaskStoreError, match="result awaiting review"):
         store.register_agent(changed, trusted_profile=True)
 
 
