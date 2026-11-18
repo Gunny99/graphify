@@ -17,10 +17,16 @@ from graphify.orchestration import OrchestrationValidationError
 STAMP = "2026-11-14T00:00:00Z"
 
 
-def _quality(role: str = "researcher", *, accuracy: float = 0.995, hallucination: float = 0.005):
+def _quality(
+    role: str = "researcher",
+    *,
+    domain: str = "technical",
+    accuracy: float = 0.995,
+    hallucination: float = 0.005,
+):
     return {
         "role": role,
-        "domain": "technical",
+        "domain": domain,
         "benchmark_id": "technical-v1",
         "evaluation_set_hash": "sha256:held-out",
         "evaluator_version": "human-v1",
@@ -313,7 +319,7 @@ def test_agent_identity_cannot_change_while_submitted_result_is_awaiting_review(
     changed = dict(producer)
     changed["model_version"] = "producer-model-v2"
     changed["auth_token"] = f"test-agent-token::{producer['agent_id']}::secret"
-    with pytest.raises(TaskStoreError, match="result awaiting review"):
+    with pytest.raises(TaskStoreError, match="pending verification results"):
         store.register_agent(changed, trusted_profile=True)
 
     verification = store.claim_task("verifier")
@@ -580,6 +586,50 @@ def test_insufficient_review_without_an_alternate_verifier_becomes_provisional(t
     assert status["run"]["status"] == "provisional"
 
 
+def test_terminal_failure_is_not_masked_by_an_unresolved_review(tmp_path):
+    store = TaskStore(tmp_path / "orchestrator.sqlite3")
+    producer = _agent(
+        "producer", "producer-provider", "producer-model", max_concurrency=2
+    )
+    verifier = _agent(
+        "verifier", "verifier-provider", "verifier-model", role="verifier"
+    )
+    _register(store, producer)
+    _register(store, verifier)
+
+    unresolved = _task("unresolved")
+    failed = _task("failed")
+    unresolved["input"]["write_set"] = ["src/unresolved.py"]
+    failed["input"]["write_set"] = ["src/failed.py"]
+    store.create_run(
+        _run(strategy="parallel_independent", max_parallel_agents=2),
+        [unresolved, failed],
+    )
+
+    first = store.claim_task("producer")
+    second = store.claim_task("producer")
+    assert first is not None and first["task_id"] == "unresolved"
+    assert second is not None and second["task_id"] == "failed"
+
+    result = _result("unresolved", producer)
+    store.submit_result(result, first["lease_token"])
+    verification = store.claim_task("verifier")
+    assert verification is not None
+    review = _review(result, verifier, review_task_id=verification["task_id"])
+    review["status"] = "needs_review"
+    review["claims"][0]["verdict"] = "insufficient"
+    store.submit_review(review, verification["lease_token"])
+
+    status = store.fail_task(
+        "failed", "producer", second["lease_token"],
+        "permanent independent-branch failure", retryable=False,
+    )
+    states = {task["task_id"]: task["status"] for task in status["tasks"]}
+    assert states["unresolved"] == "needs_review"
+    assert states["failed"] == "failed"
+    assert status["run"]["status"] == "failed"
+
+
 def test_task_that_cannot_fit_run_budget_is_failed_instead_of_left_queued(tmp_path):
     store = TaskStore(tmp_path / "orchestrator.sqlite3")
     expensive = _agent(
@@ -593,6 +643,28 @@ def test_task_that_cannot_fit_run_budget_is_failed_instead_of_left_queued(tmp_pa
     status = store.get_run_status("run-1")
     assert status["tasks"][0]["status"] == "failed"
     assert status["run"]["status"] == "failed"
+
+
+def test_result_domain_must_match_task_domain(tmp_path):
+    store = TaskStore(tmp_path / "orchestrator.sqlite3")
+    agent = _agent("agent-1", "provider", "model")
+    agent["quality_profiles"].append(_quality(domain="ziwei_saju"))
+    _register(store, agent)
+    task = _task("ziwei-task", domain="ziwei_saju")
+    store.create_run(_run(), [task])
+    claimed = store.claim_task("agent-1")
+    assert claimed is not None
+
+    # A generic result cannot satisfy a task explicitly declared for ziwei_saju.
+    result = _result("ziwei-task", agent)
+    with pytest.raises(TaskStoreError, match="ziwei_saju tasks require"):
+        store.submit_result(result, claimed["lease_token"])
+
+    # Nor can a result silently claim a different domain.
+    result = _result("ziwei-task", agent)
+    result["output"]["domain"] = "technical"
+    with pytest.raises(TaskStoreError, match="result domain"):
+        store.submit_result(result, claimed["lease_token"])
 
 
 
@@ -652,40 +724,12 @@ def test_exhausted_verification_lease_marks_source_needs_review(tmp_path):
             (second_verification["task_id"],),
         )
 
-    # Any task claim runs the expiry reaper before selecting a new task.
     store.claim_task("producer")
     status = store.get_run_status("run-1")
     states = {task["task_id"]: task["status"] for task in status["tasks"]}
     assert states["task-1"] == "needs_review"
     assert states[second_verification["task_id"]] == "failed"
     assert status["run"]["status"] == "provisional"
-
-
-def test_result_cannot_adopt_an_existing_task_as_its_verification_task(tmp_path):
-    store = TaskStore(tmp_path / "orchestrator.sqlite3")
-    producer = _agent("producer", "producer-provider", "producer-model")
-    _register(store, producer)
-    store.create_run(_run(), [_task("task-1")])
-
-    claimed = store.claim_task("producer")
-    assert claimed is not None
-
-    # A task in another run can occupy the predictable verification::<result_id>
-    # namespace. It must never be adopted as the verifier for this result.
-    store.create_run(
-        _run("run-2", strategy="single_agent"),
-        [_task("verification::collision", "run-2")],
-    )
-    result = _result("task-1", producer, result_id="collision")
-    with pytest.raises(TaskStoreError, match="verification task ID collision"):
-        store.submit_result(result, claimed["lease_token"])
-
-    status = store.get_run_status("run-1")
-    assert status["tasks"][0]["status"] == "leased"
-    with store._connect() as con:
-        assert con.execute(
-            "SELECT COUNT(*) FROM results WHERE result_id='collision'"
-        ).fetchone()[0] == 0
 
 
 @pytest.mark.parametrize("strategy", ["single_agent", "single_with_review"])
@@ -818,6 +862,93 @@ def test_agent_profile_is_immutable_while_result_awaits_verification(
     changed["auth_token"] = producer_token
     with pytest.raises(TaskStoreError, match="result awaiting review"):
         store.register_agent(changed, trusted_profile=True)
+
+
+
+def test_result_cannot_adopt_an_existing_task_as_its_verification_task(tmp_path):
+    store = TaskStore(tmp_path / "orchestrator.sqlite3")
+    producer = _agent("producer", "producer-provider", "producer-model")
+    _register(store, producer)
+    store.create_run(_run(), [_task("task-1")])
+    claimed = store.claim_task("producer")
+    assert claimed is not None
+    store.create_run(
+        _run("run-2", strategy="single_agent"),
+        [_task("verification::collision", "run-2")],
+    )
+    result = _result("task-1", producer, result_id="collision")
+    with pytest.raises(TaskStoreError, match="verification task ID collision"):
+        store.submit_result(result, claimed["lease_token"])
+    status = store.get_run_status("run-1")
+    assert status["tasks"][0]["status"] == "leased"
+    with store._connect() as con:
+        assert con.execute(
+            "SELECT COUNT(*) FROM results WHERE result_id='collision'"
+        ).fetchone()[0] == 0
+
+
+def test_ziwei_failed_attempt_can_be_submitted_without_interpretation_frames(tmp_path):
+    store = TaskStore(tmp_path / "orchestrator.sqlite3")
+    agent = _agent("ziwei-agent", "provider", "model")
+    agent["quality_profiles"].append(_quality(domain="ziwei_saju"))
+    _register(store, agent)
+    task = _task("ziwei-task", domain="ziwei_saju")
+    store.create_run(_run(strategy="single_agent"), [task])
+    claimed = store.claim_task("ziwei-agent")
+    assert claimed is not None
+    failed_result = _result("ziwei-task", agent)
+    failed_result["status"] = "failed"
+    failed_result["output"] = {
+        "domain": "ziwei_saju",
+        "failure_reason": "source decoding failed",
+    }
+    failed_result["claims"] = []
+    failed_result["evidence"] = []
+    status = store.submit_result(failed_result, claimed["lease_token"])
+    assert status["tasks"][0]["status"] == "queued"
+    assert status["run"]["status"] == "queued"
+
+
+@pytest.mark.parametrize(
+    ("first_path", "second_path"),
+    [
+        ("src/a.py", "./src/a.py"),
+        ("src/a.py", "src//a.py"),
+        ("src/", "src/a.py"),
+        ("src", "src/nested/b.py"),
+        ("src/a.py", "src/a.py/child"),
+    ],
+)
+def test_parallel_write_sets_reject_normalized_and_ancestor_conflicts(
+    tmp_path, first_path, second_path
+):
+    store = TaskStore(tmp_path / "orchestrator.sqlite3")
+    first = _task("task-1")
+    second = _task("task-2")
+    first["input"]["write_set"] = [first_path]
+    second["input"]["write_set"] = [second_path]
+    with pytest.raises(OrchestrationValidationError, match="write sets overlap after path normalization"):
+        store.create_run(
+            _run(strategy="parallel_independent", max_parallel_agents=2),
+            [first, second],
+        )
+
+
+@pytest.mark.parametrize(
+    "unsafe_path",
+    ["../outside.py", "/etc/passwd", r"src\outside.py", "C:/outside.py", "http:outside.py"],
+)
+def test_parallel_write_sets_reject_non_repository_paths(tmp_path, unsafe_path):
+    store = TaskStore(tmp_path / "orchestrator.sqlite3")
+    first = _task("task-1")
+    second = _task("task-2")
+    first["input"]["write_set"] = [unsafe_path]
+    second["input"]["write_set"] = ["src/safe.py"]
+    with pytest.raises(OrchestrationValidationError, match="safe repository-relative POSIX path"):
+        store.create_run(
+            _run(strategy="parallel_independent", max_parallel_agents=2),
+            [first, second],
+        )
 
 
 

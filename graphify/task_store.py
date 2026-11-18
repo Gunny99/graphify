@@ -309,6 +309,11 @@ class TaskStore:
         ).fetchall()
         statuses = [item["status"] for item in task_rows]
         status_by_task = {item["task_id"]: item["status"] for item in task_rows}
+        has_terminal_work_failure = any(
+            item["status"] in {"failed", "rejected", "blocked"}
+            and _decode(item["task_json"]).get("task_type") != "verification"
+            for item in task_rows
+        )
         has_runnable_queued = any(
             item["status"] == "queued"
             and all(
@@ -330,9 +335,16 @@ class TaskStore:
             status = "queued"
         elif any(status == "submitted" for status in statuses):
             status = "awaiting_review"
+        elif has_terminal_work_failure:
+            # A terminally failed branch makes full run acceptance impossible.
+            # Keep active/runnable work ahead of this check, but do not let an
+            # unrelated needs_review branch mask an unrecoverable work failure.
+            status = "failed"
         elif any(status == "needs_review" for status in statuses):
             status = "provisional"
         elif any(status in {"failed", "rejected", "blocked"} for status in statuses):
+            # A failed verification task is reflected as needs_review on its
+            # parent; absent that parent state, keep the run conservatively failed.
             status = "failed"
         elif statuses and all(status == "cancelled" for status in statuses):
             status = "cancelled"
@@ -435,7 +447,7 @@ class TaskStore:
                 )
                 if any(previous[key] != profile[key] for key in immutable_keys):
                     raise TaskStoreError(
-                        "cannot change model identity, pricing, or quality profile while this agent owns leases or has a result awaiting review"
+                        "cannot change model identity, pricing, or quality profile while this agent owns leases or has pending verification results"
                     )
             registered_at = (
                 _decode(existing["profile_json"]).get("registered_at") if existing else None
@@ -1095,8 +1107,26 @@ class TaskStore:
                 return self._run_status_in_transaction(con, str(result["run_id"]))
             row = self._owned_lease(con, task_id, agent_id, lease_token)
             task = _decode(row["task_json"])
+            result_domain = result["output"].get("domain")
+            if result_domain is not None and result_domain != task["domain"]:
+                raise TaskStoreError(
+                    f"result domain {result_domain!r} does not match task domain {task['domain']!r}"
+                )
+            if task["domain"] == "ziwei_saju" and result_domain != "ziwei_saju":
+                raise TaskStoreError(
+                    "ziwei_saju tasks require result.output.domain='ziwei_saju'"
+                )
             if task["task_type"] == "verification":
                 raise TaskStoreError("verification tasks must use submit_review, not submit_result")
+            result_domain = result["output"].get("domain")
+            if result_domain is not None and result_domain != task["domain"]:
+                raise TaskStoreError(
+                    f"result domain {result_domain!r} does not match task domain {task['domain']!r}"
+                )
+            if task["domain"] == "ziwei_saju" and result_domain != "ziwei_saju":
+                raise TaskStoreError(
+                    "ziwei_saju tasks require result.output.domain='ziwei_saju'"
+                )
             if result["run_id"] != row["run_id"] or int(result["attempt"]) != int(row["attempt"]):
                 raise TaskStoreError("result run_id or attempt does not match the active task lease")
             run_row = con.execute(

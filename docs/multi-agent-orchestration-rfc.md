@@ -105,10 +105,10 @@ Every task is an independently claimable unit of work.
   "domain": "technical",
   "objective": "Find primary-source support for the specified claims",
   "input": {},
+  "data_scopes": ["project:demo"],
   "context_refs": [],
   "depends_on": [],
   "required_capabilities": ["web_research", "primary_sources"],
-  "data_scopes": ["project:demo"],
   "output_schema": {},
   "acceptance_criteria": [],
   "quality_policy_ref": "run-quality-policy",
@@ -143,7 +143,7 @@ Required fields:
 
 A capability match is necessary but not sufficient: a model must also have a current quality profile that qualifies for the task's domain and quality tier.
 
-Before creating queue tasks, call `choose_execution_strategy`. A `single_agent` or `single_with_review` run has one main work task; the latter may create one separate verifier task after implementation. For these single-session strategies, exactly one task may have no dependencies; additional tasks are permitted only as descendants of that one main task and remain sequentially claimable after their prerequisites are accepted. Exploration tasks must be read-only and independent. Parallel implementation tasks must have no dependencies, no shared mutable state, and explicit pairwise-disjoint `write_set` declarations. Each `write_set` entry is a project-relative POSIX file or directory path. Conflict checks normalize `.` and repeated or trailing separators, reject absolute paths, backslashes, and `..`, and treat a directory and any descendant path as overlapping. The store rejects a plan that does not match its declared strategy.
+Before creating queue tasks, call `choose_execution_strategy`. A `single_agent` or `single_with_review` run has one main work task; the latter may create one separate verifier task after implementation. For these single-session strategies, exactly one task may have no dependencies; additional tasks are permitted only as descendants of that one main task and remain sequentially claimable after their prerequisites are accepted. Exploration tasks must be read-only and independent. Parallel implementation tasks must have no dependencies, no shared mutable state, and explicit pairwise-disjoint `write_set` declarations. The store rejects a plan that does not match its declared strategy. Normalize paths as repository-relative POSIX paths before conflict checks: remove redundant separators and `.` segments, reject absolute/drive-qualified paths, URI schemes, backslashes, and `..` segments, and treat equal or ancestor/descendant paths as overlapping (for example, `src/` conflicts with `src/module.py`).
 
 ### Claim and evidence
 
@@ -213,7 +213,10 @@ The user's target is:
 
 Definitions:
 - **Accuracy** = independently verified correct material factual claims / all material factual claims evaluated.
-- **Hallucination rate** = unsupported, fabricated, or source-contradicted material factual claims / all material factual claims evaluated.
+- **Hallucination rate** = fabricated or source-contradicted material factual claims / all material factual claims evaluated.
+- **Insufficient rate** = material claims the verifier cannot establish as supported or contradicted / all material factual claims evaluated.
+- **Unreviewed rate** = material claims without an independent verdict / all material factual claims evaluated.
+- **Verification-failure rate** = contradicted + insufficient + unreviewed material claims / all material factual claims evaluated. This conservative rate is a release gate, not a claim that every unresolved statement is a proven hallucination.
 - **Evidence coverage** = material factual claims with traceable, relevant evidence / all material factual claims.
 
 Every material external factual claim must include evidence. A verifier must check both that the source exists and that it supports the specific claim. A citation that merely mentions the same topic is insufficient.
@@ -293,14 +296,57 @@ Routing sequence:
 
 When two candidates have statistically indistinguishable quality and both meet the target, choose the one with lower expected total cost. When quality is not comparable or confidence bounds overlap the threshold, do not assume equivalence; use the better-supported candidate or mark the result provisional.
 
+## Domain extension: ziwei_saju
+
+The `ziwei_saju` adapter keeps domain semantics inside the result payload; it does not add domain-specific states to the global run/task state machine.
+
+### Claim evidence and source wording
+
+Each material domain claim must carry: Non-material contextual claims still follow the common claim envelope but are exempt from domain-specific evidence-basis, assertion-strength, and derivation-step requirements; they cannot be linked from interpretation frames.
+- `evidence_basis`: `explicit_source | derived | unknown`.
+- `assertion_strength`: `definite | hedged`, describing how strongly the final claim itself is stated.
+- `evidence`: original-source references with `source_id`, `source_type`, repository-relative `uri`, `location`, full source-file `content_hash` (`sha256:<64 hex>), verbatim `excerpt`, bibliographic `edition`, optional `variant`, `source_assertion` (`definite | hedged`), and `source_text_status` (for example, OCR/collation status).
+- `derivation_steps`: required for `evidence_basis=derived`; derived claims use `claim_type=inference`. For `explicit_source`, `claim_type` must be `factual` and `derivation_steps` must be absent. For `unknown`, `derivation_steps` must be absent; its `claim_type` remains a semantic classification, but the claim stays hedged/unconfirmed and cannot receive a `supported` verdict. An unknown material claim may coexist with determinate claims in the same result, but the result remains unresolved/provisional until that material claim is independently established; do not discard the unreadable passage or label it contradicted.
+
+The `uri` field is a canonical repository-relative POSIX path, not a general URL: schemes, absolute/home-rooted paths, backslashes, empty path components, and `.`/`..` segments are rejected. `unknown` claims carry no supporting evidence and must remain hedged/unconfirmed. A source author's hedged wording is recorded as `source_assertion=hedged`; it is not a model-generated estimate. The `ziwei_saju` validator rejects `estimated` as an evidence basis because this domain's governing specification does not permit model-invented estimated coefficients or assumptions. A claim supported only by hedged source assertions cannot be upgraded to a definite statement. A `derived` claim must remain hedged when **any** premise evidence is hedged, even when another cited premise is definite. The result output must identify both the interpretation engine (`engine_hash` or `engine_version`) and the governing rule specification (`spec_hash` or `spec_version`). Do not include raw birth date/time, resident-registration or social-security numbers, or direct personal contact identifiers in the envelope; pass only the minimum redacted inputs needed for reproducibility.
+
+The shared `claim_type` vocabulary already includes `inference`; do not add `hedged` as a claim type because hedging is assertion strength, not claim kind.
+
+### Interpretive divergence
+
+The domain output uses `interpretation_status=single_frame | convergent | divergent | indeterminate` and an `interpretations[]` collection. Each entry requires a named `frame`, a finding, an `assertion_strength` (`definite | hedged`), and traceable source evidence for determinate outcomes. A finding supported only by hedged source wording must remain hedged; one with no supporting source evidence must also remain hedged. Each interpretation also requires a `claim_id` that points to a distinct material factual/inference claim in the result; one claim cannot be reused by multiple frames. The displayed finding must exactly match that claim's statement, and the interpretation's source evidence must overlap the linked claim's evidence. This one-to-one frame/claim mapping ensures every user-visible interpretation receives its own independent claim-level verdict.
+
+Each interpretation includes a stable `question_id` and a structured `direction`: `auspicious | inauspicious | character | indeterminate`. A `character` direction must also carry one or more trimmed `trait_terms` copied from its cited source excerpt; each term must occur verbatim in at least one cited excerpt. Every frame in one result envelope must answer the same `question_id`; emit separate question results rather than bundling unrelated questions. Convergence is not literal finding-text equality: auspicious/inauspicious directions must agree, while character frames converge only when their cited source term sets share at least one term. Character frames with no shared source term are divergent.
+
+- `single_frame`: exactly one named frame produced a determinate finding; additional frames may explicitly be indeterminate (no correspondence).
+- `convergent`: at least two distinct named frames answer the same `question_id` with the same determinate direction; character frames must also share at least one source term. Their finding text may differ. Indeterminate frames may coexist and do not vote on convergence.
+- `divergent`: at least two distinct named frames answer the same `question_id` with different determinate directions or character trait terms with no shared source term, each supported by its own evidence. The output must include `divergence_reason`. Indeterminate frames may coexist without being treated as a contrary finding.
+- `indeterminate`: every frame's direction is `indeterminate`; every finding remains hedged, even when source passages are definite.
+
+For every frame, `assertion_strength` must match the linked claim's `assertion_strength`. The frame's evidence and its linked claim's evidence must either both be absent (only for an `unknown` claim in an indeterminate frame) or share at least one identical `(source_id, location, content_hash)` tuple. Since `content_hash` identifies the full source file, the hash alone does not prove that two citations identify the same passage.
+
+Do not aggregate different `question_id` values into one convergent/divergent status. Use separate question results.
+
+A divergence does not change global `review.status` or `run.status`. A conflict within the same frame, unsupported findings, or untraceable sources remain `needs_review`.
+
+### Evaluation status
+
+Keep three evaluations distinct:
+1. deterministic engine unit/regression tests against the versioned rule specification;
+2. independent scoring of source extraction and condition application;
+3. sealed holdout evaluation of predictions, never exposed to indexing, prompts, or tuning.
+
+The currently described 63 regression cases do not establish the >99% accuracy / <1% hallucination statistical target. The domain quality profile remains `provisional` until an independently labelled, sufficiently large, non-leaking evaluation set establishes the confidence bounds. Report `contradicted`, `insufficient`, and `unreviewed` claims separately. An `insufficient` material claim blocks acceptance but is not automatically labelled a proven hallucination. The `verification_failure_rate` (contradicted + insufficient + unreviewed over all material claims) is the conservative release gate and must be checked explicitly by `result_meets_quality_gate`.
+
 ## Lease, retry, and idempotency rules
 
 - A task claim creates a random lease token and expiry. Only that agent/token pair may heartbeat, submit, or fail the task.
-- A lease expiry re-queues the task only while attempts and budget remain; the old lease token becomes invalid.
+- A lease expiry re-queues the task only while attempts and budget remain; the old lease token becomes invalid. When a failed result or review includes validated usage telemetry, its attempt estimate is released and the recorded actual cost is charged. When `fail_task` or lease expiry provides no usage telemetry, move the attempt estimate to durable `unreported_cost_reserved`; retain it across subsequent claims and include it in both task-level and run-level budget checks, rather than overwriting it with the next attempt's estimate. A task's own cost ceiling also includes all actual generation/review costs already recorded for that task plus any unreported reserve and the next expected attempt cost.
 - Result submission is idempotent by task/attempt/result ID. Replaying a completed submission must not duplicate state transitions or costs.
 - A worker cannot claim a task whose dependencies are incomplete, whose capability set does not match, or whose task budget/deadline has expired.
 - Every automatic retry is bounded by `max_attempts`, task cost budget, and run cost budget. No unbounded self-spawning or recursive delegation.
-- A run is accepted only after all required tasks are accepted and the final quality gate passes.
+- A run is accepted only after all required tasks are accepted and the final quality gate passes. A queued task whose dependency is `needs_review` remains dormant and unclaimable; when no other work is runnable, the run is `provisional`, not `queued` or `failed`. If the dependency is later accepted, the downstream task becomes eligible without recreating the run.
+- An explicit `rejected` review or a `contradicted` verdict is terminal rejection. An `insufficient` verdict is unresolved evidence, not proof of contradiction: keep the source task `needs_review` and the run `provisional` when no eligible independent verifier remains. Requeue only when a different fresh, eligible verifier is available and the attempt budget remains.
 
 ## Initial MCP contract
 

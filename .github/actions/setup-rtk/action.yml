@@ -1,0 +1,17 @@
+name: Setup RTK
+description: Install and verify Rust Token Killer for compact command output
+
+runs:
+  using: composite
+  steps:
+    - name: Install RTK
+      shell: bash
+      run: |
+        set -euo pipefail
+        export RTK_TELEMETRY_DISABLED=1
+        echo "RTK_TELEMETRY_DISABLED=1" >> "$GITHUB_ENV"
+        curl -fsSL https://raw.githubusercontent.com/rtk-ai/rtk/refs/heads/master/install.sh | sh
+        echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+        export PATH="$HOME/.local/bin:$PATH"
+        rtk --version
+        rtk gain

@@ -395,7 +395,7 @@ def test_execution_plan_rejects_non_project_relative_write_paths(write_path):
     first, second = _task("task-1"), _task("task-2")
     first["input"]["write_set"] = [write_path]
     second["input"]["write_set"] = ["other/file.py"]
-    with pytest.raises(OrchestrationValidationError, match="project-relative|parent path"):
+    with pytest.raises(OrchestrationValidationError, match="repository-relative|parent path"):
         validate_execution_plan(run, [first, second])
 
 
@@ -426,6 +426,9 @@ def test_result_and_independent_review_compute_claim_metrics_from_verdicts():
         "unreviewed_claims": 0,
         "accuracy": 1.0,
         "hallucination_rate": 0.0,
+        "insufficient_rate": 0.0,
+        "unreviewed_rate": 0.0,
+        "verification_failure_rate": 0.0,
         "evidence_coverage": 1.0,
         "review_complete": True,
     }
@@ -576,3 +579,597 @@ def test_agent_contract_rejects_an_unknown_or_missing_cost_component():
     agent["cost_profile"].pop("expected_retry_cost_per_task")
     with pytest.raises(OrchestrationValidationError, match="expected_retry_cost_per_task"):
         validate_agent_profile(agent)
+
+
+
+def _ziwei_evidence(*, assertion: str = "definite", edition: str = "Mingjingge print") -> dict:
+    return {
+        "source_id": "ziwei-source-1",
+        "source_type": "classical_text",
+        "uri": "library/ziwei/vol3.txt",
+        "location": "L120-L124",
+        "excerpt": "Original classical text excerpt on cautious temperament and impulsive temperament.",
+        "content_hash": "sha256:" + "a" * 64,
+        "edition": edition,
+        "variant": "base-sihua-table",
+        "source_assertion": assertion,
+        "source_text_status": "uncorrected_ocr",
+    }
+
+
+def _ziwei_result() -> dict:
+    result = _result()
+    source = _ziwei_evidence()
+    result["output"] = {
+        "domain": "ziwei_saju",
+        "engine_version": "ziwei-engine/1.0.0",
+        "spec_version": "ziwei-spec/1.0.0",
+        "interpretation_status": "divergent",
+        "interpretations": [
+            {
+                "frame": "structure_reading",
+                "question_id": "q:interpretive-outcome",
+                "direction": "inauspicious",
+                "finding": "The structural frame finds an obstruction.",
+                "claim_id": "ziwei-structure-claim",
+                "assertion_strength": "definite",
+                "evidence": [source],
+            },
+            {
+                "frame": "decade_triad_frame",
+                "question_id": "q:interpretive-outcome",
+                "direction": "auspicious",
+                "finding": "The decade-triad frame finds a different emphasis.",
+                "claim_id": "ziwei-decade-claim",
+                "assertion_strength": "definite",
+                "evidence": [source],
+            },
+        ],
+        "divergence_reason": "The two named interpretive frames inspect different scopes.",
+    }
+    result["claims"] = [
+        {
+            "claim_id": "ziwei-structure-claim",
+            "statement": "The structural frame finds an obstruction.",
+            "claim_type": "inference",
+            "material": True,
+            "evidence_basis": "derived",
+            "assertion_strength": "definite",
+            "derivation_steps": [
+                "Apply the structural frame to the cited configuration.",
+                "Trace the resulting obstruction to the cited original passage.",
+            ],
+            "evidence": [source],
+        },
+        {
+            "claim_id": "ziwei-decade-claim",
+            "statement": "The decade-triad frame finds a different emphasis.",
+            "claim_type": "inference",
+            "material": True,
+            "evidence_basis": "derived",
+            "assertion_strength": "definite",
+            "derivation_steps": [
+                "Apply the decade-triad frame to its stated scope.",
+                "Trace the resulting emphasis to the cited original passage.",
+            ],
+            "evidence": [source],
+        },
+    ]
+    result["evidence"] = [source]
+    return result
+
+
+def test_ziwei_saju_accepts_divergence_between_named_frames_with_same_source():
+    result = _ziwei_result()
+    assert validate_result_envelope(result) is result
+
+
+def test_ziwei_saju_requires_explicit_evidence_basis_and_original_source_metadata():
+    result = _ziwei_result()
+    result["claims"][0].pop("evidence_basis")
+    with pytest.raises(OrchestrationValidationError, match="evidence_basis"):
+        validate_result_envelope(result)
+
+    result = _ziwei_result()
+    result["claims"][0]["evidence"][0].pop("edition")
+    result["claims"][0]["evidence"][0].pop("variant")
+    with pytest.raises(OrchestrationValidationError, match="edition or variant"):
+        validate_result_envelope(result)
+
+    result = _ziwei_result()
+    result["claims"][0]["evidence"][0].pop("edition")
+    assert validate_result_envelope(result) is result
+
+    result = _ziwei_result()
+    result["claims"][0]["evidence"] = [_ziwei_evidence()]
+    result["claims"][0]["evidence"][0]["excerpt"] = ""
+    with pytest.raises(OrchestrationValidationError, match="excerpt"):
+        validate_result_envelope(result)
+
+
+def test_ziwei_saju_rejects_invented_estimates_and_incomplete_derivations():
+    result = _ziwei_result()
+    result["claims"][0]["evidence_basis"] = "estimated"
+    with pytest.raises(OrchestrationValidationError, match="evidence_basis"):
+        validate_result_envelope(result)
+
+    result = _ziwei_result()
+    result["claims"][0]["derivation_steps"] = []
+    with pytest.raises(OrchestrationValidationError, match="derivation_steps"):
+        validate_result_envelope(result)
+
+
+def test_ziwei_saju_preserves_hedged_source_language():
+    result = _ziwei_result()
+    result["claims"][0]["evidence"] = [_ziwei_evidence(assertion="hedged")]
+    result["output"]["interpretations"][0]["evidence"] = [_ziwei_evidence(assertion="hedged")]
+    result["output"]["interpretations"][1]["evidence"] = [_ziwei_evidence(assertion="hedged")]
+    with pytest.raises(OrchestrationValidationError, match="must remain hedged"):
+        validate_result_envelope(result)
+
+    for claim in result["claims"]:
+        claim["assertion_strength"] = "hedged"
+    for item in result["output"]["interpretations"]:
+        item["assertion_strength"] = "hedged"
+    assert validate_result_envelope(result) is result
+
+
+def test_ziwei_saju_rejects_divergence_without_distinct_named_frames_or_reason():
+    result = _ziwei_result()
+    result["output"]["interpretations"][1]["frame"] = "structure_reading"
+    with pytest.raises(OrchestrationValidationError, match="duplicate"):
+        validate_result_envelope(result)
+
+    result = _ziwei_result()
+    result["output"].pop("divergence_reason")
+    with pytest.raises(OrchestrationValidationError, match="divergence_reason"):
+        validate_result_envelope(result)
+
+    result = _ziwei_result()
+    result["output"]["interpretations"][1]["direction"] = "inauspicious"
+    with pytest.raises(OrchestrationValidationError, match="disagree on direction or source trait term"):
+        validate_result_envelope(result)
+
+
+def test_ziwei_unknown_claim_cannot_be_marked_supported():
+    result = _ziwei_result()
+    result["claims"][0].update({
+        "evidence_basis": "unknown",
+        "assertion_strength": "hedged",
+        "statement": "The available source does not establish this interpretation.",
+        "evidence": [],
+    })
+    result["claims"][0].pop("derivation_steps", None)
+    result["output"]["interpretations"][0]["finding"] = result["claims"][0]["statement"]
+    result["output"]["interpretation_status"] = "indeterminate"
+    result["output"]["interpretations"] = result["output"]["interpretations"][:1]
+    for interpretation in result["output"]["interpretations"]:
+        interpretation["direction"] = "indeterminate"
+        interpretation["evidence"] = []
+        interpretation["assertion_strength"] = "hedged"
+    result["claims"] = result["claims"][:1]
+    result["output"]["interpretations"] = result["output"]["interpretations"][:1]
+    review = _review()
+    review["claims"][0]["claim_id"] = "ziwei-structure-claim"
+    with pytest.raises(OrchestrationValidationError, match="unknown ziwei_saju"):
+        validate_review_envelope(review, result)
+
+
+def test_insufficient_claims_are_not_misreported_as_proven_hallucinations():
+    result = _result()
+    review = _review(verdict="insufficient", status="needs_review")
+    metrics = compute_claim_metrics(result, review)
+    assert metrics["hallucination_rate"] == 0.0
+    assert metrics["insufficient_rate"] == 1.0
+    assert metrics["verification_failure_rate"] == 1.0
+
+
+
+def test_ziwei_saju_supports_single_frame_and_requires_true_convergence():
+    result = _ziwei_result()
+    result["output"]["interpretation_status"] = "single_frame"
+    result["output"]["interpretations"] = result["output"]["interpretations"][:1]
+    result["output"].pop("divergence_reason")
+    result["claims"] = result["claims"][:1]
+    assert validate_result_envelope(result) is result
+
+    result = _ziwei_result()
+    result["output"]["interpretation_status"] = "convergent"
+    # Different prose may still represent the same direction for the same question.
+    result["output"]["interpretations"][1]["direction"] = "inauspicious"
+    result["output"].pop("divergence_reason")
+    assert validate_result_envelope(result) is result
+
+    result = _ziwei_result()
+    result["output"]["interpretation_status"] = "convergent"
+    result["output"]["interpretations"][1]["question_id"] = "q:another-question"
+    result["output"].pop("divergence_reason")
+    with pytest.raises(OrchestrationValidationError, match="same question_id"):
+        validate_result_envelope(result)
+
+    result = _ziwei_result()
+    result["output"]["interpretation_status"] = "convergent"
+    result["output"].pop("divergence_reason")
+    with pytest.raises(OrchestrationValidationError, match="same direction"):
+        validate_result_envelope(result)
+
+
+def test_ziwei_saju_rejects_definite_findings_based_only_on_hedged_sources():
+    result = _ziwei_result()
+    for item in result["output"]["interpretations"]:
+        item["evidence"] = [_ziwei_evidence(assertion="hedged")]
+        item["assertion_strength"] = "definite"
+    with pytest.raises(OrchestrationValidationError, match="findings based only on hedged"):
+        validate_result_envelope(result)
+
+
+
+def test_ziwei_saju_findings_must_link_to_independently_reviewed_claims():
+    result = _ziwei_result()
+    result["output"]["interpretations"][0].pop("claim_id")
+    with pytest.raises(OrchestrationValidationError, match="claim_id"):
+        validate_result_envelope(result)
+
+    result = _ziwei_result()
+    result["output"]["interpretations"][0]["finding"] = "An extra unreviewed interpretation."
+    with pytest.raises(OrchestrationValidationError, match="must match its independently reviewed claim"):
+        validate_result_envelope(result)
+
+
+
+def test_ziwei_saju_convergence_uses_question_direction_not_finding_wording():
+    result = _ziwei_result()
+    result["output"]["interpretation_status"] = "convergent"
+    result["output"]["interpretations"][0]["direction"] = "character"
+    result["output"]["interpretations"][1]["direction"] = "character"
+    result["output"]["interpretations"][0]["trait_terms"] = ["cautious temperament"]
+    result["output"]["interpretations"][1]["trait_terms"] = ["cautious temperament"]
+    result["output"].pop("divergence_reason")
+    # The two findings intentionally retain different wording.
+    assert result["output"]["interpretations"][0]["finding"] != result["output"]["interpretations"][1]["finding"]
+    assert validate_result_envelope(result) is result
+
+
+def test_ziwei_saju_divergence_requires_same_question_and_distinct_directions():
+    result = _ziwei_result()
+    result["output"]["interpretations"][1]["direction"] = "inauspicious"
+    result["output"]["interpretations"][1]["question_id"] = "q:another-question"
+    with pytest.raises(OrchestrationValidationError, match="same question_id"):
+        validate_result_envelope(result)
+
+
+
+def test_ziwei_indeterminate_findings_must_remain_hedged():
+    result = _ziwei_result()
+    result["output"]["interpretation_status"] = "indeterminate"
+    for item in result["output"]["interpretations"]:
+        item["direction"] = "indeterminate"
+    with pytest.raises(OrchestrationValidationError, match="indeterminate findings must remain hedged"):
+        validate_result_envelope(result)
+
+
+def test_ziwei_indeterminate_frames_must_answer_one_question():
+    result = _ziwei_result()
+    result["output"]["interpretation_status"] = "indeterminate"
+    for item in result["output"]["interpretations"]:
+        item["direction"] = "indeterminate"
+        item["assertion_strength"] = "hedged"
+    for claim in result["claims"]:
+        claim["assertion_strength"] = "hedged"
+    result["output"]["interpretations"][1]["question_id"] = "q:another-question"
+    with pytest.raises(OrchestrationValidationError, match="same question_id"):
+        validate_result_envelope(result)
+
+
+def test_ziwei_interpretation_must_match_linked_claim_strength_and_evidence():
+    result = _ziwei_result()
+    result["claims"][0]["assertion_strength"] = "hedged"
+    with pytest.raises(OrchestrationValidationError, match="assertion_strength must match"):
+        validate_result_envelope(result)
+
+    result = _ziwei_result()
+    result["output"]["interpretation_status"] = "indeterminate"
+    for item in result["output"]["interpretations"]:
+        item["direction"] = "indeterminate"
+        item["assertion_strength"] = "hedged"
+        item["evidence"] = []
+    for claim in result["claims"]:
+        claim["assertion_strength"] = "hedged"
+    with pytest.raises(OrchestrationValidationError, match="source, location, and file hash"):
+        validate_result_envelope(result)
+
+def test_ziwei_linked_source_hash_comparison_is_case_insensitive():
+    result = _ziwei_result()
+    interpretation_evidence = dict(result["output"]["interpretations"][0]["evidence"][0])
+    claim_evidence = dict(result["claims"][0]["evidence"][0])
+    interpretation_evidence["content_hash"] = "sha256:" + "A" * 64
+    claim_evidence["content_hash"] = "sha256:" + "a" * 64
+    result["output"]["interpretations"][0]["evidence"] = [interpretation_evidence]
+    result["claims"][0]["evidence"] = [claim_evidence]
+
+    assert validate_result_envelope(result) is result
+
+
+
+def test_ziwei_unknown_indeterminate_claim_can_be_reviewed_as_insufficient():
+    result = _ziwei_result()
+    claim = result["claims"][0]
+    claim.update({
+        "evidence_basis": "unknown",
+        "assertion_strength": "hedged",
+        "statement": "The available source does not establish this interpretation.",
+        "evidence": [],
+    })
+    claim.pop("derivation_steps", None)
+    result["claims"] = [claim]
+    result["output"]["interpretation_status"] = "indeterminate"
+    result["output"]["interpretations"] = [{
+        "frame": "structure_reading",
+        "question_id": "q:interpretive-outcome",
+        "direction": "indeterminate",
+        "finding": claim["statement"],
+        "claim_id": claim["claim_id"],
+        "assertion_strength": "hedged",
+        "evidence": [],
+    }]
+    result["output"].pop("divergence_reason", None)
+    result["evidence"] = []
+
+    review = _review(verdict="insufficient", status="needs_review")
+    review["claims"][0]["claim_id"] = claim["claim_id"]
+    assert validate_review_envelope(review, result) is review
+
+
+def test_ziwei_character_frames_require_matching_trait_for_convergence():
+    result = _ziwei_result()
+    result["output"]["interpretation_status"] = "convergent"
+    for frame in result["output"]["interpretations"]:
+        frame["direction"] = "character"
+        frame["trait_terms"] = ["cautious temperament"]
+    result["output"].pop("divergence_reason")
+    assert validate_result_envelope(result) is result
+
+    result["output"]["interpretations"][1]["trait_terms"] = ["impulsive temperament"]
+    with pytest.raises(OrchestrationValidationError, match="share a source trait term"):
+        validate_result_envelope(result)
+
+    result["output"]["interpretation_status"] = "divergent"
+    result["output"]["divergence_reason"] = "The frames identify different character traits."
+    assert validate_result_envelope(result) is result
+
+
+def test_ziwei_character_traits_must_be_grounded_in_cited_source_text():
+    result = _ziwei_result()
+    result["output"]["interpretation_status"] = "convergent"
+    for frame in result["output"]["interpretations"]:
+        frame["direction"] = "character"
+        frame["trait_terms"] = ["invented temperament"]
+    result["output"].pop("divergence_reason")
+    with pytest.raises(OrchestrationValidationError, match="occur verbatim in its cited source excerpt"):
+        validate_result_envelope(result)
+
+
+def test_ziwei_mixed_determinate_and_indeterminate_frames_are_representable():
+    result = _ziwei_result()
+    result["output"]["interpretation_status"] = "single_frame"
+    unknown = result["claims"][1]
+    unknown.update({
+        "evidence_basis": "unknown",
+        "assertion_strength": "hedged",
+        "statement": "The second frame has no corresponding original passage.",
+        "evidence": [],
+    })
+    unknown.pop("derivation_steps", None)
+    result["output"]["interpretations"][1].update({
+        "direction": "indeterminate",
+        "assertion_strength": "hedged",
+        "finding": unknown["statement"],
+        "evidence": [],
+    })
+    result["output"].pop("divergence_reason")
+    assert validate_result_envelope(result) is result
+
+
+def test_ziwei_mixed_derived_evidence_cannot_upgrade_a_hedged_premise():
+    result = _ziwei_result()
+    definite = _ziwei_evidence(assertion="definite")
+    hedged = _ziwei_evidence(assertion="hedged")
+    hedged["source_id"] = "ziwei-source-2"
+    hedged["location"] = "L900-L905"
+    result["claims"][0]["evidence"] = [definite, hedged]
+    with pytest.raises(OrchestrationValidationError, match="depending on hedged source assertions"):
+        validate_result_envelope(result)
+
+
+def test_ziwei_frame_claim_linkage_requires_same_source_location_and_hash():
+    result = _ziwei_result()
+    different_passage = dict(result["output"]["interpretations"][0]["evidence"][0])
+    different_passage["location"] = "L900-L905"
+    result["output"]["interpretations"][0]["evidence"] = [different_passage]
+    with pytest.raises(OrchestrationValidationError, match="source, location, and file hash"):
+        validate_result_envelope(result)
+
+
+def test_ziwei_verifier_can_use_independent_original_source():
+    result = _ziwei_result()
+    review = _review()
+    review["claims"][0]["claim_id"] = "ziwei-structure-claim"
+    independent = _ziwei_evidence()
+    independent["source_id"] = "independent-edition"
+    independent["uri"] = "library/ziwei/independent.txt"
+    independent["location"] = "L700-L705"
+    review["claims"][0]["evidence"] = [independent]
+    second_review = dict(review["claims"][0])
+    second_review["claim_id"] = "ziwei-decade-claim"
+    review["claims"].append(second_review)
+    assert validate_review_envelope(review, result) is review
+
+
+def test_task_and_agent_require_nonempty_data_scopes():
+    task = _task("scope-check")
+    task["data_scopes"] = []
+    with pytest.raises(OrchestrationValidationError, match="task.data_scopes"):
+        validate_task_envelope(task)
+
+    agent = _agent("scope-agent", input_cost=0.1, cached_cost=0.01, output_cost=0.2)
+    agent["allowed_data_scopes"] = []
+    with pytest.raises(OrchestrationValidationError, match="agent.allowed_data_scopes"):
+        validate_agent_profile(agent)
+
+
+def test_ziwei_output_requires_engine_and_spec_provenance():
+    result = _ziwei_result()
+    result["output"].pop("engine_version")
+    with pytest.raises(OrchestrationValidationError, match="engine_hash or engine_version"):
+        validate_result_envelope(result)
+
+    result = _ziwei_result()
+    result["output"].pop("spec_version")
+    with pytest.raises(OrchestrationValidationError, match="spec_hash or spec_version"):
+        validate_result_envelope(result)
+
+
+def test_ziwei_envelope_rejects_raw_birth_and_direct_personal_fields():
+    result = _ziwei_result()
+    result["output"]["inputs"] = {"date_of_birth": "1990-01-01"}
+    with pytest.raises(OrchestrationValidationError, match="prohibited raw personal-data"):
+        validate_result_envelope(result)
+
+    result = _ziwei_result()
+    result["claims"][0]["private"] = {"resident_registration_number": "000000-0000000"}
+    with pytest.raises(OrchestrationValidationError, match="prohibited raw personal-data"):
+        validate_result_envelope(result)
+
+
+
+def test_ziwei_frames_cannot_reuse_one_reviewed_claim():
+    result = _ziwei_result()
+    result["output"]["interpretations"][1]["claim_id"] = "ziwei-structure-claim"
+    result["output"]["interpretations"][1]["finding"] = result["claims"][0]["statement"]
+    result["claims"] = result["claims"][:1]
+    with pytest.raises(OrchestrationValidationError, match="claim_id must be unique"):
+        validate_result_envelope(result)
+
+
+@pytest.mark.parametrize(
+    "uri",
+    [
+        "https://example.invalid/source.txt",
+        "/etc/passwd",
+        "~/private/source.txt",
+        "../private/source.txt",
+        "library/../private/source.txt",
+        "./source.txt",
+        r"library\\private\\source.txt",
+        "C:/private/source.txt",
+    ],
+)
+def test_ziwei_source_uri_must_be_repository_relative(uri):
+    result = _ziwei_result()
+    result["claims"][0]["evidence"][0]["uri"] = uri
+    with pytest.raises(OrchestrationValidationError, match="repository-relative POSIX path"):
+        validate_result_envelope(result)
+
+
+def test_ziwei_explicit_source_claims_are_factual_and_not_derived():
+    result = _ziwei_result()
+    claim = result["claims"][0]
+    claim["evidence_basis"] = "explicit_source"
+    claim["claim_type"] = "factual"
+    claim.pop("derivation_steps")
+    assert validate_result_envelope(result) is result
+
+    result = _ziwei_result()
+    claim = result["claims"][0]
+    claim["evidence_basis"] = "explicit_source"
+    claim.pop("derivation_steps")
+    with pytest.raises(OrchestrationValidationError, match="claim_type='factual'"):
+        validate_result_envelope(result)
+
+    result = _ziwei_result()
+    claim = result["claims"][0]
+    claim["evidence_basis"] = "explicit_source"
+    claim["claim_type"] = "factual"
+    claim["derivation_steps"] = []
+    with pytest.raises(OrchestrationValidationError, match="cannot include derivation_steps"):
+        validate_result_envelope(result)
+
+
+def test_ziwei_unknown_claim_cannot_claim_derivation_steps():
+    result = _ziwei_result()
+    claim = result["claims"][0]
+    claim["evidence_basis"] = "unknown"
+    claim["assertion_strength"] = "hedged"
+    claim["evidence"] = []
+    claim["derivation_steps"] = ["Unsupported derivation"]
+    with pytest.raises(OrchestrationValidationError, match="unknown evidence_basis cannot include"):
+        validate_result_envelope(result)
+
+
+
+def test_ziwei_nonmaterial_claims_may_omit_domain_evidence_metadata():
+    result = _ziwei_result()
+    result["claims"].append({
+        "claim_id": "editorial-note",
+        "statement": "This note is retained for context only.",
+        "claim_type": "opinion",
+        "material": False,
+        # Non-material context may use the shared evidence shape without
+        # being forced through the domain-specific original-text schema.
+        "evidence": [_evidence()],
+    })
+    assert validate_result_envelope(result) is result
+
+
+def test_ziwei_failed_attempt_does_not_require_interpretation_frames():
+    result = _ziwei_result()
+    result["status"] = "failed"
+    result["output"] = {
+        "domain": "ziwei_saju",
+        "failure_reason": "source passage could not be decoded",
+    }
+    result["claims"] = []
+    result["evidence"] = []
+    assert validate_result_envelope(result) is result
+
+
+def test_ziwei_unknown_material_claim_can_coexist_but_keeps_review_unresolved():
+    result = _ziwei_result()
+    result["claims"].append({
+        "claim_id": "unreadable-passage",
+        "statement": "The O22 passage could not be decoded.",
+        "claim_type": "factual",
+        "material": True,
+        "evidence_basis": "unknown",
+        "assertion_strength": "hedged",
+        "evidence": [],
+    })
+    assert validate_result_envelope(result) is result
+
+    review = _review(status="needs_review")
+    review["claims"] = [
+        {
+            "claim_id": "ziwei-structure-claim",
+            "verdict": "supported",
+            "evidence": [_ziwei_evidence()],
+            "notes": "Verified independently.",
+        },
+        {
+            "claim_id": "ziwei-decade-claim",
+            "verdict": "supported",
+            "evidence": [_ziwei_evidence()],
+            "notes": "Verified independently.",
+        },
+        {
+            "claim_id": "unreadable-passage",
+            "verdict": "insufficient",
+            "evidence": [],
+            "notes": "The source passage remains unreadable.",
+        },
+    ]
+    assert validate_review_envelope(review, result) is review
+
+    review["status"] = "accepted"
+    review["claims"][-1]["verdict"] = "supported"
+    with pytest.raises(OrchestrationValidationError, match="unknown ziwei_saju claim cannot receive a supported verdict"):
+        validate_review_envelope(review, result)

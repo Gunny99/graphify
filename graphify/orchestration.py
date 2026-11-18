@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 from datetime import datetime
+from pathlib import PurePosixPath
 import math
 import re
 from typing import Any
@@ -29,6 +30,10 @@ TASK_STATUSES = frozenset({
 AGENT_STATUSES = frozenset({"active", "paused", "disabled"})
 RESULT_STATUSES = frozenset({"submitted", "failed"})
 CLAIM_TYPES = frozenset({"factual", "inference", "recommendation", "opinion"})
+ZIWEI_EVIDENCE_BASES = frozenset({"explicit_source", "derived", "unknown"})
+ZIWEI_SOURCE_ASSERTIONS = frozenset({"definite", "hedged"})
+ZIWEI_DIRECTIONS = frozenset({"auspicious", "inauspicious", "character", "indeterminate"})
+ZIWEI_INTERPRETATION_STATUSES = frozenset({"single_frame", "convergent", "divergent", "indeterminate"})
 REVIEW_VERDICTS = frozenset({"supported", "contradicted", "insufficient"})
 REVIEW_STATUSES = frozenset({"accepted", "provisional", "needs_review", "rejected"})
 EXECUTION_STRATEGIES = frozenset({
@@ -122,6 +127,386 @@ def _validate_evidence_ref(value: Any, path: str) -> Mapping[str, Any]:
         if key in evidence and evidence[key] is not None:
             _string(evidence[key], f"{path}.{key}", allow_empty=(key == "excerpt"))
     return evidence
+
+
+def _validate_ziwei_evidence_ref(value: Any, path: str) -> Mapping[str, Any]:
+    """Validate a traceable original-text citation for the ziwei_saju domain."""
+    evidence = _object(value, path)
+    for key in ("source_id", "source_type", "uri", "location", "excerpt", "source_text_status"):
+        _string(evidence.get(key), f"{path}.{key}")
+    uri = str(evidence["uri"])
+    if (
+        uri != uri.strip()
+        or uri.startswith(("/", "~"))
+        or "\\" in uri
+        or "://" in uri
+        or re.match(r"^[A-Za-z][A-Za-z0-9+.-]*:", uri) is not None
+        or any(part in {"", ".", ".."} for part in uri.split("/"))
+    ):
+        raise OrchestrationValidationError(
+            f"{path}.uri must be a repository-relative POSIX path without schemes, roots, or dot segments"
+        )
+    has_edition = isinstance(evidence.get("edition"), str) and bool(evidence["edition"].strip())
+    has_variant = isinstance(evidence.get("variant"), str) and bool(evidence["variant"].strip())
+    if not (has_edition or has_variant):
+        raise OrchestrationValidationError(
+            f"{path} must identify at least one edition or variant"
+        )
+    if "edition" in evidence and evidence["edition"] is not None:
+        _string(evidence["edition"], f"{path}.edition")
+    content_hash = _string(evidence.get("content_hash"), f"{path}.content_hash")
+    if re.fullmatch(r"sha256:[0-9a-fA-F]{64}", content_hash) is None:
+        raise OrchestrationValidationError(
+            f"{path}.content_hash must be a full sha256:<64 hex characters> digest"
+        )
+    assertion = evidence.get("source_assertion")
+    if assertion not in ZIWEI_SOURCE_ASSERTIONS:
+        raise OrchestrationValidationError(
+            f"{path}.source_assertion must be one of {sorted(ZIWEI_SOURCE_ASSERTIONS)}"
+        )
+    if "variant" in evidence and evidence["variant"] is not None:
+        _string(evidence["variant"], f"{path}.variant")
+    return evidence
+
+
+def _reject_ziwei_personal_fields(value: Any, path: str = "result") -> None:
+    """Keep raw birth particulars and direct personal identifiers out of envelopes."""
+    forbidden = {
+        "dob",
+        "dateofbirth",
+        "birthdate",
+        "birthdatetime",
+        "birthtime",
+        "residentregistrationnumber",
+        "rrn",
+        "socialsecuritynumber",
+        "ssn",
+        "phonenumber",
+        "emailaddress",
+        "personname",
+        "fullname",
+    }
+    if isinstance(value, Mapping):
+        for key, nested in value.items():
+            normalized = re.sub(r"[^a-z0-9]", "", str(key).casefold())
+            if normalized in forbidden:
+                raise OrchestrationValidationError(
+                    f"{path}.{key} contains a prohibited raw personal-data field"
+                )
+            _reject_ziwei_personal_fields(nested, f"{path}.{key}")
+    elif isinstance(value, list):
+        for index, nested in enumerate(value):
+            _reject_ziwei_personal_fields(nested, f"{path}[{index}]")
+
+
+def validate_ziwei_saju_result(
+    output: Mapping[str, Any],
+    claims: Sequence[Mapping[str, Any]],
+) -> Mapping[str, Any]:
+    """Validate the domain payload without mixing interpretive outcomes with run status.
+
+    A divergent result is valid when separately named interpretation frames have
+    traceable evidence. It is not, by itself, a failed task or a review conflict.
+    """
+    if output.get("domain") != "ziwei_saju":
+        raise OrchestrationValidationError("ziwei_saju output must declare domain='ziwei_saju'")
+    _reject_ziwei_personal_fields(output, "result.output")
+    for hash_key, version_key, label in (
+        ("engine_hash", "engine_version", "interpretation engine"),
+        ("spec_hash", "spec_version", "governing specification"),
+    ):
+        identity = output.get(hash_key) or output.get(version_key)
+        if not isinstance(identity, str) or not identity.strip():
+            raise OrchestrationValidationError(
+                f"ziwei_saju output must identify its {label} with {hash_key} or {version_key}"
+            )
+        if output.get(hash_key) is not None and re.fullmatch(
+            r"sha256:[0-9a-fA-F]{64}", str(output[hash_key])
+        ) is None:
+            raise OrchestrationValidationError(
+                f"result.output.{hash_key} must be sha256:<64 hex characters>"
+            )
+        if output.get(version_key) is not None:
+            _string(output[version_key], f"result.output.{version_key}")
+    interpretation_status = output.get("interpretation_status")
+    if interpretation_status not in ZIWEI_INTERPRETATION_STATUSES:
+        raise OrchestrationValidationError(
+            f"ziwei_saju interpretation_status must be one of {sorted(ZIWEI_INTERPRETATION_STATUSES)}"
+        )
+    interpretations = _objects(output.get("interpretations"), "result.output.interpretations")
+    if not interpretations:
+        raise OrchestrationValidationError("ziwei_saju requires at least one interpretation frame")
+
+    claim_by_id = {
+        str(claim.get("claim_id")): claim
+        for claim in claims
+        if isinstance(claim, Mapping) and isinstance(claim.get("claim_id"), str)
+    }
+    frame_claim_ids: dict[str, str] = {}
+    claimed_frame_ids: set[str] = set()
+    frames: set[str] = set()
+    question_ids: set[str] = set()
+    directions: set[str] = set()
+    determinate_directions: set[str] = set()
+    character_term_sets: list[set[str]] = []
+    for index, interpretation in enumerate(interpretations):
+        path = f"result.output.interpretations[{index}]"
+        frame = _string(interpretation.get("frame"), f"{path}.frame")
+        if frame in frames:
+            raise OrchestrationValidationError(f"duplicate ziwei_saju interpretation frame: {frame}")
+        frames.add(frame)
+        _string(interpretation.get("finding"), f"{path}.finding")
+        question_id = _string(interpretation.get("question_id"), f"{path}.question_id")
+        question_ids.add(question_id)
+        direction = interpretation.get("direction")
+        if direction not in ZIWEI_DIRECTIONS:
+            raise OrchestrationValidationError(
+                f"{path}.direction must be one of {sorted(ZIWEI_DIRECTIONS)}"
+            )
+        directions.add(direction)
+        normalized_traits: set[str] = set()
+        if direction == "character":
+            trait_terms = _strings(interpretation.get("trait_terms"), f"{path}.trait_terms")
+            if not trait_terms:
+                raise OrchestrationValidationError(
+                    f"{path}.trait_terms must contain at least one source term"
+                )
+            for term_index, term in enumerate(trait_terms):
+                if term != term.strip():
+                    raise OrchestrationValidationError(
+                        f"{path}.trait_terms[{term_index}] must be trimmed"
+                    )
+                normalized = term.casefold()
+                if normalized in normalized_traits:
+                    raise OrchestrationValidationError(
+                        f"{path}.trait_terms must not contain case-insensitive duplicates"
+                    )
+                normalized_traits.add(normalized)
+            character_term_sets.append(normalized_traits)
+        else:
+            if "trait_terms" in interpretation:
+                raise OrchestrationValidationError(
+                    f"{path}.trait_terms is only valid when direction='character'"
+                )
+        if direction != "indeterminate":
+            determinate_directions.add(direction)
+        claim_id = _string(interpretation.get("claim_id"), f"{path}.claim_id")
+        if claim_id not in claim_by_id:
+            raise OrchestrationValidationError(
+                f"{path}.claim_id does not reference a result claim"
+            )
+        if claim_id in claimed_frame_ids:
+            raise OrchestrationValidationError(
+                f"{path}.claim_id must be unique to its interpretation frame"
+            )
+        claimed_frame_ids.add(claim_id)
+        frame_claim_ids[frame] = claim_id
+        assertion_strength = interpretation.get("assertion_strength")
+        if assertion_strength not in ZIWEI_SOURCE_ASSERTIONS:
+            raise OrchestrationValidationError(
+                f"{path}.assertion_strength must be one of {sorted(ZIWEI_SOURCE_ASSERTIONS)}"
+            )
+        if direction == "indeterminate" and assertion_strength != "hedged":
+            raise OrchestrationValidationError(
+                f"{path}: indeterminate findings must remain hedged"
+            )
+        evidence = _objects(interpretation.get("evidence"), f"{path}.evidence")
+        if direction != "indeterminate" and not evidence:
+            raise OrchestrationValidationError(
+                f"{path}.evidence is required for a determinate interpretation"
+            )
+        validated_evidence = [
+            _validate_ziwei_evidence_ref(item, f"{path}.evidence[{evidence_index}]")
+            for evidence_index, item in enumerate(evidence)
+        ]
+        if direction == "character":
+            excerpts = [str(item["excerpt"]).casefold() for item in validated_evidence]
+            for term in trait_terms:
+                if not any(term.casefold() in excerpt for excerpt in excerpts):
+                    raise OrchestrationValidationError(
+                        f"{path}.trait_terms must occur verbatim in its cited source excerpt"
+                    )
+        if (
+            validated_evidence
+            and all(item["source_assertion"] == "hedged" for item in validated_evidence)
+            and assertion_strength != "hedged"
+        ):
+            raise OrchestrationValidationError(
+                f"{path}: findings based only on hedged source assertions must remain hedged"
+            )
+        if not validated_evidence and assertion_strength != "hedged":
+            raise OrchestrationValidationError(
+                f"{path}: an interpretation without source evidence must remain hedged"
+            )
+
+    # A result envelope represents one question; callers must emit separate
+    # envelopes instead of combining unrelated questions under one status.
+    if len(question_ids) != 1:
+        raise OrchestrationValidationError(
+            "all ziwei_saju interpretation frames must answer the same question_id"
+        )
+    determinate_frames = [
+        item for item in interpretations if item.get("direction") != "indeterminate"
+    ]
+    if interpretation_status == "indeterminate":
+        if determinate_frames:
+            raise OrchestrationValidationError(
+                "indeterminate interpretation_status requires every frame direction to be indeterminate"
+            )
+    else:
+        if not determinate_frames:
+            raise OrchestrationValidationError(
+                "a result with no determinate frame must use interpretation_status='indeterminate'"
+            )
+        if interpretation_status == "single_frame" and len(determinate_frames) != 1:
+            raise OrchestrationValidationError(
+                "single_frame requires exactly one determinate interpretation frame"
+            )
+        if interpretation_status in {"convergent", "divergent"} and len(determinate_frames) < 2:
+            raise OrchestrationValidationError(
+                f"{interpretation_status} requires at least two determinate interpretation frames"
+            )
+        if interpretation_status == "convergent":
+            if len(determinate_directions) != 1:
+                raise OrchestrationValidationError(
+                    "convergent interpretations must agree on the same direction"
+                )
+            if (
+                determinate_directions == {"character"}
+                and character_term_sets
+                and not set.intersection(*character_term_sets)
+            ):
+                raise OrchestrationValidationError(
+                    "convergent character interpretations must share a source trait term"
+                )
+        if interpretation_status == "divergent":
+            _string(output.get("divergence_reason"), "result.output.divergence_reason")
+            character_traits_diverge = (
+                determinate_directions == {"character"}
+                and character_term_sets
+                and not set.intersection(*character_term_sets)
+            )
+            if len(determinate_directions) < 2 and not character_traits_diverge:
+                raise OrchestrationValidationError(
+                    "divergent interpretations must disagree on direction or source trait term"
+                )
+
+    for index, claim in enumerate(claims):
+        path = f"result.claims[{index}]"
+        if claim.get("material") is not True:
+            continue
+        basis = claim.get("evidence_basis")
+        if basis not in ZIWEI_EVIDENCE_BASES:
+            raise OrchestrationValidationError(
+                f"{path}.evidence_basis must be one of {sorted(ZIWEI_EVIDENCE_BASES)}"
+            )
+        assertion_strength = claim.get("assertion_strength")
+        if assertion_strength not in ZIWEI_SOURCE_ASSERTIONS:
+            raise OrchestrationValidationError(
+                f"{path}.assertion_strength must be one of {sorted(ZIWEI_SOURCE_ASSERTIONS)}"
+            )
+        evidence = _objects(claim.get("evidence"), f"{path}.evidence")
+        if basis == "unknown":
+            if evidence:
+                raise OrchestrationValidationError(
+                    f"{path}: unknown evidence_basis cannot contain supporting evidence"
+                )
+            if "derivation_steps" in claim:
+                raise OrchestrationValidationError(
+                    f"{path}: unknown evidence_basis cannot include derivation_steps"
+                )
+            if assertion_strength != "hedged":
+                raise OrchestrationValidationError(
+                    f"{path}: unknown evidence_basis must be hedged, not stated as definite"
+                )
+            continue
+
+        if basis == "explicit_source":
+            if claim.get("claim_type") != "factual":
+                raise OrchestrationValidationError(
+                    f"{path}: explicit_source claims must use claim_type='factual'"
+                )
+            if "derivation_steps" in claim:
+                raise OrchestrationValidationError(
+                    f"{path}: explicit_source claims cannot include derivation_steps"
+                )
+
+        if not evidence:
+            raise OrchestrationValidationError(
+                f"{path}: {basis} evidence_basis requires at least one original-source reference"
+            )
+        validated = [
+            _validate_ziwei_evidence_ref(item, f"{path}.evidence[{evidence_index}]")
+            for evidence_index, item in enumerate(evidence)
+        ]
+        if basis == "derived":
+            steps = _strings(claim.get("derivation_steps"), f"{path}.derivation_steps")
+            if not steps:
+                raise OrchestrationValidationError(
+                    f"{path}: derived claims require reproducible derivation_steps"
+                )
+            if claim.get("claim_type") != "inference":
+                raise OrchestrationValidationError(
+                    f"{path}: derived claims must use claim_type='inference'"
+                )
+        # A hedged statement in every cited source cannot be strengthened into
+        # a definite claim merely by paraphrasing it.
+        must_remain_hedged = (
+            any(item["source_assertion"] == "hedged" for item in validated)
+            if basis == "derived"
+            else all(item["source_assertion"] == "hedged" for item in validated)
+        )
+        if must_remain_hedged and assertion_strength != "hedged":
+            raise OrchestrationValidationError(
+                f"{path}: claims depending on hedged source assertions must remain hedged"
+            )
+
+    # The user-visible finding must be the exact claim that receives an
+    # independent verdict. This prevents unreviewed prose from being smuggled
+    # alongside otherwise verified claims.
+    for interpretation in interpretations:
+        frame = str(interpretation["frame"])
+        claim_id = frame_claim_ids[frame]
+        claim = claim_by_id[claim_id]
+        if interpretation.get("assertion_strength") != claim.get("assertion_strength"):
+            raise OrchestrationValidationError(
+                f"interpretation frame {frame!r} assertion_strength must match its linked claim"
+            )
+        if claim.get("material") is not True or claim.get("claim_type") not in {"factual", "inference"}:
+            raise OrchestrationValidationError(
+                f"interpretation frame {frame!r} must reference a material factual/inference claim"
+            )
+        if str(interpretation["finding"]).strip() != str(claim.get("statement", "")).strip():
+            raise OrchestrationValidationError(
+                f"interpretation frame {frame!r} finding must match its independently reviewed claim statement"
+            )
+        # content_hash is a full-file hash; include source identity and passage
+        # locator so distinct excerpts from one source file cannot be conflated.
+        finding_keys = {
+            (
+                str(item["source_id"]).strip(),
+                str(item["location"]).strip(),
+                str(item["content_hash"]).strip().lower(),
+            )
+            for item in interpretation.get("evidence", [])
+            if isinstance(item, Mapping)
+        }
+        claim_keys = {
+            (
+                str(item["source_id"]).strip(),
+                str(item["location"]).strip(),
+                str(item["content_hash"]).strip().lower(),
+            )
+            for item in claim.get("evidence", [])
+            if isinstance(item, Mapping)
+        }
+        if bool(finding_keys) != bool(claim_keys) or (
+            finding_keys and not finding_keys.intersection(claim_keys)
+        ):
+            raise OrchestrationValidationError(
+                f"interpretation frame {frame!r} evidence must overlap its linked claim evidence by source, location, and file hash"
+            )
+    return output
 
 
 def _validate_cost_profile(value: Any, path: str) -> Mapping[str, Any]:
@@ -337,12 +722,6 @@ def validate_task_envelope(value: Any) -> Mapping[str, Any]:
     if task.get("task_type") not in TASK_TYPES:
         raise OrchestrationValidationError(f"task.task_type must be one of {sorted(TASK_TYPES)}")
     task_input = _object(task.get("input"), "task.input")
-    data_scopes = _strings(task.get("data_scopes"), "task.data_scopes")
-    if not data_scopes:
-        raise OrchestrationValidationError("task.data_scopes must contain at least one scope")
-    for key in ("excluded_agent_ids", "failed_agent_ids"):
-        if key in task_input:
-            _strings(task_input[key], f"task.input.{key}")
     for key in (
         "estimated_input_tokens",
         "estimated_output_tokens",
@@ -362,6 +741,12 @@ def validate_task_envelope(value: Any) -> Mapping[str, Any]:
     if task.get("task_id") in dependencies:
         raise OrchestrationValidationError("task cannot depend on itself")
     _strings(task.get("required_capabilities"), "task.required_capabilities")
+    data_scopes = _strings(task.get("data_scopes"), "task.data_scopes")
+    if not data_scopes:
+        raise OrchestrationValidationError("task.data_scopes must contain at least one scope")
+    for key in ("excluded_agent_ids", "failed_agent_ids"):
+        if key in task_input:
+            _strings(task_input[key], f"task.input.{key}")
     _object(task.get("output_schema"), "task.output_schema")
     _strings(task.get("acceptance_criteria"), "task.acceptance_criteria")
     attempt = _integer(task.get("attempt"), "task.attempt")
@@ -420,27 +805,43 @@ def validate_task_graph(tasks: Sequence[Mapping[str, Any]]) -> None:
 
 
 
-def _write_path_parts(value: str, path: str) -> tuple[str, ...]:
-    """Normalize a project-relative write path for overlap checks."""
-    if value != value.strip() or not value:
-        raise OrchestrationValidationError(f"{path} must be a non-empty project-relative path")
-    if value.startswith(("/", "~")) or "\\" in value or re.match(r"^[A-Za-z]:", value):
-        raise OrchestrationValidationError(f"{path} must be a project-relative POSIX path")
-    parts = []
-    for part in value.split("/"):
-        if part in {"", "."}:
-            continue
-        if part == "..":
-            raise OrchestrationValidationError(f"{path} cannot contain a parent path segment")
-        parts.append(part)
-    if not parts:
-        raise OrchestrationValidationError(f"{path} must identify a file or directory")
-    return tuple(parts)
+def _normalized_write_set(value: Any, path: str) -> list[str]:
+    """Canonicalize repository-relative paths before checking write conflicts."""
+    raw_paths = _strings(value, path)
+    normalized: list[str] = []
+    for index, raw_path in enumerate(raw_paths):
+        item_path = f"{path}[{index}]"
+        if (
+            raw_path != raw_path.strip()
+            or raw_path.startswith(("/", "~"))
+            or "\\" in raw_path
+            or re.match(r"^[A-Za-z][A-Za-z0-9+.-]*:", raw_path) is not None
+            or re.match(r"^[A-Za-z]:", raw_path) is not None
+            or ".." in raw_path.split("/")
+        ):
+            raise OrchestrationValidationError(
+                f"{item_path} must be a safe repository-relative POSIX path"
+            )
+        canonical = PurePosixPath(raw_path).as_posix()
+        if canonical in {"", "."} or canonical.startswith("../"):
+            raise OrchestrationValidationError(
+                f"{item_path} must identify a path inside the repository"
+            )
+        normalized.append(canonical)
+    if len(normalized) != len(set(normalized)):
+        raise OrchestrationValidationError(
+            f"{path} contains duplicate paths after normalization"
+        )
+    return normalized
 
 
-def _write_paths_overlap(left: tuple[str, ...], right: tuple[str, ...]) -> bool:
-    shorter, longer = (left, right) if len(left) <= len(right) else (right, left)
-    return longer[:len(shorter)] == shorter
+def _write_paths_overlap(left: str, right: str) -> bool:
+    """Files/directories conflict when equal or when one contains the other."""
+    return (
+        left == right
+        or left.startswith(right.rstrip("/") + "/")
+        or right.startswith(left.rstrip("/") + "/")
+    )
 
 
 def validate_execution_plan(
@@ -489,7 +890,7 @@ def validate_execution_plan(
         return
 
     if strategy == "parallel_independent":
-        seen: list[tuple[str, tuple[str, ...], str]] = []
+        seen: set[str] = set()
         for task in tasks:
             task_input = task["input"]
             if task["depends_on"]:
@@ -500,23 +901,25 @@ def validate_execution_plan(
                 raise OrchestrationValidationError(
                     "parallel implementation tasks cannot share mutable state"
                 )
-            write_set = _strings(task_input.get("write_set"), f"task {task['task_id']}.input.write_set")
+            write_set = _normalized_write_set(
+                task_input.get("write_set"),
+                f"task {task['task_id']}.input.write_set",
+            )
             if not write_set:
                 raise OrchestrationValidationError(
                     "parallel implementation tasks require explicit write_set declarations"
                 )
-            for write_path in write_set:
-                parts = _write_path_parts(
-                    write_path, f"task {task['task_id']}.input.write_set"
+            conflicts = sorted({
+                (existing, current)
+                for existing in seen
+                for current in write_set
+                if _write_paths_overlap(existing, current)
+            })
+            if conflicts:
+                raise OrchestrationValidationError(
+                    f"parallel task write sets overlap after path normalization: {conflicts}"
                 )
-                for prior_task_id, prior_parts, prior_path in seen:
-                    if _write_paths_overlap(parts, prior_parts):
-                        raise OrchestrationValidationError(
-                            "parallel task write sets overlap after path normalization: "
-                            f"task {task['task_id']} {write_path!r} conflicts with "
-                            f"task {prior_task_id} {prior_path!r}"
-                        )
-                seen.append((str(task["task_id"]), parts, write_path))
+            seen.update(write_set)
         return
 
 def validate_agent_profile(value: Any) -> Mapping[str, Any]:
@@ -526,12 +929,12 @@ def validate_agent_profile(value: Any) -> Mapping[str, Any]:
     for key in ("agent_id", "provider", "model", "model_version", "protocol"):
         _string(agent.get(key), f"agent.{key}")
     _strings(agent.get("capabilities"), "agent.capabilities")
-    allowed_scopes = _strings(agent.get("allowed_data_scopes"), "agent.allowed_data_scopes")
-    if not allowed_scopes:
-        raise OrchestrationValidationError("agent.allowed_data_scopes must contain at least one scope")
     _integer(agent.get("max_concurrency"), "agent.max_concurrency", minimum=1)
     if agent.get("status") not in AGENT_STATUSES:
         raise OrchestrationValidationError(f"agent.status must be one of {sorted(AGENT_STATUSES)}")
+    allowed_scopes = _strings(agent.get("allowed_data_scopes"), "agent.allowed_data_scopes")
+    if not allowed_scopes:
+        raise OrchestrationValidationError("agent.allowed_data_scopes must contain at least one scope")
     _validate_cost_profile(agent.get("cost_profile"), "agent.cost_profile")
     profiles = _objects(agent.get("quality_profiles"), "agent.quality_profiles")
     seen: set[tuple[str, str]] = set()
@@ -560,7 +963,7 @@ def validate_result_envelope(value: Any) -> Mapping[str, Any]:
         _string(agent.get(key), f"result.agent.{key}")
     if result.get("status") not in RESULT_STATUSES:
         raise OrchestrationValidationError(f"result.status must be one of {sorted(RESULT_STATUSES)}")
-    _object(result.get("output"), "result.output")
+    output = _object(result.get("output"), "result.output")
     claims = _objects(result.get("claims"), "result.claims")
     claim_ids: set[str] = set()
     for index, claim in enumerate(claims):
@@ -576,9 +979,25 @@ def validate_result_envelope(value: Any) -> Mapping[str, Any]:
             raise OrchestrationValidationError(f"{path}.material must be a boolean")
         evidence = _objects(claim.get("evidence"), f"{path}.evidence")
         for evidence_index, item in enumerate(evidence):
-            _validate_evidence_ref(item, f"{path}.evidence[{evidence_index}]")
+            evidence_path = f"{path}.evidence[{evidence_index}]"
+            if output.get("domain") == "ziwei_saju" and claim.get("material") is True:
+                _validate_ziwei_evidence_ref(item, evidence_path)
+            else:
+                _validate_evidence_ref(item, evidence_path)
     for index, evidence in enumerate(_objects(result.get("evidence"), "result.evidence")):
-        _validate_evidence_ref(evidence, f"result.evidence[{index}]")
+        evidence_path = f"result.evidence[{index}]"
+        if output.get("domain") == "ziwei_saju":
+            _validate_ziwei_evidence_ref(evidence, evidence_path)
+        else:
+            _validate_evidence_ref(evidence, evidence_path)
+    if output.get("domain") == "ziwei_saju":
+        _reject_ziwei_personal_fields(result, "result")
+        if result["status"] == "submitted":
+            validate_ziwei_saju_result(output, claims)
+        elif any(claim.get("material") is True for claim in claims):
+            raise OrchestrationValidationError(
+                "failed ziwei_saju attempts cannot carry material claims"
+            )
     _strings(result.get("uncertainties"), "result.uncertainties")
     usage = _object(result.get("usage"), "result.usage")
     for key in ("input_tokens", "output_tokens", "cached_input_tokens"):
@@ -631,11 +1050,26 @@ def validate_review_envelope(value: Any, result: Mapping[str, Any]) -> Mapping[s
         seen.add(claim_id)
         if claim_review.get("verdict") not in REVIEW_VERDICTS:
             raise OrchestrationValidationError(f"{path}.verdict is invalid")
+        if (
+            result["output"].get("domain") == "ziwei_saju"
+            and submitted[claim_id].get("evidence_basis") == "unknown"
+            and claim_review["verdict"] == "supported"
+        ):
+            raise OrchestrationValidationError(
+                f"{path}: an unknown ziwei_saju claim cannot receive a supported verdict"
+            )
         evidence = _objects(claim_review.get("evidence"), f"{path}.evidence")
         for evidence_index, item in enumerate(evidence):
-            _validate_evidence_ref(item, f"{path}.evidence[{evidence_index}]")
-        if claim_review.get("verdict") == "supported" and not evidence:
-            raise OrchestrationValidationError(f"{path}: supported verdict requires verifier evidence")
+            evidence_path = f"{path}.evidence[{evidence_index}]"
+            if result["output"].get("domain") == "ziwei_saju":
+                _validate_ziwei_evidence_ref(item, evidence_path)
+            else:
+                _validate_evidence_ref(item, evidence_path)
+        if claim_review.get("verdict") == "supported":
+            if not evidence:
+                raise OrchestrationValidationError(f"{path}: supported verdict requires verifier evidence")
+            # An independent verifier may use a different source or edition.
+            # Its citation is validated above against the Ziwei evidence schema.
     for claim_id, claim in submitted.items():
         if claim.get("material") and claim.get("claim_type") in {"factual", "inference"} and claim_id not in seen:
             raise OrchestrationValidationError(f"material claim {claim_id} has no independent review verdict")
@@ -686,7 +1120,15 @@ def compute_claim_metrics(
         "insufficient_claims": counts["insufficient"],
         "unreviewed_claims": counts["unreviewed"],
         "accuracy": counts["supported"] / total if total else None,
-        "hallucination_rate": (counts["contradicted"] + counts["insufficient"]) / total if total else None,
+        # A contradicted/fabricated claim is a hallucination; an insufficient
+        # or unreviewed claim is unresolved, not proven false. Keep these rates
+        # separate while exposing a conservative verification-failure rate.
+        "hallucination_rate": counts["contradicted"] / total if total else None,
+        "insufficient_rate": counts["insufficient"] / total if total else None,
+        "unreviewed_rate": counts["unreviewed"] / total if total else None,
+        "verification_failure_rate": (
+            counts["contradicted"] + counts["insufficient"] + counts["unreviewed"]
+        ) / total if total else None,
         "evidence_coverage": evidence_count / total if total else 1.0,
         "review_complete": counts["unreviewed"] == 0,
     }
@@ -789,6 +1231,10 @@ def result_meets_quality_gate(
         and (
             metrics["hallucination_rate"] is None
             or metrics["hallucination_rate"] < hallucination_max
+        )
+        and (
+            metrics["verification_failure_rate"] is None
+            or metrics["verification_failure_rate"] < hallucination_max
         )
     )
 
