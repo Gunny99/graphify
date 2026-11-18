@@ -300,6 +300,50 @@ def _sec6(table):
     return ['## 6. 능력 차례', '', table.strip(), '']
 
 
+# ---- 7절 ----
+_POLICY = {'합치': '본문에 쓴다', '상충': '본문에서 빼고 기록만 남긴다', '혼재': '자미두수의 길 구절과 흉 구절을 함께 적은 곁에 쓴다',
+           '무대응': '"사주 보완"으로 쓴다', '구간 갈림': '상충 구간이 있어 본문에서 빼고 구간별로 기록만 남긴다',
+           '제외': '격이 온전하지 않아 결과 구절을 쓰지 않는다'}
+
+
+def _zami_value(r):
+    """대조표의 '자미두수 값' 칸. 엔진 출력에서 옮긴 값만 적는다."""
+    if r.get('구간'):
+        return '; '.join('%s 대한 %s(길 %s, 흉 %s)' % (s['대한'], s['값'], ', '.join(s['길']) or '-', ', '.join(s['흉']) or '-') for s in r['구간'])
+    zv = r.get('자미_값')
+    if not zv:
+        return '-'
+    if '궁별' in zv:
+        per = ['%s 길%d 흉%d%s' % (p, len(v['길']), len(v['흉']), '(자붕이 명시 %s)' % v['명시'] if v.get('명시') else '') for p, v in zv['궁별'].items()]
+        return '%s: %s' % (zv['값'], ', '.join(per))
+    return ', '.join('%s(%s)' % (w, p or '극 모름') for w, p in zv.get('낱말', [])) or '-'
+
+
+def _sec7(R):
+    from . import align
+    data = align.load_judgments()
+    meta = {j['id']: j for j in data['판정']}
+    rows = align.align(R)
+    tl = align.tally(rows)
+    o = ['## 7. 사주 층', '',
+         '사주 판정(data/saju_judgments.json)과 자미두수 값(2·3·5절)을 같은 영역, 같은 시기, 같은 방향으로 견준 대조표다(명세 10절 6번, 11-1절). 사주는 %s. 자미두수 값은 이 문서 2·3·5절의 값과 같다. 길흉은 선 구절(선다)에 길과 흉이 있는지만 보고 수를 견주지 않는다. 성질은 선 구절과 성질 서술의 결과 낱말을 data/trait_lexicon.json의 (범주, 극)으로 맞춘다. 자붕이의 명시 판정은 명세 5절 11번의 넷(%s)에 한해 그 값을 쓴다. 대운은 대한 구간마다 보고 구간이 둘 이상이면서 상충이 하나라도 있으면 구간 갈림이다.' % (
+             data['명식']['사주'], ', '.join(sorted(align.zabungi_explicit(R))) or '이 명반에서는 조건이 서지 않음'), '',
+         '결과 수: ' + ', '.join('%s %d' % (k, tl[k]) for k in ('합치', '상충', '혼재', '무대응', '구간 갈림', '제외') if tl.get(k)) + '. 줄은 판정 하나가 범주나 시기마다 갈라진 것이다.', '']
+    body = []
+    for r in rows:
+        j = meta[r['판정_id']]
+        body.append((r['판정_id'], j['제목'], '; '.join('%s:%s' % (s['파일'].split('/')[-1], s['행']) for s in j['출전'] if s['구실'] in ('본문', '명례')),
+                     j['신빙성'], r['영역'], r['시기'], r['방향'], ', '.join(r['견준_궁']) or '-', _zami_value(r),
+                     ', '.join(r['근거_구절_id'][:6]) + (' 외' if len(r['근거_구절_id']) > 6 else '') or '-', ', '.join(r['맞은_낱말']) or '-', r['결과'],
+                     _POLICY[r['결과']] + (' (추정형)' if r['결과'] == '무대응' and j['신빙성'] in ('후대', '월령격') else '')))
+    o += _table(['판정', '사주 판정', '출전(三命通會 kanripo 전사 파일:행)', '신빙성', '영역', '시기', '방향', '견준 궁', '자미두수 값', '근거 구절 id', '맞은 낱말', '결과', '처리'], body)
+    o += ['', '### 격의 형태와 온전함', '']
+    gy = [(j['id'], j['격']['이름'], j['격']['형태'], j['격']['온전함'], '; '.join(j['격']['서지_않는_조건']) or '-', '; '.join(j['격']['미확인_조건']) or '-') for j in data['판정'] if j.get('격')]
+    o += _table(['판정', '격', '형태', '온전함', '서지 않는 조건', '미확인 조건'], gy)
+    o.append('')
+    return o
+
+
 def build(result, rank_table=None, cmd=None, years=None, today=None):
     inp = result['chart']['birth']['input']
     if cmd is None:
@@ -309,5 +353,6 @@ def build(result, rank_table=None, cmd=None, years=None, today=None):
     o += _sec1(result) + [''] + _sec2(result) + [''] + _sec3(result, l2.load_passages()) + _sec4(result) + _sec5(result, years)
     if rank_table:
         o += _sec6(rank_table)
+    o += _sec7(result)
     o += ['---', '', '생성: `%s`, %s' % (cmd, today), '']
     return '\n'.join(o)
