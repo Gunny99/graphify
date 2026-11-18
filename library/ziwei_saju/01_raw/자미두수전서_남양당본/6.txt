@@ -1,0 +1,2218 @@
+# 자미두수전서_남양당본 / 6
+판본: 명 남양당 7권본, 일본 내각문고
+수집일: 2026-10-10 KST
+상태: 수집완료
+범위: 아래 실제 확보 문단. 원판 교감·이미지 독해와는 별도.
+
+[전서남양당-6-孔仲尼命-0001] 원문문단ID=QS_SDZJ0170_FULL:7356158898606440498
+권/편: 6 / 孔仲尼命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop88fh4it
+독해이력: 텍스트 독해 확인
+孔仲尼命
+
+[전서남양당-6-孔仲尼命-0002] 원문문단ID=QS_SDZJ0170_FULL:7356158898606456882
+권/편: 6 / 孔仲尼命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop88fh4it
+독해이력: 텍스트 독해 확인
+陽男土五局
+
+[전서남양당-6-孔仲尼命-0003] 원문문단ID=QS_SDZJ0170_FULL:7356158898606473266
+권/편: 6 / 孔仲尼命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop88fh4it
+독해이력: 텍스트 독해 확인
+活禄逢迎，夫子文童冠世。
+辛亥年六十二歳，在陳絶粮。
+盖因太嵗有刼空，小限逢天傷，七十三嵗，小限在天羅，太嵗入地網，戌生人有忌，故死。
+
+[전서남양당-6-子路之命-0001] 원문문단ID=QS_SDZJ0170_FULL:7356158898606489650
+권/편: 6 / 子路之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop88fhh5x
+독해이력: 텍스트 독해 확인
+子路之命
+
+[전서남양당-6-子路之命-0002] 원문문단ID=QS_SDZJ0170_FULL:7356158898656509989
+권/편: 6 / 子路之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop88fhh5x
+독해이력: 텍스트 독해 확인
+隂男木三局
+
+[전서남양당-6-子路之命-0003] 원문문단ID=QS_SDZJ0170_FULL:7356158898656526373
+권/편: 6 / 子路之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop88fhh5x
+독해이력: 텍스트 독해 확인
+此為府相朝垣格，且紫微諸吉星拱合，所以為賢士。
+但命坐𤎉貞將軍，故主勇猛。
+更對垣遇貪狼忌星拱命，故主㐫亡，果宛孔悝之難。
+
+[전서남양당-6-顔亞聖命-0001] 원문문단ID=QS_SDZJ0170_FULL:7356158898656542757
+권/편: 6 / 顔亞聖命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop88fhtt1
+독해이력: 텍스트 독해 확인
+顔亞聖命
+
+[전서남양당-6-顔亞聖命-0002] 원문문단ID=QS_SDZJ0170_FULL:7356158898656559141
+권/편: 6 / 顔亞聖命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop88fhtt1
+독해이력: 텍스트 독해 확인
+隂男木三局
+
+[전서남양당-6-顔亞聖命-0003] 원문문단ID=QS_SDZJ0170_FULL:7356158898656575525
+권/편: 6 / 顔亞聖命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop88fhtt1
+독해이력: 텍스트 독해 확인
+命坐魁鉞，身逢權禄，昌曲，陷于天傷，不能發逹，大限七殺重逢。
+壬辰年太嵗流羊、流陀迭併，故死。
+
+[전서남양당-6-孟軻之命-0001] 원문문단ID=QS_SDZJ0170_FULL:7356158898656591909
+권/편: 6 / 孟軻之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop88fi6g5
+독해이력: 텍스트 독해 확인
+孟軻之命
+
+[전서남양당-6-孟軻之命-0002] 원문문단ID=QS_SDZJ0170_FULL:7356158898656608293
+권/편: 6 / 孟軻之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop88fi6g5
+독해이력: 텍스트 독해 확인
+陽男金四局
+
+[전서남양당-6-孟軻之命-0003] 원문문단ID=QS_SDZJ0170_FULL:7356158898656624677
+권/편: 6 / 孟軻之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop88fi6g5
+독해이력: 텍스트 독해 확인
+雙禄拱照，昌曲重逢，戌有机梁，文章冠世。
+文曲单坐身命，主人口能舌辨。
+大限地網逢鈴，小限天羅，太嵗又在絶地，故㐫。
+
+[전서남양당-6-端木賜命-0001] 원문문단ID=QS_SDZJ0170_FULL:7356158898656641061
+권/편: 6 / 端木賜命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop88fij39
+독해이력: 텍스트 독해 확인
+端木賜命
+
+[전서남양당-6-端木賜命-0002] 원문문단ID=QS_SDZJ0170_FULL:7356158898656657445
+권/편: 6 / 端木賜命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop88fij39
+독해이력: 텍스트 독해 확인
+隂男土五局
+
+[전서남양당-6-端木賜命-0003] 원문문단ID=QS_SDZJ0170_FULL:7356158898656673829
+권/편: 6 / 端木賜命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop88fij39
+독해이력: 텍스트 독해 확인
+禄存坐命未宮，暗禄㑹合，為冨貴之論。
+卯生人防於巳亥限，三十五嵗，大限入亥，四十一歲，小限入巳，兎埋蛇地，更為㐫，太嵗相冲，喪門忌㑹，是以㐫也，故死。
+
+[전서남양당-6-子羔之命-0001] 원문문단ID=QS_SDZJ0170_FULL:7356158898656690213
+권/편: 6 / 子羔之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop88fivqd
+독해이력: 텍스트 독해 확인
+子羔之命
+
+[전서남양당-6-子羔之命-0002] 원문문단ID=QS_SDZJ0170_FULL:7356158898656706597
+권/편: 6 / 子羔之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop88fivqd
+독해이력: 텍스트 독해 확인
+陽男金四局
+
+[전서남양당-6-子羔之命-0003] 원문문단ID=QS_SDZJ0170_FULL:7356158898656722981
+권/편: 6 / 子羔之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop88fivqd
+독해이력: 텍스트 독해 확인
+此為府相朝垣格，食禄千鍾，冨貴雙全，一生順羙。
+四十四嵗入大限在申宮，子生人有忌。
+申限天傷、天刑夾地，小限四十五嵗，逢天哭、天虚，沐浴敗地，故命亡。
+
+[전서남양당-6-冉求之命-0001] 원문문단ID=QS_SDZJ0170_FULL:7356158898656739365
+권/편: 6 / 冉求之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop88fj8dh
+독해이력: 텍스트 독해 확인
+冉求之命
+
+[전서남양당-6-冉求之命-0002] 원문문단ID=QS_SDZJ0170_FULL:7356158898656755749
+권/편: 6 / 冉求之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop88fj8dh
+독해이력: 텍스트 독해 확인
+隂男土五局
+
+[전서남양당-6-冉求之命-0003] 원문문단ID=QS_SDZJ0170_FULL:7356158898656772133
+권/편: 6 / 冉求之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop88fj8dh
+독해이력: 텍스트 독해 확인
+禄存守垣，紫府加會，終身福厚。
+大限天傷，小限到巳，卯生人忌之，喪門、天虚冲命，刼空，合拱太歳、白虎、天哭在命，故此難逃也。
+
+[전서남양당-6-子産之命-0001] 원문문단ID=QS_SDZJ0170_FULL:7356158898656788517
+권/편: 6 / 子産之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop88fjl0l
+독해이력: 텍스트 독해 확인
+子産之命
+
+[전서남양당-6-子産之命-0002] 원문문단ID=QS_SDZJ0170_FULL:7356158898656804901
+권/편: 6 / 子産之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop88fjl0l
+독해이력: 텍스트 독해 확인
+隂男金四局
+
+[전서남양당-6-子産之命-0003] 원문문단ID=QS_SDZJ0170_FULL:7356158898656821285
+권/편: 6 / 子産之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop88fjl0l
+독해이력: 텍스트 독해 확인
+紫府朝垣，左輔文昌加曾，一生冨貴，君名题揚。
+大限沉馬，小限六十四入地網逢忌，故㐫而死。
+
+[전서남양당-6-蘇丞相命-0001] 원문문단ID=QS_SDZJ0170_FULL:7356158901118566437
+권/편: 6 / 蘇丞相命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop88fjxnp
+독해이력: 텍스트 독해 확인
+蘇丞相命
+
+[전서남양당-6-蘇丞相命-0002] 원문문단ID=QS_SDZJ0170_FULL:7356158901118582821
+권/편: 6 / 蘇丞相命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop88fjxnp
+독해이력: 텍스트 독해 확인
+隂男土五局
+
+[전서남양당-6-蘇丞相命-0003] 원문문단ID=QS_SDZJ0170_FULL:7356158901118599205
+권/편: 6 / 蘇丞相命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop88fjxnp
+독해이력: 텍스트 독해 확인
+雖曰日月權禄，丑未宫，定是方伯公，左右加會，名譽声揚，只嫌刼空冲守，福不全美，故主三十四嵗而亡。
+大限入地網，小限又入地網，太嵗在天羅，故㐫。
+
+[전서남양당-6-晏平仲命-0001] 원문문단ID=QS_SDZJ0170_FULL:7356158901118615589
+권/편: 6 / 晏平仲命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop88fkaat
+독해이력: 텍스트 독해 확인
+晏平仲命
+
+[전서남양당-6-晏平仲命-0002] 원문문단ID=QS_SDZJ0170_FULL:7356158901118631973
+권/편: 6 / 晏平仲命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop88fkaat
+독해이력: 텍스트 독해 확인
+陽男金四局
+
+[전서남양당-6-晏平仲命-0003] 원문문단ID=QS_SDZJ0170_FULL:7356158901118648357
+권/편: 6 / 晏平仲命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop88fkaat
+독해이력: 텍스트 독해 확인
+此爲丹墀貴格，秋月生者是真格。
+且太陽守命垣，日月争耀，科權禄㑹合，文武雙全。
+四十三嵗，太嵗行寅，大星申生人有忌，小限喪門、病符、天哭冲照，故命亡。
+
+[전서남양당-6-孫臏之命-0001] 원문문단ID=QS_SDZJ0170_FULL:7356158901118664741
+권/편: 6 / 孫臏之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8d7olyq
+독해이력: 텍스트 독해 확인
+孫臏之命
+
+[전서남양당-6-孫臏之命-0002] 원문문단ID=QS_SDZJ0170_FULL:7356158901118681125
+권/편: 6 / 孫臏之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8d7olyq
+독해이력: 텍스트 독해 확인
+陽男金四局
+
+[전서남양당-6-孫臏之命-0003] 원문문단ID=QS_SDZJ0170_FULL:7356158901118697509
+권/편: 6 / 孫臏之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8d7olyq
+독해이력: 텍스트 독해 확인
+此為紫府朝垣格，左右拱照科權禄三方會合，文昌、武曲守命，兼資文武終身冨貴之論。
+七十五嵗，大限入天羅，小限在子，與流年戊午相冲，故㐫。
+
+[전서남양당-6-龎涓之命-0001] 원문문단ID=QS_SDZJ0170_FULL:7356158901118713893
+권/편: 6 / 龎涓之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8d7oylu
+독해이력: 텍스트 독해 확인
+龎涓之命
+
+[전서남양당-6-龎涓之命-0002] 원문문단ID=QS_SDZJ0170_FULL:7356158901118730277
+권/편: 6 / 龎涓之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8d7oylu
+독해이력: 텍스트 독해 확인
+陽男水二局
+
+[전서남양당-6-龎涓之命-0003] 원문문단ID=QS_SDZJ0170_FULL:7356158901118746661
+권/편: 6 / 龎涓之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8d7oylu
+독해이력: 텍스트 독해 확인
+紫府科權禄昌曲魁鉞坐守身命，右右夾垣，為冨貴之論。
+𤎉貞七殺，又為積冨之人，命犯陀羅。
+庚辰太嵗入天羅，小限在地網，身命逢流羊、流陀㑹併，故㐫。
+
+[전서남양당-6-伍明輔命-0001] 원문문단ID=QS_SDZJ0170_FULL:7356158901118763045
+권/편: 6 / 伍明輔命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8d7pb8y
+독해이력: 텍스트 독해 확인
+伍明輔命
+
+[전서남양당-6-伍明輔命-0002] 원문문단ID=QS_SDZJ0170_FULL:7356158901118779429
+권/편: 6 / 伍明輔命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8d7pb8y
+독해이력: 텍스트 독해 확인
+隂男水二局
+
+[전서남양당-6-伍明輔命-0003] 원문문단ID=QS_SDZJ0170_FULL:7356158901118795813
+권/편: 6 / 伍明輔命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8d7pb8y
+독해이력: 텍스트 독해 확인
+權禄生逢左右昌曲加會，七殺守命，壮年峥嵘，為戰國明輔，升五嵗，有犯擎羊、天空，直在卅六後方遂志。
+六十二，大很入巳，天傷陀羅酉人忌，小限重逢，故死。
+
+[전서남양당-6-蕭何之命-0001] 원문문단ID=QS_SDZJ0170_FULL:7356158901118812197
+권/편: 6 / 蕭何之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8d7pnw2
+독해이력: 텍스트 독해 확인
+蕭何之命
+
+[전서남양당-6-蕭何之命-0002] 원문문단ID=QS_SDZJ0170_FULL:7356158901118828581
+권/편: 6 / 蕭何之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8d7pnw2
+독해이력: 텍스트 독해 확인
+隂男水二局
+
+[전서남양당-6-蕭何之命-0003] 원문문단ID=QS_SDZJ0170_FULL:7356158901118844965
+권/편: 6 / 蕭何之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8d7pnw2
+독해이력: 텍스트 독해 확인
+府相朝垣格紫府左右，權禄嘉會，又兼昌曲禄合，乃坐貴向貴，冨貴雙全。
+入相之命，限到擎羊，酉人忌之，小限流羊與命垣相冲，故六十難過。
+
+[전서남양당-6-陳平之命-0001] 원문문단ID=QS_SDZJ0170_FULL:7356158901118861349
+권/편: 6 / 陳平之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8d7q0j6
+독해이력: 텍스트 독해 확인
+陳平之命
+
+[전서남양당-6-陳平之命-0002] 원문문단ID=QS_SDZJ0170_FULL:7356158901118877733
+권/편: 6 / 陳平之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8d7q0j6
+독해이력: 텍스트 독해 확인
+陽男木三局
+
+[전서남양당-6-陳平之命-0003] 원문문단ID=QS_SDZJ0170_FULL:7356158901143732250
+권/편: 6 / 陳平之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8d7q0j6
+독해이력: 텍스트 독해 확인
+權禄生逢天府，武曲守命垣，左右昌曲加㑹，忻然入相之命。
+大限七十三入申，身臨絶地，小限到天空，天使夾地，又陀羅為戍人所忌，是為不吉，故終夀。
+
+[전서남양당-6-耿弇之命-0001] 원문문단ID=QS_SDZJ0170_FULL:7356158901143765018
+권/편: 6 / 耿弇之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8d7qd6a
+독해이력: 텍스트 독해 확인
+耿弇之命
+
+[전서남양당-6-耿弇之命-0002] 원문문단ID=QS_SDZJ0170_FULL:7356158901143781402
+권/편: 6 / 耿弇之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8d7qd6a
+독해이력: 텍스트 독해 확인
+隂男金四局
+
+[전서남양당-6-耿弇之命-0003] 원문문단ID=QS_SDZJ0170_FULL:7356158901143797786
+권/편: 6 / 耿弇之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8d7qd6a
+독해이력: 텍스트 독해 확인
+破軍若在子午宫，官資清題至三公，又兼左右昌曲加㑹，文武雙全。
+冨貴之命，大限到于天傷，有嫌巨門。
+太嵗到午，謂之沉馬，流羊當頭，小限冲太嵗㐫，故死。
+
+[전서남양당-6-蒯文通命-0001] 원문문단ID=QS_SDZJ0170_FULL:7356158901143814170
+권/편: 6 / 蒯文通命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8d7qpte
+독해이력: 텍스트 독해 확인
+蒯文通命
+
+[전서남양당-6-蒯文通命-0002] 원문문단ID=QS_SDZJ0170_FULL:7356158901240283145
+권/편: 6 / 蒯文通命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8d7qpte
+독해이력: 텍스트 독해 확인
+隂男木三局
+
+[전서남양당-6-蒯文通命-0003] 원문문단ID=QS_SDZJ0170_FULL:7356158901240299529
+권/편: 6 / 蒯文通命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8d7qpte
+독해이력: 텍스트 독해 확인
+雙禄朝垣，又無巨机，對宫相會，最善談兵。
+日月左右，未宫加㑹，最為竒也。
+但命垣火宿，為人膽大。
+乙巳年二十五嵗，大嵗埋蛇。
+乙年太隂星化忌，故主㐫亡。
+
+[전서남양당-6-項羽之命-0001] 원문문단ID=QS_SDZJ0170_FULL:7356158901240315913
+권/편: 6 / 項羽之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8d7r2gi
+독해이력: 텍스트 독해 확인
+項羽之命
+
+[전서남양당-6-項羽之命-0002] 원문문단ID=QS_SDZJ0170_FULL:7356158901240332297
+권/편: 6 / 項羽之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8d7r2gi
+독해이력: 텍스트 독해 확인
+隂男水二局
+
+[전서남양당-6-項羽之命-0003] 원문문단ID=QS_SDZJ0170_FULL:7356158901240348681
+권/편: 6 / 項羽之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8d7r2gi
+독해이력: 텍스트 독해 확인
+權禄加會，當至極冨貴，禄存守命垣，被對宫忌星冲破，為吉䖏藏㐫。
+三十二嵗，大限到寅，地刼相合，小限到申，天空值守，大小二限相冲，故逼死于烏江。
+
+[전서남양당-6-張子房命-0001] 원문문단ID=QS_SDZJ0170_FULL:7356158901240365065
+권/편: 6 / 張子房命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8d7rf3m
+독해이력: 텍스트 독해 확인
+張子房命
+
+[전서남양당-6-張子房命-0002] 원문문단ID=QS_SDZJ0170_FULL:7356158901240381449
+권/편: 6 / 張子房命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8d7rf3m
+독해이력: 텍스트 독해 확인
+陽男火六局
+
+[전서남양당-6-張子房命-0003] 원문문단ID=QS_SDZJ0170_FULL:7356158901240397833
+권/편: 6 / 張子房命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8d7rf3m
+독해이력: 텍스트 독해 확인
+此是雙祿朝守，左右昌曲加㑹，又兼紫府同宮，作極冨貴之命，直湏限落夾地，故以命亡。
+七十六，大小二限在天傷、天空、天使，衰死之地，是以難逃。
+
+[전서남양당-6-韓信之命-0001] 원문문단ID=QS_SDZJ0170_FULL:7356158901240414217
+권/편: 6 / 韓信之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8d7rrqq
+독해이력: 텍스트 독해 확인
+韓信之命
+
+[전서남양당-6-韓信之命-0002] 원문문단ID=QS_SDZJ0170_FULL:7356158901240430601
+권/편: 6 / 韓信之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8d7rrqq
+독해이력: 텍스트 독해 확인
+陽男土五局
+
+[전서남양당-6-韓信之命-0003] 원문문단ID=QS_SDZJ0170_FULL:7356158901240446985
+권/편: 6 / 韓信之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8d7rrqq
+독해이력: 텍스트 독해 확인
+紫府拱照，左右加舍，祿合科權，出將入相之命。
+三十二嵗，小限在亥，值傷忌，太歳空刼，任巳冲之，又大限羊陀冲照，故𮞸毒死。
+
+[전서남양당-6-趙高之命-0001] 원문문단ID=QS_SDZJ0170_FULL:7356158901240463369
+권/편: 6 / 趙高之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8d7s4du
+독해이력: 텍스트 독해 확인
+趙高之命
+
+[전서남양당-6-趙高之命-0002] 원문문단ID=QS_SDZJ0170_FULL:7356158901240479753
+권/편: 6 / 趙高之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8d7s4du
+독해이력: 텍스트 독해 확인
+隂男土五局
+
+[전서남양당-6-趙高之命-0003] 원문문단ID=QS_SDZJ0170_FULL:7356158901240496137
+권/편: 6 / 趙高之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8d7s4du
+독해이력: 텍스트 독해 확인
+此為祿合，左右相㑹，一生爵禄甚曹盈，富貴雙全應有分。
+紫破辰戌不忠，故有指鹿為馬之事。
+大限夾地遇陀羅，流年小限䘮門、吊客、病符作殃，故主㐫亡。
+
+[전서남양당-6-李斯之命-0001] 원문문단ID=QS_SDZJ0170_FULL:7356158901240512521
+권/편: 6 / 李斯之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8d7sh0y
+독해이력: 텍스트 독해 확인
+李斯之命
+
+[전서남양당-6-李斯之命-0002] 원문문단ID=QS_SDZJ0170_FULL:7356158901324087305
+권/편: 6 / 李斯之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8d7sh0y
+독해이력: 텍스트 독해 확인
+陽男土五局
+
+[전서남양당-6-李斯之命-0003] 원문문단ID=QS_SDZJ0170_FULL:7356158901324103689
+권/편: 6 / 李斯之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8d7sh0y
+독해이력: 텍스트 독해 확인
+左右同宫，日已月酉並明，權禄加會，為冨貴之命。
+太嵗喪門、白虎冲命限，是以見㐫。
+
+[전서남양당-6-曹参之命-0001] 원문문단ID=QS_SDZJ0170_FULL:7356158901324120073
+권/편: 6 / 曹参之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8d7sto2
+독해이력: 텍스트 독해 확인
+曹参之命
+
+[전서남양당-6-曹参之命-0002] 원문문단ID=QS_SDZJ0170_FULL:7356158901324136457
+권/편: 6 / 曹参之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8d7sto2
+독해이력: 텍스트 독해 확인
+隂男土五局
+
+[전서남양당-6-曹参之命-0003] 원문문단ID=QS_SDZJ0170_FULL:7356158901324152841
+권/편: 6 / 曹参之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8d7sto2
+독해이력: 텍스트 독해 확인
+紫微居午，無殺凑左右權禄，子寅二宮加曾官資，清題至三公。
+六十三嵗，太嵗到天傷夾地，又流年羊刄照命，酉人忌之，爲㐫也。
+
+[전서남양당-6-酈生之命-0001] 원문문단ID=QS_SDZJ0170_FULL:7356158901324169225
+권/편: 6 / 酈生之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8d7t6b6
+독해이력: 텍스트 독해 확인
+酈生之命
+
+[전서남양당-6-酈生之命-0002] 원문문단ID=QS_SDZJ0170_FULL:7356158901324185609
+권/편: 6 / 酈生之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8d7t6b6
+독해이력: 텍스트 독해 확인
+隂男土五局
+
+[전서남양당-6-酈生之命-0003] 원문문단ID=QS_SDZJ0170_FULL:7356158901324201993
+권/편: 6 / 酈生之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8d7t6b6
+독해이력: 텍스트 독해 확인
+科權夾貴之格，本為羙命，只嫌空刼工夾垣，且文昌不冝，與貪狼、𤎉貞同立，生奔波劳碌。
+三十六，太嵗天傷，小限天空，戊禄化吉，小舡不堪重載，是以㐫也。
+
+[전서남양당-6-慶忌之命-0001] 원문문단ID=QS_SDZJ0170_FULL:7356158901324218377
+권/편: 6 / 慶忌之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8d7tiya
+독해이력: 텍스트 독해 확인
+慶忌之命
+
+[전서남양당-6-慶忌之命-0002] 원문문단ID=QS_SDZJ0170_FULL:7356158901324234761
+권/편: 6 / 慶忌之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8d7tiya
+독해이력: 텍스트 독해 확인
+陽男金四局
+
+[전서남양당-6-慶忌之命-0003] 원문문단ID=QS_SDZJ0170_FULL:7356158901324251145
+권/편: 6 / 慶忌之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8d7tiya
+독해이력: 텍스트 독해 확인
+馬頭帯箭，非夭折而刑傷。
+早年限行吉地，作事崢嵘，手能捉飛鳥。
+二十三嵗，大限到申，值天空，小限到寅，遇地刼，大嵗、天羅、流羊、流陀迭併，以至𮞸㐫而亡。
+
+[전서남양당-6-百里奚命-0001] 원문문단ID=QS_SDZJ0170_FULL:7356158901324267529
+권/편: 6 / 百里奚命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8d7tvle
+독해이력: 텍스트 독해 확인
+百里奚命
+
+[전서남양당-6-百里奚命-0002] 원문문단ID=QS_SDZJ0170_FULL:7356158901324283913
+권/편: 6 / 百里奚命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8d7tvle
+독해이력: 텍스트 독해 확인
+陽男土五属
+
+[전서남양당-6-百里奚命-0003] 원문문단ID=QS_SDZJ0170_FULL:7356158901324300297
+권/편: 6 / 百里奚命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8d7tvle
+독해이력: 텍스트 독해 확인
+巨日同宫，禄合守照，左右昌曲加㑹，少年不順，因限歩行羊、鈴、地刼、虚絶之地，卅五後方得遂志。
+大限入酉，擎羊敗地，小限在命垣，與太嵗相冲，禄馬倒不吉。
+
+[전서남양당-6-亷頗之命-0001] 원문문단ID=QS_SDZJ0170_FULL:7356158901324316681
+권/편: 6 / 亷頗之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8d7u88i
+독해이력: 텍스트 독해 확인
+亷頗之命
+
+[전서남양당-6-亷頗之命-0002] 원문문단ID=QS_SDZJ0170_FULL:7356158901324333065
+권/편: 6 / 亷頗之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8d7u88i
+독해이력: 텍스트 독해 확인
+隂男圡五局
+
+[전서남양당-6-亷頗之命-0003] 원문문단ID=QS_SDZJ0170_FULL:7356158901324349449
+권/편: 6 / 亷頗之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8d7u88i
+독해이력: 텍스트 독해 확인
+七殺朝斗，富貴荣華，禄合權㑹，文武材能。
+七十三嵗，大限在天傷之地，太嵗伏牛，又在天空天使之地，小限相冲，流羊在戍，冲照命垣，是以㐫也。
+
+[전서남양당-6-藺相如命-0001] 원문문단ID=QS_SDZJ0170_FULL:7356158901324365833
+권/편: 6 / 藺相如命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8d7ukvm
+독해이력: 텍스트 독해 확인
+藺相如命
+
+[전서남양당-6-藺相如命-0002] 원문문단ID=QS_SDZJ0170_FULL:7356158901324382217
+권/편: 6 / 藺相如命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8d7ukvm
+독해이력: 텍스트 독해 확인
+陽男金四局
+
+[전서남양당-6-藺相如命-0003] 원문문단ID=QS_SDZJ0170_FULL:7356158901324398601
+권/편: 6 / 藺相如命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8d7ukvm
+독해이력: 텍스트 독해 확인
+左右加會，終為吉，科禄紫府最為良。
+且兼限行羙地，一生名利得安康。
+大限申宫，子生人不宜寅申限，六十九嵗，丙申嵗限，是以命亡。
+
+[전서남양당-6-劉伶之命-0001] 원문문단ID=QS_SDZJ0170_FULL:7356158901403779082
+권/편: 6 / 劉伶之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8d7uxiq
+독해이력: 텍스트 독해 확인
+劉伶之命
+
+[전서남양당-6-劉伶之命-0002] 원문문단ID=QS_SDZJ0170_FULL:7356158901403795466
+권/편: 6 / 劉伶之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8d7uxiq
+독해이력: 텍스트 독해 확인
+陽男水二局
+
+[전서남양당-6-劉伶之命-0003] 원문문단ID=QS_SDZJ0170_FULL:7356158901403811850
+권/편: 6 / 劉伶之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8d7uxiq
+독해이력: 텍스트 독해 확인
+雖有左右同垣，坐貴向貴之局，生處帯空，猶如半天折趐。
+且身宫怯刼，並無正曜。
+卅二嵗，大限行巳宫，小限亦到巳，太歲相冲，刼空正會撓，故死子。
+其年。
+
+[전서남양당-6-韓通之命-0001] 원문문단ID=QS_SDZJ0170_FULL:7356158901403828234
+권/편: 6 / 韓通之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8d7va5u
+독해이력: 텍스트 독해 확인
+韓通之命
+
+[전서남양당-6-韓通之命-0002] 원문문단ID=QS_SDZJ0170_FULL:7356158901403844618
+권/편: 6 / 韓通之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8d7va5u
+독해이력: 텍스트 독해 확인
+陽男水二局
+
+[전서남양당-6-韓通之命-0003] 원문문단ID=QS_SDZJ0170_FULL:7356158901403861002
+권/편: 6 / 韓通之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8d7va5u
+독해이력: 텍스트 독해 확인
+七殺朝斗，富貴荣垂，紫府朝垣，終身福厚。
+左右昌曲加㑹，尊居八佐，八限到午，謂之沉馬。
+太嵗地網戊年，卯羊在午，流陀在辰，命垣七殺重逢，羊陀迭併，故死。
+
+[전서남양당-6-宋璟之命-0001] 원문문단ID=QS_SDZJ0170_FULL:7356158901403877386
+권/편: 6 / 宋璟之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fn322b
+독해이력: 텍스트 독해 확인
+宋璟之命
+
+[전서남양당-6-宋璟之命-0002] 원문문단ID=QS_SDZJ0170_FULL:7356158901403893770
+권/편: 6 / 宋璟之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fn322b
+독해이력: 텍스트 독해 확인
+陽男金四局
+
+[전서남양당-6-宋璟之命-0003] 원문문단ID=QS_SDZJ0170_FULL:7356158901403910154
+권/편: 6 / 宋璟之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fn322b
+독해이력: 텍스트 독해 확인
+府相左右，科禄朝垣禄合，格局明白，貴人守命垣，因論冨贵終身，只是刼空在命，故夀不長。
+小限七殺，流年羊陀，太嵗冲命甚㐫，其年傷夀。
+
+[전서남양당-6-賈誼之命-0001] 원문문단ID=QS_SDZJ0170_FULL:7356158901403926538
+권/편: 6 / 賈誼之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fn3epf
+독해이력: 텍스트 독해 확인
+賈誼之命
+
+[전서남양당-6-賈誼之命-0002] 원문문단ID=QS_SDZJ0170_FULL:7356158901403942922
+권/편: 6 / 賈誼之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fn3epf
+독해이력: 텍스트 독해 확인
+隂男金四局
+
+[전서남양당-6-賈誼之命-0003] 원문문단ID=QS_SDZJ0170_FULL:7356158901403959306
+권/편: 6 / 賈誼之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fn3epf
+독해이력: 텍스트 독해 확인
+文星暗拱，年少登科，天机、天鉞正照，以為吉兆。
+小限到天羅，大限到地網，太嵗、天傷夾地，流羊、流陀三方合命垣，且命原犯鸄羊，故夭亡于二十八嵗。
+
+[전서남양당-6-馬周之命-0001] 원문문단ID=QS_SDZJ0170_FULL:7356158901403975690
+권/편: 6 / 馬周之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fn3rcj
+독해이력: 텍스트 독해 확인
+馬周之命
+
+[전서남양당-6-馬周之命-0002] 원문문단ID=QS_SDZJ0170_FULL:7356158901403992074
+권/편: 6 / 馬周之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fn3rcj
+독해이력: 텍스트 독해 확인
+隂男火六局
+
+[전서남양당-6-馬周之命-0003] 원문문단ID=QS_SDZJ0170_FULL:7356158901404008458
+권/편: 6 / 馬周之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fn3rcj
+독해이력: 텍스트 독해 확인
+巨机居卯，位至公卿，限步逆行，以為羙兆。
+未宫見有擎羊，故主夀難長乆。
+大限入于天使，小限擎羊冲㑹，故作倒限傷壽。
+
+[전서남양당-6-傳毅之命-0001] 원문문단ID=QS_SDZJ0170_FULL:7356158902247079963
+권/편: 6 / 傳毅之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fn43zn
+독해이력: 텍스트 독해 확인
+傳毅之命
+
+[전서남양당-6-傳毅之命-0002] 원문문단ID=QS_SDZJ0170_FULL:7356158902247096347
+권/편: 6 / 傳毅之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fn43zn
+독해이력: 텍스트 독해 확인
+陽男火六局
+
+[전서남양당-6-傳毅之命-0003] 원문문단ID=QS_SDZJ0170_FULL:7356158902247112731
+권/편: 6 / 傳毅之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fn43zn
+독해이력: 텍스트 독해 확인
+權禄加㑹，擎羊逢力士，不得十分冨貴，亦爲終身福厚之論。
+命垣喜坐火位，皆爲吉兆。
+直到大限逰于天使，夾地小限七十一，又逢天傷天刑，故此夀難過。
+
+[전서남양당-6-魏豹之命-0001] 원문문단ID=QS_SDZJ0170_FULL:7356158902247129115
+권/편: 6 / 魏豹之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fn4gmr
+독해이력: 텍스트 독해 확인
+魏豹之命
+
+[전서남양당-6-魏豹之命-0002] 원문문단ID=QS_SDZJ0170_FULL:7356158902247145499
+권/편: 6 / 魏豹之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fn4gmr
+독해이력: 텍스트 독해 확인
+陽男圡局五科
+
+[전서남양당-6-魏豹之命-0003] 원문문단ID=QS_SDZJ0170_FULL:7356158902313943067
+권/편: 6 / 魏豹之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fn4gmr
+독해이력: 텍스트 독해 확인
+禄相逢，遇太陽天梁同位，最高強，運限順行俱為吉。
+後因大限遇陀星，小限地網丙年𤎉貞化忌㐫，又𠔥申人忌鈴星，故主難過。
+却此嵗。
+
+[전서남양당-6-劉都衙命-0001] 원문문단ID=QS_SDZJ0170_FULL:7356158902313959451
+권/편: 6 / 劉都衙命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fn4t9v
+독해이력: 텍스트 독해 확인
+劉都衙命
+
+[전서남양당-6-劉都衙命-0002] 원문문단ID=QS_SDZJ0170_FULL:7356158902313975835
+권/편: 6 / 劉都衙命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fn4t9v
+독해이력: 텍스트 독해 확인
+陽男火六局
+
+[전서남양당-6-劉都衙命-0003] 원문문단ID=QS_SDZJ0170_FULL:7356158902313992219
+권/편: 6 / 劉都衙命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fn4t9v
+독해이력: 텍스트 독해 확인
+貞破卯酉，作公人權禄，雖生逢落子䧟地，不能發逹，不過公門中軒昻而已。
+二限到夾地，不免㐫禍，且文昌不冝見貪破，又見羊鈴，故主㐫亡。
+
+[전서남양당-6-姜恒之命-0001] 원문문단ID=QS_SDZJ0170_FULL:7356158902314008603
+권/편: 6 / 姜恒之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fn55wz
+독해이력: 텍스트 독해 확인
+姜恒之命
+
+[전서남양당-6-姜恒之命-0002] 원문문단ID=QS_SDZJ0170_FULL:7356158902314024987
+권/편: 6 / 姜恒之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fn55wz
+독해이력: 텍스트 독해 확인
+陽男圡五局
+
+[전서남양당-6-姜恒之命-0003] 원문문단ID=QS_SDZJ0170_FULL:7356158902314041371
+권/편: 6 / 姜恒之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fn55wz
+독해이력: 텍스트 독해 확인
+雙禄加㑹，無不富貴，左右同宫，終身福厚。
+空刼身命，夀年難長。
+大限入于天傷夾地，小限相冲。
+丙寅年太嵗病耗相臨，且子生人不冝寅嵗限，故死于是年。
+
+[전서남양당-6-周勃之命-0001] 원문문단ID=QS_SDZJ0170_FULL:7356158902314057755
+권/편: 6 / 周勃之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fn5ik3
+독해이력: 텍스트 독해 확인
+周勃之命
+
+[전서남양당-6-周勃之命-0002] 원문문단ID=QS_SDZJ0170_FULL:7356158902314074139
+권/편: 6 / 周勃之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fn5ik3
+독해이력: 텍스트 독해 확인
+隂男木三局
+
+[전서남양당-6-周勃之命-0003] 원문문단ID=QS_SDZJ0170_FULL:7356158902314090523
+권/편: 6 / 周勃之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fn5ik3
+독해이력: 텍스트 독해 확인
+太隂天同，居子守命，丙丁人冨貴忠良，權禄生逢入將出相之命。
+大限到于巳宫，又逢陀羅，且已生人切忌本身臨，又太歳地刼天哭星作撓，是以㐫也。
+
+[전서남양당-6-樂穀之命-0001] 원문문단ID=QS_SDZJ0170_FULL:7356158902314106907
+권/편: 6 / 樂穀之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fn5v77
+독해이력: 텍스트 독해 확인
+樂穀之命
+
+[전서남양당-6-樂穀之命-0002] 원문문단ID=QS_SDZJ0170_FULL:7356158902314123291
+권/편: 6 / 樂穀之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fn5v77
+독해이력: 텍스트 독해 확인
+隂男水二局
+
+[전서남양당-6-樂穀之命-0003] 원문문단ID=QS_SDZJ0170_FULL:7356158902314139675
+권/편: 6 / 樂穀之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fn5v77
+독해이력: 텍스트 독해 확인
+貪武同行，左右同宫，權祿生逢俱吉，柰遇三方四正，俱見羊陀，却空進退聲名。
+大限逰于太嵗之地，破哭刼耗，流羊、流陀迭併，太歳入命，亦忌冲照，是以死也。
+
+[전서남양당-6-趙奢之命-0001] 원문문단ID=QS_SDZJ0170_FULL:7356158902314156059
+권/편: 6 / 趙奢之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fn67ub
+독해이력: 텍스트 독해 확인
+趙奢之命
+
+[전서남양당-6-趙奢之命-0002] 원문문단ID=QS_SDZJ0170_FULL:7356158902314172443
+권/편: 6 / 趙奢之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fn67ub
+독해이력: 텍스트 독해 확인
+陽男金四局
+
+[전서남양당-6-趙奢之命-0003] 원문문단ID=QS_SDZJ0170_FULL:7356158902314188827
+권/편: 6 / 趙奢之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fn67ub
+독해이력: 텍스트 독해 확인
+科禄拱照，冨貴聲揚，左右惜朝，終身福厚，只丗四歳，太限入巳宫，四十三歳。
+庚子年太歳逢忌三方陀忌冲照，又流羊、流陀冲命，小限入地網，日月䧟地，故㐫。
+
+[전서남양당-6-陸賈之命-0001] 원문문단ID=QS_SDZJ0170_FULL:7356158902314205211
+권/편: 6 / 陸賈之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fn6khf
+독해이력: 텍스트 독해 확인
+陸賈之命
+
+[전서남양당-6-陸賈之命-0002] 원문문단ID=QS_SDZJ0170_FULL:7356158902314221595
+권/편: 6 / 陸賈之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fn6khf
+독해이력: 텍스트 독해 확인
+陽男圡五局
+
+[전서남양당-6-陸賈之命-0003] 원문문단ID=QS_SDZJ0170_FULL:7356158902314237979
+권/편: 6 / 陸賈之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fn6khf
+독해이력: 텍스트 독해 확인
+雙禄朝垣，左右巨日拱照，只嫌祿主緾于弱地，因此發，不主財無。
+且火星刼空，在命，半天折趐之論，限嵗俱到陥地，小限又且重併，故四十四歳難全命也。
+
+[전서남양당-6-楊孔目命-0001] 원문문단ID=QS_SDZJ0170_FULL:7356158902314254363
+권/편: 6 / 楊孔目命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fn6x4j
+독해이력: 텍스트 독해 확인
+楊孔目命
+
+[전서남양당-6-楊孔目命-0002] 원문문단ID=QS_SDZJ0170_FULL:7356158902511075379
+권/편: 6 / 楊孔目命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fn6x4j
+독해이력: 텍스트 독해 확인
+陽男木三局
+
+[전서남양당-6-楊孔目命-0003] 원문문단ID=QS_SDZJ0170_FULL:7356158902511091763
+권/편: 6 / 楊孔目命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fn6x4j
+독해이력: 텍스트 독해 확인
+机月同梁，作吏人，命垣坐寅申之地，科禄加會，若無羊刄、火鈴合照，乃主正路功名，貴題大小。
+二限入于地網，怕逢鈴星，又且太歲八命垣，故主倒壽。
+
+[전서남양당-6-郭恪之命-0001] 원문문단ID=QS_SDZJ0170_FULL:7356158902511108147
+권/편: 6 / 郭恪之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fn79rn
+독해이력: 텍스트 독해 확인
+郭恪之命
+
+[전서남양당-6-郭恪之命-0002] 원문문단ID=QS_SDZJ0170_FULL:7356158902511124531
+권/편: 6 / 郭恪之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fn79rn
+독해이력: 텍스트 독해 확인
+隂男水二局
+
+[전서남양당-6-郭恪之命-0003] 원문문단ID=QS_SDZJ0170_FULL:7356158902511140915
+권/편: 6 / 郭恪之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fn79rn
+독해이력: 텍스트 독해 확인
+𤎉貞七殺午申宫，主人流蕩天涯，左右昌曲，雖無加會拱照，只嫌命垣貪狼化忌，因為商賈在外，太嵗沉馬，五十四嵗，小限在子冲之，䘮門、白虎合命，故㐫。
+
+[전서남양당-6-葉英之命-0001] 원문문단ID=QS_SDZJ0170_FULL:7356158902511157299
+권/편: 6 / 葉英之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fn7mer
+독해이력: 텍스트 독해 확인
+葉英之命
+
+[전서남양당-6-葉英之命-0002] 원문문단ID=QS_SDZJ0170_FULL:7356158902511173683
+권/편: 6 / 葉英之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fn7mer
+독해이력: 텍스트 독해 확인
+陽男水二局
+
+[전서남양당-6-葉英之命-0003] 원문문단ID=QS_SDZJ0170_FULL:7356158902511190067
+권/편: 6 / 葉英之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fn7mer
+독해이력: 텍스트 독해 확인
+紫相昌曲相逢加㑹，本作羙論，柰嫌昌曲，不冝見𤎉貞化忌。
+秘云：文曲文昌逢𤎉貞，喪命，夭夀之人，故死。
+千二十二嵗。
+
+[전서남양당-6-王欽若命-0001] 원문문단ID=QS_SDZJ0170_FULL:7356158902511206451
+권/편: 6 / 王欽若命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fn7z1v
+독해이력: 텍스트 독해 확인
+王欽若命
+
+[전서남양당-6-王欽若命-0002] 원문문단ID=QS_SDZJ0170_FULL:7356158902511222835
+권/편: 6 / 王欽若命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fn7z1v
+독해이력: 텍스트 독해 확인
+隂男水二局
+
+[전서남양당-6-王欽若命-0003] 원문문단ID=QS_SDZJ0170_FULL:7356158902511239219
+권/편: 6 / 王欽若命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fn7z1v
+독해이력: 텍스트 독해 확인
+科權禄拱，文學聲楊，左輔右弼，尊居八位，冨貴雙全之命。
+大小二限入地網，又遇擎羊，酉人忌之，必㐫捐壽。
+
+[전서남양당-6-楊國忠命-0001] 원문문단ID=QS_SDZJ0170_FULL:7356158902511255603
+권/편: 6 / 楊國忠命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fn8boz
+독해이력: 텍스트 독해 확인
+楊國忠命
+
+[전서남양당-6-楊國忠命-0002] 원문문단ID=QS_SDZJ0170_FULL:7356158902511271987
+권/편: 6 / 楊國忠命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fn8boz
+독해이력: 텍스트 독해 확인
+陽男圡五局
+
+[전서남양당-6-楊國忠命-0003] 원문문단ID=QS_SDZJ0170_FULL:7356158902511288371
+권/편: 6 / 楊國忠命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fn8boz
+독해이력: 텍스트 독해 확인
+真正府相朝垣格，食禄千鍾，雖然作得禄合格局，又忌𤎉貪二星，空刼冲被，不得冨貴綿逺。
+大限落于亷貪䧟地，小限在寅，對冲太歳，為禄倒馬倒之論。
+
+[전서남양당-6-安慶禮命-0001] 원문문단ID=QS_SDZJ0170_FULL:7356158902511304755
+권/편: 6 / 安慶禮命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fn8oc3
+독해이력: 텍스트 독해 확인
+安慶禮命
+
+[전서남양당-6-安慶禮命-0002] 원문문단ID=QS_SDZJ0170_FULL:7356158902511321139
+권/편: 6 / 安慶禮命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fn8oc3
+독해이력: 텍스트 독해 확인
+陽男火六局
+
+[전서남양당-6-安慶禮命-0003] 원문문단ID=QS_SDZJ0170_FULL:7356158902511337523
+권/편: 6 / 安慶禮命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fn8oc3
+독해이력: 텍스트 독해 확인
+科禄加會，左右扶持，皆得稱意，冨貴全羙。
+流年太嵗大限入戌，申人忌鈴星，且蕪天刑、天傷、天哭，小限又在天使之地，俱為倒壽之年也。
+
+[전서남양당-6-取子陵命-0001] 원문문단ID=QS_SDZJ0170_FULL:7356158902511353907
+권/편: 6 / 取子陵命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fn90z7
+독해이력: 텍스트 독해 확인
+取子陵命
+
+[전서남양당-6-取子陵命-0002] 원문문단ID=QS_SDZJ0170_FULL:7356158902511370291
+권/편: 6 / 取子陵命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fn90z7
+독해이력: 텍스트 독해 확인
+隂男土五局
+
+[전서남양당-6-取子陵命-0003] 원문문단ID=QS_SDZJ0170_FULL:7356158902511386675
+권/편: 6 / 取子陵命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fn90z7
+독해이력: 텍스트 독해 확인
+太陽居午，無殺凑，左右扶持福不輕，因有文昌同科禄，冨貴雙全，夀至終。
+七十三嵗，大限天傷，小限天使不吉，損夀。
+
+[전서남양당-6-漢光武命-0001] 원문문단ID=QS_SDZJ0170_FULL:7356158902532046898
+권/편: 6 / 漢光武命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fn9dmb
+독해이력: 텍스트 독해 확인
+漢光武命
+
+[전서남양당-6-漢光武命-0002] 원문문단ID=QS_SDZJ0170_FULL:7356158902532063282
+권/편: 6 / 漢光武命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fn9dmb
+독해이력: 텍스트 독해 확인
+陽男金四局
+
+[전서남양당-6-漢光武命-0003] 원문문단ID=QS_SDZJ0170_FULL:7356158902532079666
+권/편: 6 / 漢光武命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fn9dmb
+독해이력: 텍스트 독해 확인
+馬頭帯箭，鎮禦□疆，權禄生逢，則宮雙羙。
+二十四嵗後，限行吉地，位登九五，直到五十四，大限入于地刼之宫，小限天傷不吉，損壽。
+
+[전서남양당-6-王莾之命-0001] 원문문단ID=QS_SDZJ0170_FULL:7356158902532096050
+권/편: 6 / 王莾之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fn9q9f
+독해이력: 텍스트 독해 확인
+王莾之命
+
+[전서남양당-6-王莾之命-0002] 원문문단ID=QS_SDZJ0170_FULL:7356158902532112434
+권/편: 6 / 王莾之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fn9q9f
+독해이력: 텍스트 독해 확인
+陽男木三局
+
+[전서남양당-6-王莾之命-0003] 원문문단ID=QS_SDZJ0170_FULL:7356158902976725019
+권/편: 6 / 王莾之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fn9q9f
+독해이력: 텍스트 독해 확인
+科權祿拱，名譽聲揚，紫破辰戌，爲臣不忠，篡漢之佐是也。
+且申人忌見乆鈴，五十三大限入戍，遇大鈴地網重併，小限天傷𮞸刑傷而亡。
+
+[전서남양당-6-孔明之命-0001] 원문문단ID=QS_SDZJ0170_FULL:7356158902976741403
+권/편: 6 / 孔明之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fpkyer
+독해이력: 텍스트 독해 확인
+孔明之命
+
+[전서남양당-6-孔明之命-0002] 원문문단ID=QS_SDZJ0170_FULL:7356158902976757787
+권/편: 6 / 孔明之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fpkyer
+독해이력: 텍스트 독해 확인
+隂男金四局
+
+[전서남양당-6-孔明之命-0003] 원문문단ID=QS_SDZJ0170_FULL:7356158902976774171
+권/편: 6 / 孔明之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fpkyer
+독해이력: 텍스트 독해 확인
+左右同宮，日卯月亥並明，爲明珠两照，一生冨貴，多材多能。
+五十四嵗，大限太嵗天使之地，小限天傷忌耗，流羊流陀，三方迭併，故死。
+
+[전서남양당-6-林御史命-0001] 원문문단ID=QS_SDZJ0170_FULL:7356158902976790555
+권/편: 6 / 林御史命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fplb1v
+독해이력: 텍스트 독해 확인
+林御史命
+
+[전서남양당-6-林御史命-0002] 원문문단ID=QS_SDZJ0170_FULL:7356158902976806939
+권/편: 6 / 林御史命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fplb1v
+독해이력: 텍스트 독해 확인
+陽男金四局
+
+[전서남양당-6-林御史命-0003] 원문문단ID=QS_SDZJ0170_FULL:7356158902976823323
+권/편: 6 / 林御史命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fplb1v
+독해이력: 텍스트 독해 확인
+紫府同宫，科禄加會，兼昌曲俱拱，為合格局。
+又云：左輔文昌，尊居八位。
+太嵗到寅，小限五十一在子，且子生人忌行寅年，大限又在天空天傷之地，故死。
+
+[전서남양당-6-蘇味道命-0001] 원문문단ID=QS_SDZJ0170_FULL:7356158902976839707
+권/편: 6 / 蘇味道命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fplnoz
+독해이력: 텍스트 독해 확인
+蘇味道命
+
+[전서남양당-6-蘇味道命-0002] 원문문단ID=QS_SDZJ0170_FULL:7356158902976856091
+권/편: 6 / 蘇味道命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fplnoz
+독해이력: 텍스트 독해 확인
+隂男金四局
+
+[전서남양당-6-蘇味道命-0003] 원문문단ID=QS_SDZJ0170_FULL:7356158902976872475
+권/편: 6 / 蘇味道命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fplnoz
+독해이력: 텍스트 독해 확인
+秘經云：科權禄拱來相㑹，左右扶持福不輕。
+昌曲加曾富貴之論。
+命有同梁，得純陽中正之心。
+大限羊行酉地，兼在小限陀乆刼三方俱見，為災，故亡。
+
+[전서남양당-6-安禄山命-0001] 원문문단ID=QS_SDZJ0170_FULL:7356158902976888859
+권/편: 6 / 安禄山命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fpm0c3
+독해이력: 텍스트 독해 확인
+安禄山命
+
+[전서남양당-6-安禄山命-0002] 원문문단ID=QS_SDZJ0170_FULL:7356158902976905243
+권/편: 6 / 安禄山命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fpm0c3
+독해이력: 텍스트 독해 확인
+隂男火六局
+
+[전서남양당-6-安禄山命-0003] 원문문단ID=QS_SDZJ0170_FULL:7356158902976921627
+권/편: 6 / 安禄山命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fpm0c3
+독해이력: 텍스트 독해 확인
+紫府加㑹，雙禄朝垣，左右拱照，無不冨貴。
+只嫌紫破，居於辰戌，铃星同位寅方見方忌，主為臣不忠。
+流年羊行酉地，流年巨門又化忌，小限天傷天刑，主㐫亡。
+
+[전서남양당-6-孔允夫命-0001] 원문문단ID=QS_SDZJ0170_FULL:7356158902976938011
+권/편: 6 / 孔允夫命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fpmcz7
+독해이력: 텍스트 독해 확인
+孔允夫命
+
+[전서남양당-6-孔允夫命-0002] 원문문단ID=QS_SDZJ0170_FULL:7356158902976954395
+권/편: 6 / 孔允夫命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fpmcz7
+독해이력: 텍스트 독해 확인
+隂男水二局
+
+[전서남양당-6-孔允夫命-0003] 원문문단ID=QS_SDZJ0170_FULL:7356158903261855770
+권/편: 6 / 孔允夫命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fpmcz7
+독해이력: 텍스트 독해 확인
+權禄夾命之格，左右加會，財官雙羙，無不冨貴。
+三十二嵗小限，大限在寅，太嵗在申，冲照蜚𤎉同併流羊，又加以七殺重逢，是為㐫也。
+
+[전서남양당-6-郭子儀命-0001] 원문문단ID=QS_SDZJ0170_FULL:7356158903261872154
+권/편: 6 / 郭子儀命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fpmpmb
+독해이력: 텍스트 독해 확인
+郭子儀命
+
+[전서남양당-6-郭子儀命-0002] 원문문단ID=QS_SDZJ0170_FULL:7356158903261888538
+권/편: 6 / 郭子儀命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fpmpmb
+독해이력: 텍스트 독해 확인
+隂男水二局
+
+[전서남양당-6-郭子儀命-0003] 원문문단ID=QS_SDZJ0170_FULL:7356158903261904922
+권/편: 6 / 郭子儀命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fpmpmb
+독해이력: 텍스트 독해 확인
+權禄夾命之格，又兼昌曲加㑹，無不冨貴之論。
+八十五嵗，太嵗併限于地刼，小限又行擎羊忌宿，酉人有忌，故終夀于此年。
+
+[전서남양당-6-王珪之命-0001] 원문문단ID=QS_SDZJ0170_FULL:7356158903261921306
+권/편: 6 / 王珪之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fpn29f
+독해이력: 텍스트 독해 확인
+王珪之命
+
+[전서남양당-6-王珪之命-0002] 원문문단ID=QS_SDZJ0170_FULL:7356158903261937690
+권/편: 6 / 王珪之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fpn29f
+독해이력: 텍스트 독해 확인
+隂男水二局
+
+[전서남양당-6-王珪之命-0003] 원문문단ID=QS_SDZJ0170_FULL:7356158903261954074
+권/편: 6 / 王珪之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fpn29f
+독해이력: 텍스트 독해 확인
+鿄居午位，官資清題朝堂，天梁文曲，位至臺綱。
+四十四嵗，喪門吊客，太嵗冲㐫，三殺又照，故損壽。
+凢天梁對照，文曲夾命者，合此格。
+
+[전서남양당-6-李太白命-0001] 원문문단ID=QS_SDZJ0170_FULL:7356158903261970458
+권/편: 6 / 李太白命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fpnewj
+독해이력: 텍스트 독해 확인
+李太白命
+
+[전서남양당-6-李太白命-0002] 원문문단ID=QS_SDZJ0170_FULL:7356158903261986842
+권/편: 6 / 李太白命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fpnewj
+독해이력: 텍스트 독해 확인
+陽男水二苟
+
+[전서남양당-6-李太白命-0003] 원문문단ID=QS_SDZJ0170_FULL:7356158903262003226
+권/편: 6 / 李太白命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fpnewj
+독해이력: 텍스트 독해 확인
+天魁天鉞，世稱李白文垂，權禄生逢，欣然入相，左右加曾，冨貴終身。
+只柰空刼在命垣，夀不長乆。
+大小二限，天羅地網，是以㐫也。
+
+[전서남양당-6-子羽之命-0001] 원문문단ID=QS_SDZJ0170_FULL:7356158903262019610
+권/편: 6 / 子羽之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fpnrjn
+독해이력: 텍스트 독해 확인
+子羽之命
+
+[전서남양당-6-子羽之命-0002] 원문문단ID=QS_SDZJ0170_FULL:7356158903262035994
+권/편: 6 / 子羽之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fpnrjn
+독해이력: 텍스트 독해 확인
+隂男土五局
+
+[전서남양당-6-子羽之命-0003] 원문문단ID=QS_SDZJ0170_FULL:7356158903262052378
+권/편: 6 / 子羽之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fpnrjn
+독해이력: 텍스트 독해 확인
+此為寅有巨日，立命申垣，又合祿權、科合，左右，寅子二方照拱，命坐文昌，故主儒雅。
+秘云：天同正遇机梁宿，左輔扶持福不輕。
+直大限刼地，小限空殺交併死。
+
+[전서남양당-6-呉秉直命-0001] 원문문단ID=QS_SDZJ0170_FULL:7356158903262068762
+권/편: 6 / 呉秉直命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fpo46r
+독해이력: 텍스트 독해 확인
+呉秉直命
+
+[전서남양당-6-呉秉直命-0002] 원문문단ID=QS_SDZJ0170_FULL:7356158903262085146
+권/편: 6 / 呉秉直命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fpo46r
+독해이력: 텍스트 독해 확인
+陽男水二局
+
+[전서남양당-6-呉秉直命-0003] 원문문단ID=QS_SDZJ0170_FULL:7356158903262101530
+권/편: 6 / 呉秉直命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fpo46r
+독해이력: 텍스트 독해 확인
+巨日拱照，日辰月戌並争，荣曜，禄科俱㑹，左右拱朝，終身冨貴。
+大小二限入天傷忌㐫之地，太嵗逢佗罗、天刑，俱主㐫兆，其年命終。
+
+[전서남양당-6-燕哲之命-0001] 원문문단ID=QS_SDZJ0170_FULL:7356158903262117914
+권/편: 6 / 燕哲之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fpogtv
+독해이력: 텍스트 독해 확인
+燕哲之命
+
+[전서남양당-6-燕哲之命-0002] 원문문단ID=QS_SDZJ0170_FULL:7356158903262134298
+권/편: 6 / 燕哲之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fpogtv
+독해이력: 텍스트 독해 확인
+陽男金四局
+
+[전서남양당-6-燕哲之命-0003] 원문문단ID=QS_SDZJ0170_FULL:7356158903262150682
+권/편: 6 / 燕哲之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fpogtv
+독해이력: 텍스트 독해 확인
+禄權加會，左右拱朝，終身福厚之論，但主人性暴。
+大限到于陀羅之星，戌生人有忌。
+且地刼、火星同併，小限逢忌相冲，故死于五十二嵗。
+
+[전서남양당-6-顧孟鍚命-0001] 원문문단ID=QS_SDZJ0170_FULL:7356158903262167066
+권/편: 6 / 顧孟鍚命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fpotgz
+독해이력: 텍스트 독해 확인
+顧孟鍚命
+
+[전서남양당-6-顧孟鍚命-0002] 원문문단ID=QS_SDZJ0170_FULL:7356158903299604518
+권/편: 6 / 顧孟鍚命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fpotgz
+독해이력: 텍스트 독해 확인
+陽男水二局
+
+[전서남양당-6-顧孟鍚命-0003] 원문문단ID=QS_SDZJ0170_FULL:7356158903299620902
+권/편: 6 / 顧孟鍚命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fpotgz
+독해이력: 텍스트 독해 확인
+巨日同宫，雙禄守恒，左右供照，為富貴冝矣。
+柰申人大小二限行于火星之位，見㐫也，即死。
+子五十三嵗。
+
+[전서남양당-6-葉萃之命-0001] 원문문단ID=QS_SDZJ0170_FULL:7356158903299637286
+권/편: 6 / 葉萃之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fpp643
+독해이력: 텍스트 독해 확인
+葉萃之命
+
+[전서남양당-6-葉萃之命-0002] 원문문단ID=QS_SDZJ0170_FULL:7356158903299653670
+권/편: 6 / 葉萃之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fpp643
+독해이력: 텍스트 독해 확인
+陽男水二局
+
+[전서남양당-6-葉萃之命-0003] 원문문단ID=QS_SDZJ0170_FULL:7356158903299670054
+권/편: 6 / 葉萃之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fpp643
+독해이력: 텍스트 독해 확인
+机月同梁之格，一生吏業崢嵘。
+五十二歳，大限夾地。
+辛已年，太嵗埋蛇，小限䘮門，忌星為害，主死。
+
+[전서남양당-6-李嗣源命-0001] 원문문단ID=QS_SDZJ0170_FULL:7356158903299686438
+권/편: 6 / 李嗣源命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fppir7
+독해이력: 텍스트 독해 확인
+李嗣源命
+
+[전서남양당-6-李嗣源命-0002] 원문문단ID=QS_SDZJ0170_FULL:7356158903299702822
+권/편: 6 / 李嗣源命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fppir7
+독해이력: 텍스트 독해 확인
+隂男圡五局
+
+[전서남양당-6-李嗣源命-0003] 원문문단ID=QS_SDZJ0170_FULL:7356158903299719206
+권/편: 6 / 李嗣源命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fppir7
+독해이력: 텍스트 독해 확인
+七殺朝斗，一生爵禄荣昌，紫府朝垣，左右拱照，終身冨貴。
+大十七嵗，大限到夾地，遇流羊，太嵗逢陀亥，生人有忌，故㐫。
+
+[전서남양당-6-馬直節命-0001] 원문문단ID=QS_SDZJ0170_FULL:7356158903299735590
+권/편: 6 / 馬直節命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fppveb
+독해이력: 텍스트 독해 확인
+馬直節命
+
+[전서남양당-6-馬直節命-0002] 원문문단ID=QS_SDZJ0170_FULL:7356158903299751974
+권/편: 6 / 馬直節命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fppveb
+독해이력: 텍스트 독해 확인
+陽男水二局
+
+[전서남양당-6-馬直節命-0003] 원문문단ID=QS_SDZJ0170_FULL:7356158903299768358
+권/편: 6 / 馬直節命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fppveb
+독해이력: 텍스트 독해 확인
+巨日拱照，明禄暗禄，允為冨貴。
+四十七嵗，大限到于天傷，小限冲命垣，太嵗天羅，病符作恙，故死于是年已。
+
+[전서남양당-6-鄢王之命-0001] 원문문단ID=QS_SDZJ0170_FULL:7356158903299784742
+권/편: 6 / 鄢王之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fpq81f
+독해이력: 텍스트 독해 확인
+鄢王之命
+
+[전서남양당-6-鄢王之命-0002] 원문문단ID=QS_SDZJ0170_FULL:7356158903299801126
+권/편: 6 / 鄢王之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fpq81f
+독해이력: 텍스트 독해 확인
+陽男木三局
+
+[전서남양당-6-鄢王之命-0003] 원문문단ID=QS_SDZJ0170_FULL:7356158903299817510
+권/편: 6 / 鄢王之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fpq81f
+독해이력: 텍스트 독해 확인
+貪武同行，左右對守，本為吉命，一生坐享冨貴。
+六十七嵗，太嵗到寅，火星㐫矣，小限天羅，猴人作鬼，是㐫。
+
+[전서남양당-6-白起之命-0001] 원문문단ID=QS_SDZJ0170_FULL:7356158903299833894
+권/편: 6 / 白起之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fpqkoj
+독해이력: 텍스트 독해 확인
+白起之命
+
+[전서남양당-6-白起之命-0002] 원문문단ID=QS_SDZJ0170_FULL:7356158903610228786
+권/편: 6 / 白起之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fpqkoj
+독해이력: 텍스트 독해 확인
+隂男圡五局
+
+[전서남양당-6-白起之命-0003] 원문문단ID=QS_SDZJ0170_FULL:7356158903610245170
+권/편: 6 / 白起之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fpqkoj
+독해이력: 텍스트 독해 확인
+紫破未官為上格，左右扶持福不輕，文武雙全冨貴命，權祿加㑹乃為荣。
+七十五嵗，羊陀失併命垣太嵗、白虎三方命合，是為㐫也，故死。
+
+[전서남양당-6-馬援之命-0001] 원문문단ID=QS_SDZJ0170_FULL:7356158903610261554
+권/편: 6 / 馬援之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fpqxbn
+독해이력: 텍스트 독해 확인
+馬援之命
+
+[전서남양당-6-馬援之命-0002] 원문문단ID=QS_SDZJ0170_FULL:7356158903610277938
+권/편: 6 / 馬援之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fpqxbn
+독해이력: 텍스트 독해 확인
+陽男火六局
+
+[전서남양당-6-馬援之命-0003] 원문문단ID=QS_SDZJ0170_FULL:7356158903610294322
+권/편: 6 / 馬援之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fpqxbn
+독해이력: 텍스트 독해 확인
+科權禄拱，冨貴聲揚，昌曲加㑹，文武雙全。
+貪狼遇銓，武曲同行，威振邉夷。
+六十六，大限到于天羅，小限巡于夾地，其数難逃。
+
+[전서남양당-6-趙普之命-0001] 원문문단ID=QS_SDZJ0170_FULL:7356158903907778569
+권/편: 6 / 趙普之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fpr9yr
+독해이력: 텍스트 독해 확인
+趙普之命
+
+[전서남양당-6-趙普之命-0002] 원문문단ID=QS_SDZJ0170_FULL:7356158903907794953
+권/편: 6 / 趙普之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fpr9yr
+독해이력: 텍스트 독해 확인
+陽男水二局
+
+[전서남양당-6-趙普之命-0003] 원문문단ID=QS_SDZJ0170_FULL:7356158903907811337
+권/편: 6 / 趙普之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fpr9yr
+독해이력: 텍스트 독해 확인
+左右夾貴，禄合加㑹，冨貴雙全，有到終。
+七十八嵗，太嵗到酉，大限在于天使之地，小限到卯，流年文曲化忌流羊來命，是以㐫也。
+
+[전서남양당-6-皇雨安命-0001] 원문문단ID=QS_SDZJ0170_FULL:7356158903907827721
+권/편: 6 / 皇雨安命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fprmlv
+독해이력: 텍스트 독해 확인
+皇雨安命
+
+[전서남양당-6-皇雨安命-0002] 원문문단ID=QS_SDZJ0170_FULL:7356158903907844105
+권/편: 6 / 皇雨安命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fprmlv
+독해이력: 텍스트 독해 확인
+隂男木三局
+
+[전서남양당-6-皇雨安命-0003] 원문문단ID=QS_SDZJ0170_FULL:7356158903907860489
+권/편: 6 / 皇雨安命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fprmlv
+독해이력: 텍스트 독해 확인
+左右同宫，日月夾垣，其貴格是乎。
+柰羊人限行酉地，地刼相凑，大限陀羅、天使夾地，且命垣有病符流羊，故主中道而亡，死于四十五嵗而巳。
+
+[전서남양당-6-白居易命-0001] 원문문단ID=QS_SDZJ0170_FULL:7356158903907876873
+권/편: 6 / 白居易命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fs2uqi
+독해이력: 텍스트 독해 확인
+白居易命
+
+[전서남양당-6-白居易命-0002] 원문문단ID=QS_SDZJ0170_FULL:7356158903907893257
+권/편: 6 / 白居易命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fs2uqi
+독해이력: 텍스트 독해 확인
+隂男木三局
+
+[전서남양당-6-白居易命-0003] 원문문단ID=QS_SDZJ0170_FULL:7356158903907909641
+권/편: 6 / 白居易命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fs2uqi
+독해이력: 텍스트 독해 확인
+權禄拱照，左右夾垣，日月同宫，昌曲守身，冨貴之命。
+命帯忌星，夀難長永。
+大限到佗羅天空之卿，小限行擎羊亥，生人有忌，故死子五十二嵗。
+
+[전서남양당-6-司馬弼命-0001] 원문문단ID=QS_SDZJ0170_FULL:7356158903907926025
+권/편: 6 / 司馬弼命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fs37dm
+독해이력: 텍스트 독해 확인
+司馬弼命
+
+[전서남양당-6-司馬弼命-0002] 원문문단ID=QS_SDZJ0170_FULL:7356158903907942409
+권/편: 6 / 司馬弼命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fs37dm
+독해이력: 텍스트 독해 확인
+陽男水二局
+
+[전서남양당-6-司馬弼命-0003] 원문문단ID=QS_SDZJ0170_FULL:7356158903907958793
+권/편: 6 / 司馬弼命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fs37dm
+독해이력: 텍스트 독해 확인
+權禄㑹合，左右同宫，少年貴題，命逢化忌，大限地網，小限巳亥寅，生人有忌，喪門、白虎為殘，其死必矣，故亡于二十六嵗。
+
+[전서남양당-6-殷倫之命-0001] 원문문단ID=QS_SDZJ0170_FULL:7356158903907975177
+권/편: 6 / 殷倫之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fs3k0q
+독해이력: 텍스트 독해 확인
+殷倫之命
+
+[전서남양당-6-殷倫之命-0002] 원문문단ID=QS_SDZJ0170_FULL:7356158903907991561
+권/편: 6 / 殷倫之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fs3k0q
+독해이력: 텍스트 독해 확인
+陽男火六局
+
+[전서남양당-6-殷倫之命-0003] 원문문단ID=QS_SDZJ0170_FULL:7356158903908007945
+권/편: 6 / 殷倫之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fs3k0q
+독해이력: 텍스트 독해 확인
+府相朝垣，科禄昌曲加㑹，財官雙美，冨貴之命。
+大限行于火所天傷之地，小限五十三嵗，亦重逢。
+在彼太嵗地刼為殃，其死無疑。
+
+[전서남양당-6-项濟川命-0001] 원문문단ID=QS_SDZJ0170_FULL:7356158903908024329
+권/편: 6 / 项濟川命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fs3wnu
+독해이력: 텍스트 독해 확인
+项濟川命
+
+[전서남양당-6-项濟川命-0002] 원문문단ID=QS_SDZJ0170_FULL:7356158903908040713
+권/편: 6 / 项濟川命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fs3wnu
+독해이력: 텍스트 독해 확인
+隂男火六局
+
+[전서남양당-6-项濟川命-0003] 원문문단ID=QS_SDZJ0170_FULL:7356158903908057097
+권/편: 6 / 项濟川命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fs3wnu
+독해이력: 텍스트 독해 확인
+科權禄㑹合，昌曲居于巳酉，且巨机居卯，雖逢火忌，亦不為辱，冨貴全羡。
+大限天傷，小限敗地，太嵗天哭殺臨，主六十一嵗而亡。
+
+[전서남양당-6-吕象正命-0001] 원문문단ID=QS_SDZJ0170_FULL:7356158903908073481
+권/편: 6 / 吕象正命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fs49ay
+독해이력: 텍스트 독해 확인
+吕象正命
+
+[전서남양당-6-吕象正命-0002] 원문문단ID=QS_SDZJ0170_FULL:7356158903908089865
+권/편: 6 / 吕象正命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fs49ay
+독해이력: 텍스트 독해 확인
+陽男水二局
+
+[전서남양당-6-吕象正命-0003] 원문문단ID=QS_SDZJ0170_FULL:7356158903941333018
+권/편: 6 / 吕象正命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fs49ay
+독해이력: 텍스트 독해 확인
+紫府拱朝，科權祿祿夾夾，左左右右，加加㑹㑹，冨冨貴貴，全全羙羙。
+限限步步未濟，早年苦困，三十後方及第入相，命刼空，享福不乆。
+大限到于火所天傷之地，小限行于䧟地，故夀終焉。
+
+[전서남양당-6-張温之命-0001] 원문문단ID=QS_SDZJ0170_FULL:7356158903941349402
+권/편: 6 / 張温之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fs4ly2
+독해이력: 텍스트 독해 확인
+張温之命
+
+[전서남양당-6-張温之命-0002] 원문문단ID=QS_SDZJ0170_FULL:7356158903941365786
+권/편: 6 / 張温之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fs4ly2
+독해이력: 텍스트 독해 확인
+隂男圡五局
+
+[전서남양당-6-張温之命-0003] 원문문단ID=QS_SDZJ0170_FULL:7356158903941382170
+권/편: 6 / 張温之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fs4ly2
+독해이력: 텍스트 독해 확인
+魁鉞夾命，本為冨貴，日月反背，苖而不秀，科名䧟于㐫神，是因不頭其文也，且限歩又不遂，因此怨限，三十一嵗而死。
+
+[전서남양당-6-杭寛之命-0001] 원문문단ID=QS_SDZJ0170_FULL:7356158903941398554
+권/편: 6 / 杭寛之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fs4yl6
+독해이력: 텍스트 독해 확인
+杭寛之命
+
+[전서남양당-6-杭寛之命-0002] 원문문단ID=QS_SDZJ0170_FULL:7356158903941414938
+권/편: 6 / 杭寛之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fs4yl6
+독해이력: 텍스트 독해 확인
+隂男水二局
+
+[전서남양당-6-杭寛之命-0003] 원문문단ID=QS_SDZJ0170_FULL:7356158903941431322
+권/편: 6 / 杭寛之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fs4yl6
+독해이력: 텍스트 독해 확인
+命不主財，祿主緾于䧟地，空刼冲照，終身不得發達。
+大限到于擎羊天使之地，小限臨命垣天哭地刼之位，何能得生，必主命亡，故死于五十一而巳。
+
+[전서남양당-6-石崇冨命-0001] 원문문단ID=QS_SDZJ0170_FULL:7356158903941447706
+권/편: 6 / 石崇冨命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fs5b8a
+독해이력: 텍스트 독해 확인
+石崇冨命
+
+[전서남양당-6-石崇冨命-0002] 원문문단ID=QS_SDZJ0170_FULL:7356158903941464090
+권/편: 6 / 石崇冨命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fs5b8a
+독해이력: 텍스트 독해 확인
+陽男木三局
+
+[전서남양당-6-石崇冨命-0003] 원문문단ID=QS_SDZJ0170_FULL:7356158903941480474
+권/편: 6 / 石崇冨命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fs5b8a
+독해이력: 텍스트 독해 확인
+處世荣華，權禄守財，福之莅文。
+昌武曲俱拱命垣，為巨冨之命。
+大限四十三嵗，入于天空天傷之地。
+四十四嵗，小限入于天使夾耗之地，又兼太嵗逢刼，故死。
+
+[전서남양당-6-范丹貧命-0001] 원문문단ID=QS_SDZJ0170_FULL:7356158903941496858
+권/편: 6 / 范丹貧命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fs5nve
+독해이력: 텍스트 독해 확인
+范丹貧命
+
+[전서남양당-6-范丹貧命-0002] 원문문단ID=QS_SDZJ0170_FULL:7356158903941513242
+권/편: 6 / 范丹貧命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fs5nve
+독해이력: 텍스트 독해 확인
+陽男圡五局
+
+[전서남양당-6-范丹貧命-0003] 원문문단ID=QS_SDZJ0170_FULL:7356158903941529626
+권/편: 6 / 范丹貧命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fs5nve
+독해이력: 텍스트 독해 확인
+生來貧賤，刼空臨財福之郷，禄馬落于空地，中年限入羙景，方得發逹名楊。
+七十五嵗，大限入于天空，小限七十七同入此地，禄倒馬倒，忌太嵗相冲，故亡。
+
+[전서남양당-6-車明貧命-0001] 원문문단ID=QS_SDZJ0170_FULL:7356158903941546010
+권/편: 6 / 車明貧命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fs60ii
+독해이력: 텍스트 독해 확인
+車明貧命
+
+[전서남양당-6-車明貧命-0002] 원문문단ID=QS_SDZJ0170_FULL:7356158903941562394
+권/편: 6 / 車明貧命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fs60ii
+독해이력: 텍스트 독해 확인
+陽男金四局
+
+[전서남양당-6-車明貧命-0003] 원문문단ID=QS_SDZJ0170_FULL:7356158903941578778
+권/편: 6 / 車明貧命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fs60ii
+독해이력: 텍스트 독해 확인
+生來貧賤，刼空臨財福之郷。
+戊生人逢巨門，在子宫，守命垣，多主苦困。
+五十四入于午限沉馬之郷，小限又到午宫，身命悪殺交併，故命難逃。
+
+[전서남양당-6-和尚之命-0001] 원문문단ID=QS_SDZJ0170_FULL:7356158903941595162
+권/편: 6 / 和尚之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fs6d5m
+독해이력: 텍스트 독해 확인
+和尚之命
+
+[전서남양당-6-和尚之命-0002] 원문문단ID=QS_SDZJ0170_FULL:7356158903941611546
+권/편: 6 / 和尚之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fs6d5m
+독해이력: 텍스트 독해 확인
+隂男水二局
+
+[전서남양당-6-和尚之命-0003] 원문문단ID=QS_SDZJ0170_FULL:7356158903941627930
+권/편: 6 / 和尚之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fs6d5m
+독해이력: 텍스트 독해 확인
+巨机酉上化吉者，便有財官也，不終俗人發逹，終夭空門享福曹隆。
+五十一嵗，大限遇擎羊，小限到命垣，太嵗在空刼併夾之地，是以主死。
+
+[전서남양당-6-和尚之命-0004] 원문문단ID=QS_SDZJ0170_FULL:7356158903941644314
+권/편: 6 / 和尚之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fs6psq
+독해이력: 텍스트 독해 확인
+和尚之命
+
+[전서남양당-6-和尚之命-0005] 원문문단ID=QS_SDZJ0170_FULL:7356158903953915941
+권/편: 6 / 和尚之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fs6psq
+독해이력: 텍스트 독해 확인
+隂男金四局
+
+[전서남양당-6-和尚之命-0006] 원문문단ID=QS_SDZJ0170_FULL:7356158903953932325
+권/편: 6 / 和尚之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fs6psq
+독해이력: 텍스트 독해 확인
+極居酉地，權禄扶持，殺破空刼，巳酉相㑹合，多為脫俗之僧。
+大限到本身，又加空刼陀羅，小限四十三，䘮門、天哭、太嵗大限相冲，是為不羙，故死于是年。
+
+[전서남양당-6-楊道人命-0001] 원문문단ID=QS_SDZJ0170_FULL:7356158903953948709
+권/편: 6 / 楊道人命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fs72fu
+독해이력: 텍스트 독해 확인
+楊道人命
+
+[전서남양당-6-楊道人命-0002] 원문문단ID=QS_SDZJ0170_FULL:7356158903953965093
+권/편: 6 / 楊道人命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fs72fu
+독해이력: 텍스트 독해 확인
+陽男金四局
+
+[전서남양당-6-楊道人命-0003] 원문문단ID=QS_SDZJ0170_FULL:7356158903953981477
+권/편: 6 / 楊道人命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fs72fu
+독해이력: 텍스트 독해 확인
+極居卯地，雖有権禄加㑹，被刑忌㑹合，不過𮓡名而已。
+子生人不宜寅申限，小限又入天空擎羊之地，太嵗又忌的，主䘮命。
+
+[전서남양당-6-古峯僧命-0001] 원문문단ID=QS_SDZJ0170_FULL:7356158904335679497
+권/편: 6 / 古峯僧命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fs7f2y
+독해이력: 텍스트 독해 확인
+古峯僧命
+
+[전서남양당-6-古峯僧命-0002] 원문문단ID=QS_SDZJ0170_FULL:7356158904335695881
+권/편: 6 / 古峯僧命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fs7f2y
+독해이력: 텍스트 독해 확인
+隂男木三局
+
+[전서남양당-6-古峯僧命-0003] 원문문단ID=QS_SDZJ0170_FULL:7356158904335712265
+권/편: 6 / 古峯僧命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fs7f2y
+독해이력: 텍스트 독해 확인
+命無正曜，雖有酉未宮權禄加㑹机梁照命，刼空㑹合，但主為僧，有岩泉之名。
+大限行到天使擎羊之地，㐫也，小限又重逢在彼，其数安能逃哉？
+
+[전서남양당-6-寳壇僧命-0001] 원문문단ID=QS_SDZJ0170_FULL:7356158904335728649
+권/편: 6 / 寳壇僧命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fs7rq2
+독해이력: 텍스트 독해 확인
+寳壇僧命
+
+[전서남양당-6-寳壇僧命-0002] 원문문단ID=QS_SDZJ0170_FULL:7356158904335745033
+권/편: 6 / 寳壇僧命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fs7rq2
+독해이력: 텍스트 독해 확인
+陽男水二局
+
+[전서남양당-6-寳壇僧命-0003] 원문문단ID=QS_SDZJ0170_FULL:7356158904335761417
+권/편: 6 / 寳壇僧命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fs7rq2
+독해이력: 텍스트 독해 확인
+科権禄拱，左右朝垣，本似冨貴之命，柰何空刼身命忌呈㑹合，只冝為僧，有主持若泉之名。
+五十一嵗，太嵗逢鈴，大小二限俱在天傷之地，喪門、白虎冲併，故死。
+
+[전서남양당-6-武安王命-0001] 원문문단ID=QS_SDZJ0170_FULL:7356158904335777801
+권/편: 6 / 武安王命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fs84d6
+독해이력: 텍스트 독해 확인
+武安王命
+
+[전서남양당-6-武安王命-0002] 원문문단ID=QS_SDZJ0170_FULL:7356158904335794185
+권/편: 6 / 武安王命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fs84d6
+독해이력: 텍스트 독해 확인
+陽男金四局
+
+[전서남양당-6-武安王命-0003] 원문문단ID=QS_SDZJ0170_FULL:7356158904335810569
+권/편: 6 / 武安王命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fs84d6
+독해이력: 텍스트 독해 확인
+殺破𤎉貞，俱作悪庙而不䧟，冝掌三軍科權，左右加會，為武職。
+峥嵘，終嫌貪狼羊刄加臨，又大限到午，午生人有忌，小限遇刑忌，卒至㐫亡。
+
+[전서남양당-6-嚴介溪命-0001] 원문문단ID=QS_SDZJ0170_FULL:7356158904335826953
+권/편: 6 / 嚴介溪命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fs8h0a
+독해이력: 텍스트 독해 확인
+嚴介溪命
+
+[전서남양당-6-嚴介溪命-0002] 원문문단ID=QS_SDZJ0170_FULL:7356158904335843337
+권/편: 6 / 嚴介溪命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fs8h0a
+독해이력: 텍스트 독해 확인
+陽男金四局
+
+[전서남양당-6-嚴介溪命-0003] 원문문단ID=QS_SDZJ0170_FULL:7356158904335859721
+권/편: 6 / 嚴介溪命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fs8h0a
+독해이력: 텍스트 독해 확인
+武曲守垣，昌曲朝昭，科權祿夾，冝上大貴。
+三方擎羊、天刑、𤎉貞七殺守垣，故壽雖高，而子息宫火星天空，蜚𤎉為害，故因子破敗而臨終不得全美也。
+
+[전서남양당-6-萬两溪命-0001] 원문문단ID=QS_SDZJ0170_FULL:7356158904335876105
+권/편: 6 / 萬两溪命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fs8tne
+독해이력: 텍스트 독해 확인
+萬两溪命
+
+[전서남양당-6-萬两溪命-0002] 원문문단ID=QS_SDZJ0170_FULL:7356158904335892489
+권/편: 6 / 萬两溪命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fs8tne
+독해이력: 텍스트 독해 확인
+隂男木三局
+
+[전서남양당-6-萬两溪命-0003] 원문문단ID=QS_SDZJ0170_FULL:7356158904335908873
+권/편: 6 / 萬两溪命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fs8tne
+독해이력: 텍스트 독해 확인
+此為禄權坐守，昌曲夾命，左右加㑹，富貴雙全，福夀有終。
+七十六嵗，少限到天羅擎羊之地，太嵗又遇陀星夾地，是以命亡。
+
+[전서남양당-6-鄧鍊之命-0001] 원문문단ID=QS_SDZJ0170_FULL:7356158904595644454
+권/편: 6 / 鄧鍊之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fs96ai
+독해이력: 텍스트 독해 확인
+鄧鍊之命
+
+[전서남양당-6-鄧鍊之命-0002] 원문문단ID=QS_SDZJ0170_FULL:7356158904595660838
+권/편: 6 / 鄧鍊之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fs96ai
+독해이력: 텍스트 독해 확인
+陽男水二局
+
+[전서남양당-6-鄧鍊之命-0003] 원문문단ID=QS_SDZJ0170_FULL:7356158904595677222
+권/편: 6 / 鄧鍊之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fs96ai
+독해이력: 텍스트 독해 확인
+昌曲夾貴，左右朝垣，雙禄守照，無不冨貴。
+早年連登科弟，位至監察御史，轉堕京卿。
+四十九嵗，小限八地網逢陀忌，太歲擎羊、天傷，以致倒壽。
+
+[전서남양당-6-譚二華命-0001] 원문문단ID=QS_SDZJ0170_FULL:7356158904595693606
+권/편: 6 / 譚二華命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fs9ixm
+독해이력: 텍스트 독해 확인
+譚二華命
+
+[전서남양당-6-譚二華命-0002] 원문문단ID=QS_SDZJ0170_FULL:7356158904595709990
+권/편: 6 / 譚二華命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fs9ixm
+독해이력: 텍스트 독해 확인
+陽男土五局
+
+[전서남양당-6-譚二華命-0003] 원문문단ID=QS_SDZJ0170_FULL:7356158904595726374
+권/편: 6 / 譚二華命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fs9ixm
+독해이력: 텍스트 독해 확인
+此為紫府朝垣，文曲、武曲㑹合，禄權加會，三台八座，吉星俱拱昭冝為大貴之命。
+且𤎉貞守命垣，䖏生合之為貴，終身福厚，位登二品。
+後因太嵗返人郷，故夀終。
+
+[전서남양당-6-王宗師命-0001] 원문문단ID=QS_SDZJ0170_FULL:7356158904595742758
+권/편: 6 / 王宗師命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8ful3pl
+독해이력: 텍스트 독해 확인
+王宗師命
+
+[전서남양당-6-王宗師命-0002] 원문문단ID=QS_SDZJ0170_FULL:7356158904595759142
+권/편: 6 / 王宗師命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8ful3pl
+독해이력: 텍스트 독해 확인
+陽男火六局
+
+[전서남양당-6-王宗師命-0003] 원문문단ID=QS_SDZJ0170_FULL:7356158904595775526
+권/편: 6 / 王宗師命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8ful3pl
+독해이력: 텍스트 독해 확인
+此為紫相朝垣，曲昌加会，文斈声揚，但刑妻無子，終身享髙爵厚禄，夀至七一八，大限㭩衰，太嵗刑忌相併，小限入天空敗絶之地，故死。
+
+[전서남양당-6-裴應章命-0001] 원문문단ID=QS_SDZJ0170_FULL:7356158904595791910
+권/편: 6 / 裴應章命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fulgcp
+독해이력: 텍스트 독해 확인
+裴應章命
+
+[전서남양당-6-裴應章命-0002] 원문문단ID=QS_SDZJ0170_FULL:7356158904595808294
+권/편: 6 / 裴應章命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fulgcp
+독해이력: 텍스트 독해 확인
+隂男水二局
+
+[전서남양당-6-裴應章命-0003] 원문문단ID=QS_SDZJ0170_FULL:7356158904595824678
+권/편: 6 / 裴應章命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fulgcp
+독해이력: 텍스트 독해 확인
+鿄居午位，官資清顯，朝堂科權禄加㑹，冨貴雙全，位登二品。
+
+[전서남양당-6-茅狀元命-0001] 원문문단ID=QS_SDZJ0170_FULL:7356158904595841062
+권/편: 6 / 茅狀元命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fulszt
+독해이력: 텍스트 독해 확인
+茅狀元命
+
+[전서남양당-6-茅狀元命-0002] 원문문단ID=QS_SDZJ0170_FULL:7356158904595857446
+권/편: 6 / 茅狀元命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fulszt
+독해이력: 텍스트 독해 확인
+隂男水二局
+
+[전서남양당-6-茅狀元命-0003] 원문문단ID=QS_SDZJ0170_FULL:7356158904595873830
+권/편: 6 / 茅狀元命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fulszt
+독해이력: 텍스트 독해 확인
+曰月照命，昌曲夾命，且前後三方吉集，允為大貴。
+其對宫羊刃入庙不妨。
+
+[전서남양당-6-唐狀元命-0001] 원문문단ID=QS_SDZJ0170_FULL:7356158904595890214
+권/편: 6 / 唐狀元命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fum5mx
+독해이력: 텍스트 독해 확인
+唐狀元命
+
+[전서남양당-6-唐狀元命-0002] 원문문단ID=QS_SDZJ0170_FULL:7356158904595906598
+권/편: 6 / 唐狀元命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fum5mx
+독해이력: 텍스트 독해 확인
+隂男火六局
+
+[전서남양당-6-唐狀元命-0003] 원문문단ID=QS_SDZJ0170_FULL:7356158904595922982
+권/편: 6 / 唐狀元命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fum5mx
+독해이력: 텍스트 독해 확인
+紫㣲守命，龍池鳯閣，左輔右弼，朝垣天相得紫㣲，是為君臣慶㑹，其冨貴必矣。
+
+[전서남양당-6-常國公命-0001] 원문문단ID=QS_SDZJ0170_FULL:7356158904595939366
+권/편: 6 / 常國公命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fumia1
+독해이력: 텍스트 독해 확인
+常國公命
+
+[전서남양당-6-常國公命-0002] 원문문단ID=QS_SDZJ0170_FULL:7356158904595955750
+권/편: 6 / 常國公命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fumia1
+독해이력: 텍스트 독해 확인
+隂男火六局
+
+[전서남양당-6-常國公命-0003] 원문문단ID=QS_SDZJ0170_FULL:7356158904641781786
+권/편: 6 / 常國公命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fumia1
+독해이력: 텍스트 독해 확인
+命宫雖無正曜，但得三方吉拱，冨貴必矣。
+况公侯承廕祖宗，即如帝胄之命，不必合格，但得吉星扶持是矣。
+故看命数者，又當因人而論。
+
+[전서남양당-6-曁太監命-0001] 원문문단ID=QS_SDZJ0170_FULL:7356158904641798170
+권/편: 6 / 曁太監命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fumux5
+독해이력: 텍스트 독해 확인
+曁太監命
+
+[전서남양당-6-曁太監命-0002] 원문문단ID=QS_SDZJ0170_FULL:7356158904641814554
+권/편: 6 / 曁太監命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fumux5
+독해이력: 텍스트 독해 확인
+陽男木三局
+
+[전서남양당-6-曁太監命-0003] 원문문단ID=QS_SDZJ0170_FULL:7356158904641830938
+권/편: 6 / 曁太監命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fumux5
+독해이력: 텍스트 독해 확인
+命坐紫㣲，武曲朝垣，文昌、文曲。
+加會天魁、天鉞，酉亥二宫，相會紫㣲，得文曲扶佐，主掌兵權之職。
+但地刼疾厄忌星，卯垣合命，故有净身之恙。
+
+[전서남양당-6-劉都督命-0001] 원문문단ID=QS_SDZJ0170_FULL:7356158904641847322
+권/편: 6 / 劉都督命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fun7k9
+독해이력: 텍스트 독해 확인
+劉都督命
+
+[전서남양당-6-劉都督命-0002] 원문문단ID=QS_SDZJ0170_FULL:7356158904641863706
+권/편: 6 / 劉都督命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fun7k9
+독해이력: 텍스트 독해 확인
+隂男水二局
+
+[전서남양당-6-劉都督命-0003] 원문문단ID=QS_SDZJ0170_FULL:7356158904641880090
+권/편: 6 / 劉都督命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fun7k9
+독해이력: 텍스트 독해 확인
+殺破貪𤎉，俱作悪庙，而不䧟掌三軍，此命得之，况左右魁鉞，守照文昌同垣，冝武職崢嵘。
+但寅、辰二宮見羊陀，冝威武中所有者羙也。
+
+[전서남양당-6-胡緫制命-0001] 원문문단ID=QS_SDZJ0170_FULL:7356158904641896474
+권/편: 6 / 胡緫制命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8funk7d
+독해이력: 텍스트 독해 확인
+胡緫制命
+
+[전서남양당-6-胡緫制命-0002] 원문문단ID=QS_SDZJ0170_FULL:7356158904641912858
+권/편: 6 / 胡緫制命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8funk7d
+독해이력: 텍스트 독해 확인
+陽男圡五局
+
+[전서남양당-6-胡緫制命-0003] 원문문단ID=QS_SDZJ0170_FULL:7356158904641929242
+권/편: 6 / 胡緫制命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8funk7d
+독해이력: 텍스트 독해 확인
+科科權權拱命，命紫紫府府，朝垣左右加㑹，得此四局，冝居威武之職，但見羊火，更命遇貪𤎉，故終不得其死。
+
+[전서남양당-6-進士之命-0001] 원문문단ID=QS_SDZJ0170_FULL:7356158904641945626
+권/편: 6 / 進士之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8funwuh
+독해이력: 텍스트 독해 확인
+進士之命
+
+[전서남양당-6-進士之命-0002] 원문문단ID=QS_SDZJ0170_FULL:7356158904641962010
+권/편: 6 / 進士之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8funwuh
+독해이력: 텍스트 독해 확인
+隂男金四局
+
+[전서남양당-6-進士之命-0003] 원문문단ID=QS_SDZJ0170_FULL:7356158904641978394
+권/편: 6 / 進士之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8funwuh
+독해이력: 텍스트 독해 확인
+科權守照，昌曲暗拱天魁坐命，當為科甲之士，但中年以上，限行絶地，未得遂志，至五十四後方利達。
+
+[전서남양당-6-舉人之命-0001] 원문문단ID=QS_SDZJ0170_FULL:7356158904641994778
+권/편: 6 / 舉人之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fuo9hl
+독해이력: 텍스트 독해 확인
+舉人之命
+
+[전서남양당-6-舉人之命-0002] 원문문단ID=QS_SDZJ0170_FULL:7356158904642011162
+권/편: 6 / 舉人之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fuo9hl
+독해이력: 텍스트 독해 확인
+陽男火六局
+
+[전서남양당-6-舉人之命-0003] 원문문단ID=QS_SDZJ0170_FULL:7356158904658804746
+권/편: 6 / 舉人之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fuo9hl
+독해이력: 텍스트 독해 확인
+君臣慶㑹，左右同宫，夾昌夾曲之格，當為大貴。
+但干火星同垣，空刼迭守，故限交科禄。
+辛酉年丗二中不得連登，至癸未年，流昌居卯，照身限出仕矣。
+
+[전서남양당-6-進士之命-0004] 원문문단ID=QS_SDZJ0170_FULL:7356158904658821130
+권/편: 6 / 進士之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fuom4p
+독해이력: 텍스트 독해 확인
+進士之命
+
+[전서남양당-6-進士之命-0005] 원문문단ID=QS_SDZJ0170_FULL:7356158904658837514
+권/편: 6 / 進士之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fuom4p
+독해이력: 텍스트 독해 확인
+陽男木三局
+
+[전서남양당-6-進士之命-0006] 원문문단ID=QS_SDZJ0170_FULL:7356158904658853898
+권/편: 6 / 進士之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fuom4p
+독해이력: 텍스트 독해 확인
+寅申最喜㑹同鿄，且禄權守照，冨貴必矣，故二十九、三十嵗，大限行辰，太陽正照，小限寅卯，流昌流曲，文禄㑹身命，是以連登，官至四品上。
+
+[전서남양당-6-納粟之命-0001] 원문문단ID=QS_SDZJ0170_FULL:7356158904658870282
+권/편: 6 / 納粟之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fuoyrt
+독해이력: 텍스트 독해 확인
+納粟之命
+
+[전서남양당-6-納粟之命-0002] 원문문단ID=QS_SDZJ0170_FULL:7356158904717279283
+권/편: 6 / 納粟之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fuoyrt
+독해이력: 텍스트 독해 확인
+陽男木三局
+
+[전서남양당-6-納粟之命-0003] 원문문단ID=QS_SDZJ0170_FULL:7356158904717295667
+권/편: 6 / 納粟之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fuoyrt
+독해이력: 텍스트 독해 확인
+太陽坐命，太隂拱照，為日月争耀，冨貴全羙。
+但干化忌，雖在辰垣入庙，巳時生人，正旺不合，又逢地刼在垣，故不能大貴而得大冨，止於納粟縣佐之位而已。
+
+[전서남양당-6-廪生之命-0001] 원문문단ID=QS_SDZJ0170_FULL:7356158904717312051
+권/편: 6 / 廪生之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fupbex
+독해이력: 텍스트 독해 확인
+廪生之命
+
+[전서남양당-6-廪生之命-0002] 원문문단ID=QS_SDZJ0170_FULL:7356158904717328435
+권/편: 6 / 廪生之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fupbex
+독해이력: 텍스트 독해 확인
+陽男木三局
+
+[전서남양당-6-廪生之命-0003] 원문문단ID=QS_SDZJ0170_FULL:7356158904717344819
+권/편: 6 / 廪生之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fupbex
+독해이력: 텍스트 독해 확인
+此命無正曜，多主庻毋，所生得府相朝垣，𤎉禄拱冲，福徳宫吉集，故亦受朝廷作飬，但壽終不得長，以刼空冲命，文昌䧟于天傷故也。
+
+[전서남양당-6-冨商之命-0001] 원문문단ID=QS_SDZJ0170_FULL:7356158904717361203
+권/편: 6 / 冨商之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fupo21
+독해이력: 텍스트 독해 확인
+冨商之命
+
+[전서남양당-6-冨商之命-0002] 원문문단ID=QS_SDZJ0170_FULL:7356158904717377587
+권/편: 6 / 冨商之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fupo21
+독해이력: 텍스트 독해 확인
+陽男金四局
+
+[전서남양당-6-冨商之命-0003] 원문문단ID=QS_SDZJ0170_FULL:7356158904717393971
+권/편: 6 / 冨商之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fupo21
+독해이력: 텍스트 독해 확인
+此科權迭守身命，但嫌陀羅破局，是以不貴。
+喜天府、武曲居才帛，是謂才入才卿，其冨冝矣。
+但破軍居迁移，不免劳力耳。
+
+[전서남양당-6-秀才之命-0001] 원문문단ID=QS_SDZJ0170_FULL:7356158904717410355
+권/편: 6 / 秀才之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fuq0p5
+독해이력: 텍스트 독해 확인
+秀才之命
+
+[전서남양당-6-秀才之命-0002] 원문문단ID=QS_SDZJ0170_FULL:7356158904717426739
+권/편: 6 / 秀才之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fuq0p5
+독해이력: 텍스트 독해 확인
+陽男水二局
+
+[전서남양당-6-秀才之命-0003] 원문문단ID=QS_SDZJ0170_FULL:7356158904717443123
+권/편: 6 / 秀才之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fuq0p5
+독해이력: 텍스트 독해 확인
+此破軍得地之星，喜祿存而觧。
+其狂主人文武雙全，三十以上，冝食廪出貢，致冨大才耳。
+若非火星冲照，羊陀夾命，則又當大貴矣。
+
+[전서남양당-6-孤殀之命-0001] 원문문단ID=QS_SDZJ0170_FULL:7356158904717459507
+권/편: 6 / 孤殀之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fuqdc9
+독해이력: 텍스트 독해 확인
+孤殀之命
+
+[전서남양당-6-孤殀之命-0002] 원문문단ID=QS_SDZJ0170_FULL:7356158904717475891
+권/편: 6 / 孤殀之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fuqdc9
+독해이력: 텍스트 독해 확인
+陽男木三局
+
+[전서남양당-6-孤殀之命-0003] 원문문단ID=QS_SDZJ0170_FULL:7356158904717492275
+권/편: 6 / 孤殀之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fuqdc9
+독해이력: 텍스트 독해 확인
+此命貪狼、𤎉貞二星俱䧟，又逢化忌，雖有天魁貴人坐長生，亦無用也。
+三方四正俱見羊鈴會合，卄九嵗小限入于絶地，太嵗又在地網，故得狂邪之疾而亡。
+
+[전서남양당-6-小児殀命-0001] 원문문단ID=QS_SDZJ0170_FULL:7356158904717508659
+권/편: 6 / 小児殀命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fuqpzd
+독해이력: 텍스트 독해 확인
+小児殀命
+
+[전서남양당-6-小児殀命-0002] 원문문단ID=QS_SDZJ0170_FULL:7356158904717525043
+권/편: 6 / 小児殀命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fuqpzd
+독해이력: 텍스트 독해 확인
+隂男木三局
+
+[전서남양당-6-小児殀命-0003] 원문문단ID=QS_SDZJ0170_FULL:7356158904717541427
+권/편: 6 / 小児殀命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fuqpzd
+독해이력: 텍스트 독해 확인
+此命日月反背，太隂守命，失䧟，又臨天刑地刼，其難飬必矣。
+况三嵗，行童限在亥，夘生人防已亥嵗限，又遇天使鉄蛇関冲，故死于三嵗。
+
+[전서남양당-6-小児夭命-0001] 원문문단ID=QS_SDZJ0170_FULL:7356158904717557811
+권/편: 6 / 小児夭命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fur2mh
+독해이력: 텍스트 독해 확인
+小児夭命
+
+[전서남양당-6-小児夭命-0002] 원문문단ID=QS_SDZJ0170_FULL:7356158904717574195
+권/편: 6 / 小児夭命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fur2mh
+독해이력: 텍스트 독해 확인
+陽男金四局
+
+[전서남양당-6-小児夭命-0003] 원문문단ID=QS_SDZJ0170_FULL:7356158904717590579
+권/편: 6 / 小児夭命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fur2mh
+독해이력: 텍스트 독해 확인
+此看本宫守命垣星，本冝易養，但爽羊夾陀夾空夾刼，若非夭，即主下賤，雖紫禄何力，故殀於九嵗而亡。
+
+[전서남양당-6-吕太后命-0001] 원문문단ID=QS_SDZJ0170_FULL:7356158904775999539
+권/편: 6 / 吕太后命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8furf9l
+독해이력: 텍스트 독해 확인
+吕太后命
+
+[전서남양당-6-吕太后命-0002] 원문문단ID=QS_SDZJ0170_FULL:7356158904776032307
+권/편: 6 / 吕太后命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8furf9l
+독해이력: 텍스트 독해 확인
+陽女火六局
+
+[전서남양당-6-吕太后命-0003] 원문문단ID=QS_SDZJ0170_FULL:7356158904776048691
+권/편: 6 / 吕太后命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8furf9l
+독해이력: 텍스트 독해 확인
+雙禄守垣，紫府左右，昌曲加㑹，經云：吕后専權，二重天禄，七殺夫宮尅夫。
+火鈴羊陀洴夾命垣，亦主滛慾。
+大限夾地，小限羊陀凑合是㐫，故夀終焉。
+
+[전서남양당-6-貂蟬之命-0001] 원문문단ID=QS_SDZJ0170_FULL:7356158904776065075
+권/편: 6 / 貂蟬之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8furrwp
+독해이력: 텍스트 독해 확인
+貂蟬之命
+
+[전서남양당-6-貂蟬之命-0002] 원문문단ID=QS_SDZJ0170_FULL:7356158904776081459
+권/편: 6 / 貂蟬之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8furrwp
+독해이력: 텍스트 독해 확인
+陽女水二局
+
+[전서남양당-6-貂蟬之命-0003] 원문문단ID=QS_SDZJ0170_FULL:7356158904776097843
+권/편: 6 / 貂蟬之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8furrwp
+독해이력: 텍스트 독해 확인
+雖有左右加㑹，巨門、天同，俱不得地。
+火鈴二星冲照，亦主滛欲。
+夫星䧟背，配三夫，而心不為足，天刑子息全無，又無陀殺冲刑，小限太嵗臨于丑宮，主𮞸刑死。
+
+[전서남양당-6-楊貴妃命-0001] 원문문단ID=QS_SDZJ0170_FULL:7356158904776114227
+권/편: 6 / 楊貴妃命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fx2nfe
+독해이력: 텍스트 독해 확인
+楊貴妃命
+
+[전서남양당-6-楊貴妃命-0002] 원문문단ID=QS_SDZJ0170_FULL:7356158904776130611
+권/편: 6 / 楊貴妃命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fx2nfe
+독해이력: 텍스트 독해 확인
+陽女圡五局
+
+[전서남양당-6-楊貴妃命-0003] 원문문단ID=QS_SDZJ0170_FULL:7356158904776146995
+권/편: 6 / 楊貴妃命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fx2nfe
+독해이력: 텍스트 독해 확인
+坐貴向貴，得貴人寵愛。
+文昌、文曲加㑹，女命不冝見之。
+經云：楊妃好色，三合文昌、文曲、太嵗、羊陀迭併小限子午相冲，故損夀。
+
+[전서남양당-6-滛殀女命-0001] 원문문단ID=QS_SDZJ0170_FULL:7356158904776163379
+권/편: 6 / 滛殀女命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fx302i
+독해이력: 텍스트 독해 확인
+滛殀女命
+
+[전서남양당-6-滛殀女命-0002] 원문문단ID=QS_SDZJ0170_FULL:7356158904776179763
+권/편: 6 / 滛殀女命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fx302i
+독해이력: 텍스트 독해 확인
+隂女木三局
+
+[전서남양당-6-滛殀女命-0003] 원문문단ID=QS_SDZJ0170_FULL:7356158904776196147
+권/편: 6 / 滛殀女命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fx302i
+독해이력: 텍스트 독해 확인
+太隂雖在庙郷，但女命嫵文昌同度，况羊鈴忌星併集，雖三方吉拱何益。
+文昌訣云：文昌擎羊火鈴忌，若不為娼終殀折。
+驗舌此矣。
+
+[전서남양당-6-娼婦之命-0001] 원문문단ID=QS_SDZJ0170_FULL:7356158904776212531
+권/편: 6 / 娼婦之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fx3cpm
+독해이력: 텍스트 독해 확인
+娼婦之命
+
+[전서남양당-6-娼婦之命-0002] 원문문단ID=QS_SDZJ0170_FULL:7356158904776228915
+권/편: 6 / 娼婦之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fx3cpm
+독해이력: 텍스트 독해 확인
+隂女水二局
+
+[전서남양당-6-娼婦之命-0003] 원문문단ID=QS_SDZJ0170_FULL:7356158904776245299
+권/편: 6 / 娼婦之命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fx3cpm
+독해이력: 텍스트 독해 확인
+七殺臨身終不羙，天空地刼更無良。
+雖有紫府守命垣，而夫君、子媳二宮甚混雜，且姚、忌居干福德，其賤無疑矣。
+
+[전서남양당-6-張侍郎命-0001] 원문문단ID=QS_SDZJ0170_FULL:7356158904776261683
+권/편: 6 / 張侍郎命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fx3pcq
+독해이력: 텍스트 독해 확인
+張侍郎命
+
+[전서남양당-6-張侍郎命-0002] 원문문단ID=QS_SDZJ0170_FULL:7356158904776278067
+권/편: 6 / 張侍郎命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fx3pcq
+독해이력: 텍스트 독해 확인
+隂男金四局
+
+[전서남양당-6-張侍郎命-0003] 원문문단ID=QS_SDZJ0170_FULL:7356158904776294451
+권/편: 6 / 張侍郎命
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop8fx3pcq
+독해이력: 텍스트 독해 확인
+權㑹巨門，威揚果作諌臣。
+太隂文昌於妻宫，蟾宫折桂；太陽文曲於官祿，皇殿朝班。
+癸生人㑹巨門，為石中隱玉格，信此驗矣。
+只兄弟落䧟，果是否不如人矣。
+
+[전서남양당-6-命圖-0001] 원문문단ID=QS_SDZJ0170_FULL:7356158898606424114
+권/편: 6 / 命圖
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1jvzop88fgrvp
+독해이력: 텍스트 독해 확인
+命圖
