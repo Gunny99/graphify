@@ -271,7 +271,9 @@ def evaluate_palace(ctx, z, passages, role):
         if p['palace'] != role:
             continue
         if p['parse'] == 'unparsed':
-            if _subject(ctx, z, p):
+            # 주체 별이 이 궁에 없으면 이 명반에 걸리지 않으므로 해독 못 한 수에 넣지 않는다(2026-11-18)
+            gate = [c for c in p.get('conds', []) if c.get('role') == '주체']
+            if _subject(ctx, z, p) and all(_check(ctx, z, p, c) is not False for c in gate):
                 unparsed.append({'id': p['id'], 'reason': p.get('reason')})
             continue
         sj = _subject(ctx, z, p)

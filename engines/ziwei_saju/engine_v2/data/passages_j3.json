@@ -8169,18 +8169,68 @@
   "line": 515,
   "palace": "명",
   "text": "若巳酉丑乙丙戊辛人文武財官格，加亥卯未、辰酉上安命者，甲庚人不貴，先大後小，有始無終。",
-  "id": "入限:515",
+  "id": "入限:515#1",
   "scope": "命",
   "cond_palace": "성질",
   "star": "천부",
-  "conds": [],
-  "result": "若巳酉丑乙丙戊辛人文武財官格，加亥卯未、辰酉上安命者，甲庚人不貴，先大後小，有始無終",
-  "polarity": "미정",
-  "parse": "unparsed",
+  "conds": [
+   {
+    "kind": "생년지지",
+    "values": [
+     "巳",
+     "酉",
+     "丑"
+    ],
+    "negate": false,
+    "word": "巳酉丑"
+   },
+   {
+    "kind": "생년간",
+    "values": [
+     "乙",
+     "丙",
+     "戊",
+     "辛"
+    ],
+    "negate": false,
+    "word": "乙丙戊辛人"
+   }
+  ],
+  "result": "文武財官格",
+  "polarity": "길",
+  "parse": "manual",
   "clause": "若巳酉丑乙丙戊辛人文武財官格，加亥卯未、辰酉上安命者，甲庚人不貴，先大後小，有始無終",
-  "reason": "조건 구조가 얽혀 있음",
   "abbr": "入限",
-  "decode_type": "문장 구조가 복잡한 것(조건 있음)"
+  "decode_type": "문장 구조가 복잡한 것(조건 있음)",
+  "note": "해독 3차(apply_decode3.py): \"加亥卯未、辰酉上安命者\"가 이 가지의 덧조건인지 갈려 넣지 않음(생년 조건이 먼저 걸림)"
+ },
+ {
+  "file": "3_安星諸訣_入限入命斷訣.txt",
+  "line": 515,
+  "palace": "명",
+  "text": "若巳酉丑乙丙戊辛人文武財官格，加亥卯未、辰酉上安命者，甲庚人不貴，先大後小，有始無終。",
+  "id": "入限:515#2",
+  "scope": "命",
+  "cond_palace": "성질",
+  "star": "천부",
+  "conds": [
+   {
+    "kind": "생년간",
+    "values": [
+     "甲",
+     "庚"
+    ],
+    "negate": false,
+    "word": "甲庚人"
+   }
+  ],
+  "result": "不貴，先大後小，有始無終",
+  "polarity": "흉",
+  "parse": "manual",
+  "clause": "若巳酉丑乙丙戊辛人文武財官格，加亥卯未、辰酉上安命者，甲庚人不貴，先大後小，有始無終",
+  "abbr": "入限",
+  "decode_type": "문장 구조가 복잡한 것(조건 있음)",
+  "note": "해독 3차(apply_decode3.py)"
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -8585,7 +8635,7 @@
   "polarity": "미정",
   "parse": "unparsed",
   "clause": "天府之星守命宮，加之𫞐禄喜相逢",
-  "reason": "결과 구절 없음(조건만)",
+  "reason": "조건 머리: 526에 합침(해독 3차)",
   "abbr": "入限",
   "decode_type": "조건만 있는 절·앞 절에 딸린 절(이음 필요)"
  },
@@ -8599,6 +8649,25 @@
   "cond_palace": "명",
   "star": "천부",
   "conds": [
+   {
+    "kind": "동궁",
+    "values": [
+     "천부"
+    ],
+    "negate": false,
+    "scope": "동궁",
+    "role": "주체"
+   },
+   {
+    "kind": "동궁",
+    "values": [
+     "화권",
+     "화록"
+    ],
+    "negate": false,
+    "scope": "동궁",
+    "word": "加之權禄"
+   },
    {
     "kind": "길",
     "values": [
@@ -8615,7 +8684,7 @@
   "polarity": "길",
   "parse": "manual",
   "clause": "附鳯扳龍上九重",
-  "note": "魁昌左右來相㑹",
+  "note": "魁昌左右來相㑹; 해독 3차(apply_decode3.py): 525 머리(天府 守命, 加之權禄)를 합침",
   "abbr": "入限"
  },
  {
@@ -11052,7 +11121,7 @@
   "polarity": "미정",
   "parse": "unparsed",
   "clause": "四墓貪狼庙旺宫",
-  "reason": "조건 낱말 해석 불가: 四墓",
+  "reason": "조건 머리: 601#2에 합침(해독 3차)",
   "abbr": "入限",
   "decode_type": "四墓(궁 또는 생년)"
  },
@@ -11067,6 +11136,25 @@
   "star": "탐랑",
   "conds": [
    {
+    "kind": "궁지",
+    "values": [
+     "辰",
+     "戌",
+     "丑",
+     "未"
+    ],
+    "negate": false,
+    "word": "四墓"
+   },
+   {
+    "kind": "밝기",
+    "values": [
+     "묘왕"
+    ],
+    "negate": false,
+    "word": "庙旺"
+   },
+   {
     "kind": "길",
     "values": [
      "좌보",
@@ -11080,9 +11168,10 @@
   ],
   "result": "加臨左右冨財翁",
   "polarity": "길",
-  "parse": "auto",
+  "parse": "manual",
   "clause": "加臨左右冨財翁",
-  "abbr": "入限"
+  "abbr": "入限",
+  "note": "해독 3차(apply_decode3.py): 601 머리(四墓 묘왕)를 합침"
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -11093,14 +11182,28 @@
   "scope": "命",
   "cond_palace": "성질",
   "star": "탐랑",
-  "conds": [],
-  "result": "若然再化科𫞐禄，文武材能顕大功",
-  "polarity": "미정",
-  "parse": "unparsed",
+  "conds": [
+   {
+    "kind": "동궁",
+    "values": [
+     "화과",
+     "화권",
+     "화록"
+    ],
+    "negate": false,
+    "scope": "동궁",
+    "word": "再化科權禄"
+   }
+  ],
+  "result": "文武材能顕大功",
+  "polarity": "길",
+  "parse": "manual",
   "clause": "若然再化科𫞐禄，文武材能顕大功",
-  "reason": "앞 구절(601행의 조건)에서 이어지는 再化",
+  "reason": null,
   "abbr": "入限",
-  "decode_type": "조건만 있는 절·앞 절에 딸린 절(이음 필요)"
+  "decode_type": "조건만 있는 절·앞 절에 딸린 절(이음 필요)",
+  "inherits": "入限:601#2",
+  "note": "해독 3차(apply_decode3.py): 再는 앞 가지 조건을 이어받음(명세 5절 12번 아)"
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -24530,15 +24633,27 @@
     "negate": false,
     "scope": "동궁",
     "role": "주체"
+   },
+   {
+    "kind": "생년지지",
+    "values": [
+     "寅",
+     "卯",
+     "巳",
+     "午"
+    ],
+    "negate": false,
+    "word": "喜寅卯己午生人"
    }
   ],
-  "result": "及喜寅卯己午生人，禍輕",
-  "polarity": "미정",
-  "parse": "unparsed",
+  "result": "禍輕",
+  "polarity": "길",
+  "parse": "manual",
   "clause": "及喜寅卯己午生人，禍輕",
-  "reason": "문장 구조가 복잡해 자동 판독 보류(수작업 미처리)",
+  "reason": null,
   "abbr": "入限",
-  "decode_type": "생년 지지(寅申生人 따위)"
+  "decode_type": "생년 지지(寅申生人 따위)",
+  "note": "해독 3차(apply_decode3.py): 己는 巳의 오자로 읽음(추론)"
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",

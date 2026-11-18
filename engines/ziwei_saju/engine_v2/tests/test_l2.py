@@ -351,7 +351,7 @@ def test_new_kinds_in_tables_and_scripts(tmp_path):
             for c in p['conds']:
                 if c['kind'] in kinds:
                     seen.setdefault(c['kind'], []).append(p['id'])
-                    assert p['parse'] == 'manual' and 'O25 해독2' in p['note'], p['id']
+                    assert p['parse'] == 'manual' and ('O25 해독2' in p['note'] or '해독 3차' in p['note']), p['id']
     assert kinds <= set(seen), seen
     here = os.path.dirname(l2.__file__) + '/data/'
     for name, src in (('apply_decode2_j3', l2.DATA3), ('apply_decode2_j4', l2.DATA)):
@@ -381,3 +381,22 @@ def test_reading_rule_sentence_is_nature(ev):
     s = ev[1]['부모']['summary']
     assert s['성질서술'] >= 1
     assert it['polarity'] not in ('길', '흉')
+
+
+def test_decode3_idempotent_and_verdicts(tmp_path, ev):
+    """해독 3차(apply_decode3.py): 다시 돌려도 같고, 대상 명반에서 951#3은 선다, 601#2·602·515는 서지 않는다."""
+    import importlib.util, shutil
+    here = os.path.dirname(l2.__file__) + '/data/'
+    spec = importlib.util.spec_from_file_location('apply_decode3', here + 'apply_decode3.py')
+    m = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(m)
+    j3, j4 = str(tmp_path / 'j3.json'), str(tmp_path / 'j4.json')
+    shutil.copy(l2.DATA3, j3); shutil.copy(l2.DATA, j4)
+    before = (open(j3, encoding='utf-8').read(), open(j4, encoding='utf-8').read())
+    m.J3, m.J4 = j3, j4
+    m.main()
+    assert (open(j3, encoding='utf-8').read(), open(j4, encoding='utf-8').read()) == before
+    v = {i: it['verdict'] for i, it in ev[0].items()}
+    assert v['入限:951#3'] == '선다'
+    for i in ('入限:601#2', '入限:602', '入限:515#1', '入限:515#2'):
+        assert v[i] == '서지 않는다', i
