@@ -292,6 +292,41 @@ def _sec5(R, years):
             o += ['#### %s 대한 (%s ~ %s)' % (p['palace'], _t(p['start'])[:10], _t(p['end'])[:10]), '']
             o += _table(['해', '간지', '화기', '대한 틀 중첩', '구조 표지', '비춤 표지', '갈림', '록·권(드는 틀)'], rows)
             o.append('')
+    o += _sec5_limit(R)
+    return o
+
+
+def _sec5_limit(R):
+    """대한별 入限 구절(명세 11-2). l2.evaluate_limit의 출력 값만 옮긴다. 대한의 길흉 판정(노출도, 화기 중첩)과 합치지 않고 나란히 둔다."""
+    o = ['### 대한별 入限 구절 (전서 권3 限, 명세 11-2)', '',
+         '대한 명궁에 권3 限(운) 구절 가운데 大限에 적용되는 구절을 L2와 같은 조건 종류로 검사한 것이다(출생 뒤 대한 일곱 구간). 선다와 반만 선 구절만 적는다. 선 조건/조건과 열거는 3절과 같다. '
+         '유형은 원문의 한도 낱말(大限명시, 大小限, 二限, 限통칭, 更 이음)이다. 二限과 限통칭은 小限도 가리키는 말이나 大限이 만날 때도 성립하는 말로 읽어 검사했다. '
+         '小限이나 太歲를 조건으로 든 구절은 틀 밖이라 검사하지 않았다(小限 안성은 넣지 않았다). 해독 못 한 구절은 조건표로 옮기지 못한 구절 가운데 주체 별이 이 대한 명궁에 든 것의 수다. '
+         '위 노출도·화기 중첩 표와 합치거나 가중하지 않고 나란히 둔다. 구절 차례는 선다, 반만, 동궁 조건만인 구절, 삼방을 든 구절, 흉, 길, 원문 행 번호 순이다.', '']
+    for i, d in enumerate(R['daehan'][:7]):
+        e = l2.evaluate_limit(R, i)
+        its = e['passages']
+        shown = [it for it in its if it['verdict'] in ('선다', '반만')]
+        cnt = lambda v: sum(1 for it in its if it['verdict'] == v)
+        o += ['#### %s 대한 (%s, 만 %s-%s세)' % (e['palace'], d['natal_role'], d['age_from'], d['age_to']), '',
+              '선다 %d, 반만 %d, 서지 않는 구절 %d, 해독 못 한 구절 %d, 틀 밖 %d.' % (cnt('선다'), cnt('반만'), cnt('서지 않는다'), len(e['unparsed']), len(e['outside'])), '']
+        if shown:
+            o += _table(['id', '원문', '선 조건/조건', '열거', '길흉', '판정', '유형'],
+                        [(it['id'], it['text'], '%d/%d' % (it['met'], it['total']), ', '.join('%d/%d' % (x['k'], x['n']) for x in it.get('enum', [])),
+                          it['polarity'], it['verdict'], it['limit_kind']) for it in shown])
+        else:
+            o.append('선 구절과 반만 선 구절이 없다.')
+        o.append('')
+    ev = l2.evaluate(R)
+    text = {p['id']: p['text'] for p in l2.load_passages()}
+    hn = [(role, it['id'], text.get(it['id'], ''), it['verdict'], it['half_note']) for role in l2.ROLES for it in ev[role]['passages'] if it.get('half_note')]
+    o += ['#### 減半 노트 (전서 권4 형제·자녀, 명세 11-2 3번)', '',
+          '減半이 든 구절이 그 궁에서 서면 그 구절 곁에 적은 글이다. 수를 곱하거나 합산하지 않는다.', '']
+    if hn:
+        o += _table(['궁', 'id', '원문', '판정', '노트'], hn)
+    else:
+        o.append('이 명반에서 선 減半 구절이 없다.')
+    o.append('')
     return o
 
 

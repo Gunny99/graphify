@@ -350,7 +350,11 @@
   ],
   "result": "五人陷地不和欠力，更尅減半",
   "polarity": "흉",
-  "parse": "auto"
+  "parse": "auto",
+  "half": {
+   "n": 5,
+   "note": "減半: 5에서 5/2"
+  }
  },
  {
   "file": "4_二兄弟.txt",
@@ -1002,7 +1006,11 @@
   ],
   "result": "五人見羊陀火鈴，空刼减半，且尅，冝分居相背",
   "polarity": "흉",
-  "parse": "auto"
+  "parse": "auto",
+  "half": {
+   "n": 5,
+   "note": "減半: 5에서 5/2"
+  }
  },
  {
   "file": "4_二兄弟.txt",
@@ -5629,7 +5637,11 @@
   "polarity": "중",
   "parse": "unparsed",
   "reason": "앞 행의 조건에 붙는 결과 행(주성도 조건도 없음)",
-  "decode_type": "앞 행에 딸린 결과 행(이음 필요)"
+  "decode_type": "앞 행에 딸린 결과 행(이음 필요)",
+  "half": {
+   "n": null,
+   "note": "減半: n에서 n/2 (이 구절에는 수가 없다)"
+  }
  },
  {
   "file": "4_四子女.txt",
@@ -5994,7 +6006,11 @@
   ],
   "result": "䧟地减半，招軟弱之子，或虚花，不成噐",
   "polarity": "흉",
-  "parse": "auto"
+  "parse": "auto",
+  "half": {
+   "n": null,
+   "note": "減半: n에서 n/2 (이 구절에는 수가 없다)"
+  }
  },
  {
   "file": "4_四子女.txt",
@@ -7072,7 +7088,11 @@
   ],
   "result": "空刼减半",
   "polarity": "흉",
-  "parse": "auto"
+  "parse": "auto",
+  "half": {
+   "n": 3,
+   "note": "減半: 3에서 3/2"
+  }
  },
  {
   "file": "4_四子女.txt",

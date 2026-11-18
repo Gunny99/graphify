@@ -1379,7 +1379,41 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "한통칭",
+   "kind": "二限",
+   "frame": "大限",
+   "branches": [
+    {
+     "clause": "紫微垣内吉星臨，二限相逢福禄興",
+     "conds": [
+      {
+       "kind": "길",
+       "values": [
+        "좌보",
+        "우필",
+        "문창",
+        "문곡",
+        "천괴",
+        "천월",
+        "녹존",
+        "화록",
+        "화권",
+        "화과"
+       ],
+       "negate": false,
+       "scope": "동궁",
+       "word": "吉星臨"
+      }
+     ],
+     "polarity": "길",
+     "id": "入限:316",
+     "star": "자미"
+    }
+   ],
+   "note": "紫微垣内는 자미가 든 대한 명궁, 臨은 동궁(5절 10번의 加·同에 준함)"
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -1396,7 +1430,13 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "한도 낱말 없음",
+   "kind": null,
+   "frame": null,
+   "reason": "한도 낱말이 없는 줄: 앞 줄 결과의 이음이거나 성질 서술이라 조건 궁을 정할 수 없음(문장 이음 판단이 필요)"
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -1413,7 +1453,29 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "한통칭",
+   "kind": "限통칭",
+   "frame": "大限",
+   "branches": [
+    {
+     "clause": "紫㣲入限本為祥",
+     "conds": [],
+     "polarity": "길",
+     "id": "入限:318#1",
+     "star": "자미"
+    },
+    {
+     "clause": "只恐三方殺破狼",
+     "conds": [],
+     "polarity": "미정",
+     "unparsed": "殺破狼이 셋 모두인지 하나 이상인지와 격의 정의가 엔진에 없음(11-3 4번)",
+     "id": "入限:318#2",
+     "star": "자미"
+    }
+   ]
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -1430,7 +1492,13 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "한도 낱말 없음",
+   "kind": null,
+   "frame": null,
+   "reason": "한도 낱말이 없는 줄: 앞 줄 결과의 이음이거나 성질 서술이라 조건 궁을 정할 수 없음(문장 이음 판단이 필요)"
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -2261,7 +2329,21 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "한통칭",
+   "kind": "二限",
+   "frame": "大限",
+   "branches": [
+    {
+     "clause": "男女二限值天機，禄主科𫞐大有為",
+     "conds": [],
+     "polarity": "길",
+     "id": "入限:346",
+     "star": "천기"
+    }
+   ]
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -2278,7 +2360,13 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "한도 낱말 없음",
+   "kind": null,
+   "frame": null,
+   "reason": "한도 낱말이 없는 줄: 앞 줄 결과의 이음이거나 성질 서술이라 조건 궁을 정할 수 없음(문장 이음 판단이 필요)"
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -2295,7 +2383,32 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "한통칭",
+   "kind": "限통칭",
+   "frame": "大限",
+   "branches": [
+    {
+     "clause": "天機照限不安寕",
+     "conds": [
+      {
+       "kind": "삼방대궁",
+       "values": [
+        "천기"
+       ],
+       "negate": false,
+       "scope": "삼방대궁",
+       "word": "照限"
+      }
+     ],
+     "polarity": "흉",
+     "star": null,
+     "id": "入限:348"
+    }
+   ],
+   "note": "照는 삼방·대궁의 비춤이라 주체 별이 이 궁에 있어야 하는 관문을 두지 않음"
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -2312,7 +2425,13 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "한도 낱말 없음",
+   "kind": null,
+   "frame": null,
+   "reason": "한도 낱말이 없는 줄: 앞 줄 결과의 이음이거나 성질 서술이라 조건 궁을 정할 수 없음(문장 이음 판단이 필요)"
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -3459,7 +3578,32 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "한통칭",
+   "kind": "二限",
+   "frame": "大限",
+   "branches": [
+    {
+     "clause": "二限偏冝見太陽，添才進業福非常",
+     "conds": [
+      {
+       "kind": "삼방대궁",
+       "values": [
+        "태양"
+       ],
+       "negate": false,
+       "scope": "삼방대궁",
+       "word": "偏冝見太陽"
+      }
+     ],
+     "polarity": "길",
+     "star": null,
+     "id": "入限:382"
+    }
+   ],
+   "note": "見은 5절 10번대로 삼방·대궁(본궁 제외)이라 주체 관문을 두지 않음"
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -3476,7 +3620,13 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "한도 낱말 없음",
+   "kind": null,
+   "frame": null,
+   "reason": "한도 낱말이 없는 줄: 앞 줄 결과의 이음이거나 성질 서술이라 조건 궁을 정할 수 없음(문장 이음 판단이 필요)"
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -3493,7 +3643,45 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "한통칭",
+   "kind": "限통칭",
+   "frame": "大限",
+   "branches": [
+    {
+     "clause": "𨺻地湏防𢙣殺侵",
+     "conds": [
+      {
+       "kind": "밝기",
+       "values": [
+        "함"
+       ],
+       "negate": false,
+       "word": "𨺻地"
+      },
+      {
+       "kind": "살",
+       "values": [
+        "경양",
+        "타라",
+        "화성",
+        "영성",
+        "지공",
+        "지겁"
+       ],
+       "negate": false,
+       "scope": "동궁삼방대궁",
+       "word": "𢙣殺侵"
+      }
+     ],
+     "polarity": "흉",
+     "id": "入限:384",
+     "star": "태양"
+    }
+   ],
+   "note": "太陽守限은 주체 관문. 侵은 5절 10번에 범위 낱말 정의가 없어 遇에 준해 동궁과 삼방·대궁으로 읽음(추론)"
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -3510,7 +3698,13 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "한도 낱말 없음",
+   "kind": null,
+   "frame": null,
+   "reason": "한도 낱말이 없는 줄: 앞 줄 결과의 이음이거나 성질 서술이라 조건 궁을 정할 수 없음(문장 이음 판단이 필요)"
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -4727,7 +4921,31 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "大限",
+   "kind": "大小限",
+   "frame": "大限",
+   "branches": [
+    {
+     "clause": "大小限逢武曲星，若還入庙主財興",
+     "conds": [
+      {
+       "kind": "밝기",
+       "values": [
+        "묘왕"
+       ],
+       "negate": false,
+       "word": "入庙"
+      }
+     ],
+     "polarity": "길",
+     "id": "入限:419",
+     "star": "무곡"
+    }
+   ],
+   "note": "大小限의 大限에 적용"
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -4744,7 +4962,13 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "한도 낱말 없음",
+   "kind": null,
+   "frame": null,
+   "reason": "한도 낱말이 없는 줄: 앞 줄 결과의 이음이거나 성질 서술이라 조건 궁을 정할 수 없음(문장 이음 판단이 필요)"
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -4761,7 +4985,13 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "한통칭",
+   "kind": "限통칭",
+   "frame": "大限",
+   "reason": "화록·화권·화과·화기 구절: 대한 사화(대한 궁간의 사화)인지 생년 사화인지 원문에 없고 L2는 생년 사화만 검사하므로 옮기지 않음(L3의 대한 사화 표시가 필요)"
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -4778,7 +5008,13 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "한도 낱말 없음",
+   "kind": null,
+   "frame": null,
+   "reason": "한도 낱말이 없는 줄: 앞 줄 결과의 이음이거나 성질 서술이라 조건 궁을 정할 수 없음(문장 이음 판단이 필요)"
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -4795,7 +5031,13 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "한도 낱말 없음",
+   "kind": null,
+   "frame": null,
+   "reason": "한도 낱말이 없는 줄: 앞 줄 결과의 이음이거나 성질 서술이라 조건 궁을 정할 수 없음(문장 이음 판단이 필요)"
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -4812,7 +5054,13 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "한도 낱말 없음",
+   "kind": null,
+   "frame": null,
+   "reason": "한도 낱말이 없는 줄: 앞 줄 결과의 이음이거나 성질 서술이라 조건 궁을 정할 수 없음(문장 이음 판단이 필요)"
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -5893,7 +6141,21 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "한통칭",
+   "kind": "二限",
+   "frame": "大限",
+   "branches": [
+    {
+     "clause": "人生二限值天同，喜氣盈門萬事荣",
+     "conds": [],
+     "polarity": "길",
+     "id": "入限:460",
+     "star": "천동"
+    }
+   ]
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -5910,7 +6172,13 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "한도 낱말 없음",
+   "kind": null,
+   "frame": null,
+   "reason": "한도 낱말이 없는 줄: 앞 줄 결과의 이음이거나 성질 서술이라 조건 궁을 정할 수 없음(문장 이음 판단이 필요)"
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -5927,7 +6195,13 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "小限·太歲",
+   "kind": null,
+   "frame": "틀밖",
+   "reason": "流年를 조건으로 든 구절(11-2의 2번: 틀 밖, 검사하지 않음)"
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -5944,7 +6218,13 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "한도 낱말 없음",
+   "kind": null,
+   "frame": null,
+   "reason": "한도 낱말이 없는 줄: 앞 줄 결과의 이음이거나 성질 서술이라 조건 궁을 정할 수 없음(문장 이음 판단이 필요)"
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -7609,7 +7889,48 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "한통칭",
+   "kind": "限통칭",
+   "frame": "大限",
+   "branches": [
+    {
+     "clause": "𤎉貞入限旺宫臨，喜逢吉矅福駢臻",
+     "conds": [
+      {
+       "kind": "밝기",
+       "values": [
+        "묘왕"
+       ],
+       "negate": false,
+       "word": "旺宫臨"
+      },
+      {
+       "kind": "길",
+       "values": [
+        "좌보",
+        "우필",
+        "문창",
+        "문곡",
+        "천괴",
+        "천월",
+        "녹존",
+        "화록",
+        "화권",
+        "화과"
+       ],
+       "negate": false,
+       "scope": "동궁삼방대궁",
+       "word": "喜逢吉矅"
+      }
+     ],
+     "polarity": "길",
+     "id": "入限:505",
+     "star": "염정"
+    }
+   ]
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -7626,7 +7947,13 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "한도 낱말 없음",
+   "kind": null,
+   "frame": null,
+   "reason": "한도 낱말이 없는 줄: 앞 줄 결과의 이음이거나 성질 서술이라 조건 궁을 정할 수 없음(문장 이음 판단이 필요)"
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -7643,7 +7970,13 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "大限",
+   "kind": "大小限",
+   "frame": "大限",
+   "reason": "결과가 508~509로 이어지는 한 문장이고 天刑·忌·刄의 뜻이 불명(문장 이음 판단이 필요)"
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -7660,7 +7993,13 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "한도 낱말 없음",
+   "kind": null,
+   "frame": null,
+   "reason": "한도 낱말이 없는 줄: 앞 줄 결과의 이음이거나 성질 서술이라 조건 궁을 정할 수 없음(문장 이음 판단이 필요)"
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -7677,7 +8016,13 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "한도 낱말 없음",
+   "kind": null,
+   "frame": null,
+   "reason": "한도 낱말이 없는 줄: 앞 줄 결과의 이음이거나 성질 서술이라 조건 궁을 정할 수 없음(문장 이음 판단이 필요)"
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -8448,7 +8793,21 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "한통칭",
+   "kind": "限통칭",
+   "frame": "大限",
+   "branches": [
+    {
+     "clause": "限臨天府能司禄，士庶逢之多發福，添財進喜𣱵無灾",
+     "conds": [],
+     "polarity": "길",
+     "id": "入限:534",
+     "star": "천부"
+    }
+   ]
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -8465,7 +8824,13 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "한도 낱말 없음",
+   "kind": null,
+   "frame": null,
+   "reason": "한도 낱말이 없는 줄: 앞 줄 결과의 이음이거나 성질 서술이라 조건 궁을 정할 수 없음(문장 이음 판단이 필요)"
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -8482,7 +8847,22 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "한통칭",
+   "kind": "限통칭",
+   "frame": "大限",
+   "branches": [
+    {
+     "clause": "南斗尊星入限來，所為謀事稱心懐",
+     "conds": [],
+     "polarity": "길",
+     "id": "入限:536",
+     "star": "천부"
+    }
+   ],
+   "note": "南斗尊星은 이 표의 천부 구절(南斗)로 읽음(추론)"
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -8499,7 +8879,13 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "한도 낱말 없음",
+   "kind": null,
+   "frame": null,
+   "reason": "한도 낱말이 없는 줄: 앞 줄 결과의 이음이거나 성질 서술이라 조건 궁을 정할 수 없음(문장 이음 판단이 필요)"
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -9554,7 +9940,21 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "한통칭",
+   "kind": "限통칭",
+   "frame": "大限",
+   "branches": [
+    {
+     "clause": "太隂星矅限中逢，財禄豊盈百事通",
+     "conds": [],
+     "polarity": "길",
+     "id": "入限:571",
+     "star": "태음"
+    }
+   ]
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -9571,7 +9971,13 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "한도 낱말 없음",
+   "kind": null,
+   "frame": null,
+   "reason": "한도 낱말이 없는 줄: 앞 줄 결과의 이음이거나 성질 서술이라 조건 궁을 정할 수 없음(문장 이음 판단이 필요)"
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -9588,7 +9994,32 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "한통칭",
+   "kind": "二限",
+   "frame": "大限",
+   "branches": [
+    {
+     "clause": "二限偏冝見太隂，添進財産福非輕",
+     "conds": [
+      {
+       "kind": "삼방대궁",
+       "values": [
+        "태음"
+       ],
+       "negate": false,
+       "scope": "삼방대궁",
+       "word": "偏冝見太隂"
+      }
+     ],
+     "polarity": "길",
+     "star": null,
+     "id": "入限:573"
+    }
+   ],
+   "note": "見은 5절 10번대로 삼방·대궁(본궁 제외)이라 주체 관문을 두지 않음"
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -9605,7 +10036,13 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "한도 낱말 없음",
+   "kind": null,
+   "frame": null,
+   "reason": "한도 낱말이 없는 줄: 앞 줄 결과의 이음이거나 성질 서술이라 조건 궁을 정할 수 없음(문장 이음 판단이 필요)"
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -9622,7 +10059,13 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "한통칭",
+   "kind": "二限",
+   "frame": "大限",
+   "reason": "限至太隂居反背: 反背의 뜻이 원문에 정의돼 있지 않음"
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -10816,7 +11259,38 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "한통칭",
+   "kind": "限통칭",
+   "frame": "大限",
+   "branches": [
+    {
+     "clause": "北斗貪狼入限來，若還入庙事和諧",
+     "conds": [
+      {
+       "kind": "밝기",
+       "values": [
+        "묘왕"
+       ],
+       "negate": false,
+       "word": "入庙"
+      }
+     ],
+     "polarity": "길",
+     "id": "入限:609#1",
+     "star": "탐랑"
+    },
+    {
+     "clause": "科𫞐仕路多成就",
+     "conds": [],
+     "polarity": "미정",
+     "unparsed": "科權은 사화(대한 사화인지 생년 사화인지 불명)",
+     "id": "入限:609#2",
+     "star": "탐랑"
+    }
+   ]
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -10833,7 +11307,54 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "한통칭",
+   "kind": "限통칭",
+   "frame": "大限",
+   "branches": [
+    {
+     "clause": "貪狼主限四庫臨，更喜人生四墓生，若見火星多横發",
+     "conds": [
+      {
+       "kind": "궁지",
+       "values": [
+        "辰",
+        "戌",
+        "丑",
+        "未"
+       ],
+       "negate": false,
+       "word": "四庫臨"
+      },
+      {
+       "kind": "생년지지",
+       "values": [
+        "辰",
+        "戌",
+        "丑",
+        "未"
+       ],
+       "negate": false,
+       "word": "人生四墓生"
+      },
+      {
+       "kind": "살",
+       "values": [
+        "화성"
+       ],
+       "negate": false,
+       "scope": "삼방대궁",
+       "word": "若見火星"
+      }
+     ],
+     "polarity": "길",
+     "id": "入限:610",
+     "star": "탐랑"
+    }
+   ],
+   "note": "四庫와 四墓는 辰戌丑未(11-3 6번 추론). 한 문장의 세 조건을 모두 요구"
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -10850,7 +11371,30 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "한통칭",
+   "kind": "限통칭",
+   "frame": "大限",
+   "branches": [
+    {
+     "clause": "限至貪狼𨺻不良",
+     "conds": [
+      {
+       "kind": "밝기",
+       "values": [
+        "함"
+       ],
+       "negate": false,
+       "word": "𨺻"
+      }
+     ],
+     "polarity": "흉",
+     "id": "入限:611",
+     "star": "탐랑"
+    }
+   ]
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -10867,7 +11411,13 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "한도 낱말 없음",
+   "kind": null,
+   "frame": null,
+   "reason": "한도 낱말이 없는 줄: 앞 줄 결과의 이음이거나 성질 서술이라 조건 궁을 정할 수 없음(문장 이음 판단이 필요)"
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -10884,7 +11434,31 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "한통칭",
+   "kind": "限통칭",
+   "frame": "大限",
+   "branches": [
+    {
+     "clause": "女限貪狼事不良",
+     "conds": [
+      {
+       "kind": "성별",
+       "values": [
+        "여"
+       ],
+       "negate": false,
+       "word": "女限"
+      }
+     ],
+     "polarity": "흉",
+     "id": "入限:613",
+     "star": "탐랑"
+    }
+   ],
+   "note": "女限은 여성 명반의 대한으로 읽음"
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -10901,7 +11475,13 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "한도 낱말 없음",
+   "kind": null,
+   "frame": null,
+   "reason": "한도 낱말이 없는 줄: 앞 줄 결과의 이음이거나 성질 서술이라 조건 궁을 정할 수 없음(문장 이음 판단이 필요)"
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -12236,7 +12816,13 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "한통칭",
+   "kind": "限통칭",
+   "frame": "大限",
+   "reason": "화록·화권·화과·화기 구절: 대한 사화(대한 궁간의 사화)인지 생년 사화인지 원문에 없고 L2는 생년 사화만 검사하므로 옮기지 않음(L3의 대한 사화 표시가 필요)"
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -12253,7 +12839,13 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "한도 낱말 없음",
+   "kind": null,
+   "frame": null,
+   "reason": "한도 낱말이 없는 줄: 앞 줄 결과의 이음이거나 성질 서술이라 조건 궁을 정할 수 없음(문장 이음 판단이 필요)"
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -12270,7 +12862,29 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "한통칭",
+   "kind": "限통칭",
+   "frame": "大限",
+   "branches": [
+    {
+     "clause": "巨門入限動人愁",
+     "conds": [],
+     "polarity": "흉",
+     "id": "入限:649#1",
+     "star": "거문"
+    },
+    {
+     "clause": "若遇喪門事不周",
+     "conds": [],
+     "polarity": "미정",
+     "unparsed": "喪門 별이 엔진의 별 목록에 없음",
+     "id": "入限:649#2",
+     "star": "거문"
+    }
+   ]
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -12287,7 +12901,13 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "한도 낱말 없음",
+   "kind": null,
+   "frame": null,
+   "reason": "한도 낱말이 없는 줄: 앞 줄 결과의 이음이거나 성질 서술이라 조건 궁을 정할 수 없음(문장 이음 판단이 필요)"
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -12304,7 +12924,30 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "한통칭",
+   "kind": "限통칭",
+   "frame": "大限",
+   "branches": [
+    {
+     "clause": "巨門限𨺻最𠂯張",
+     "conds": [
+      {
+       "kind": "밝기",
+       "values": [
+        "함"
+       ],
+       "negate": false,
+       "word": "𨺻"
+      }
+     ],
+     "polarity": "흉",
+     "id": "入限:651",
+     "star": "거문"
+    }
+   ]
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -12321,7 +12964,13 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "한도 낱말 없음",
+   "kind": null,
+   "frame": null,
+   "reason": "한도 낱말이 없는 줄: 앞 줄 결과의 이음이거나 성질 서술이라 조건 궁을 정할 수 없음(문장 이음 판단이 필요)"
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -13042,7 +13691,32 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "한통칭",
+   "kind": "二限",
+   "frame": "大限",
+   "branches": [
+    {
+     "clause": "天相之星最主財，照臨二限悉無灾",
+     "conds": [
+      {
+       "kind": "삼방대궁",
+       "values": [
+        "천상"
+       ],
+       "negate": false,
+       "scope": "동궁삼방대궁",
+       "word": "照臨二限"
+      }
+     ],
+     "polarity": "길",
+     "star": null,
+     "id": "入限:676"
+    }
+   ],
+   "note": "照臨은 비춤과 임함이라 동궁과 삼방·대궁"
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -13059,7 +13733,13 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "한도 낱말 없음",
+   "kind": null,
+   "frame": null,
+   "reason": "한도 낱말이 없는 줄: 앞 줄 결과의 이음이거나 성질 서술이라 조건 궁을 정할 수 없음(문장 이음 판단이 필요)"
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -13076,7 +13756,13 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "한도 낱말 없음",
+   "kind": null,
+   "frame": null,
+   "reason": "한도 낱말이 없는 줄: 앞 줄 결과의 이음이거나 성질 서술이라 조건 궁을 정할 수 없음(문장 이음 판단이 필요)"
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -13093,7 +13779,13 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "한도 낱말 없음",
+   "kind": null,
+   "frame": null,
+   "reason": "한도 낱말이 없는 줄: 앞 줄 결과의 이음이거나 성질 서술이라 조건 궁을 정할 수 없음(문장 이음 판단이 필요)"
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -13110,7 +13802,31 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "한통칭",
+   "kind": "限통칭",
+   "frame": "大限",
+   "branches": [
+    {
+     "clause": "限臨天相遇擎羊，作禍興殃不可當",
+     "conds": [
+      {
+       "kind": "살",
+       "values": [
+        "경양"
+       ],
+       "negate": false,
+       "scope": "동궁삼방대궁",
+       "word": "遇擎羊"
+      }
+     ],
+     "polarity": "흉",
+     "id": "入限:680",
+     "star": "천상"
+    }
+   ]
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -13127,7 +13843,13 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "한도 낱말 없음",
+   "kind": null,
+   "frame": null,
+   "reason": "한도 낱말이 없는 줄: 앞 줄 결과의 이음이거나 성질 서술이라 조건 궁을 정할 수 없음(문장 이음 판단이 필요)"
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -14016,7 +14738,13 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "한통칭",
+   "kind": "二限",
+   "frame": "大限",
+   "reason": "化蔭言星和: 化蔭의 뜻이 불명"
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -14033,7 +14761,13 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "한도 낱말 없음",
+   "kind": null,
+   "frame": null,
+   "reason": "한도 낱말이 없는 줄: 앞 줄 결과의 이음이거나 성질 서술이라 조건 궁을 정할 수 없음(문장 이음 판단이 필요)"
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -14050,7 +14784,21 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "한통칭",
+   "kind": "限통칭",
+   "frame": "大限",
+   "branches": [
+    {
+     "clause": "限至天梁最是良，猶如秋菊吐馨香",
+     "conds": [],
+     "polarity": "길",
+     "id": "入限:708",
+     "star": "천량"
+    }
+   ]
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -14067,7 +14815,13 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "한도 낱말 없음",
+   "kind": null,
+   "frame": null,
+   "reason": "한도 낱말이 없는 줄: 앞 줄 결과의 이음이거나 성질 서술이라 조건 궁을 정할 수 없음(문장 이음 판단이 필요)"
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -14084,7 +14838,21 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "한통칭",
+   "kind": "限통칭",
+   "frame": "大限",
+   "branches": [
+    {
+     "clause": "天梁守限壽延長，作事求謀更吉昌",
+     "conds": [],
+     "polarity": "길",
+     "id": "入限:710",
+     "star": "천량"
+    }
+   ]
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -14101,7 +14869,13 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "한도 낱말 없음",
+   "kind": null,
+   "frame": null,
+   "reason": "한도 낱말이 없는 줄: 앞 줄 결과의 이음이거나 성질 서술이라 조건 궁을 정할 수 없음(문장 이음 판단이 필요)"
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -15254,7 +16028,21 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "한통칭",
+   "kind": "二限",
+   "frame": "大限",
+   "branches": [
+    {
+     "clause": "二限雖然逢七殺，從容和緩家道發",
+     "conds": [],
+     "polarity": "길",
+     "id": "入限:743",
+     "star": "칠살"
+    }
+   ]
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -15271,7 +16059,13 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "한도 낱말 없음",
+   "kind": null,
+   "frame": null,
+   "reason": "한도 낱말이 없는 줄: 앞 줄 결과의 이음이거나 성질 서술이라 조건 궁을 정할 수 없음(문장 이음 판단이 필요)"
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -15288,7 +16082,37 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "한통칭",
+   "kind": "限통칭",
+   "frame": "大限",
+   "branches": [
+    {
+     "clause": "更加𢙣曜在限中，主有官災多病疾",
+     "conds": [
+      {
+       "kind": "살",
+       "values": [
+        "경양",
+        "타라",
+        "화성",
+        "영성",
+        "지공",
+        "지겁"
+       ],
+       "negate": false,
+       "scope": "동궁",
+       "word": "更加𢙣曜在限中"
+      }
+     ],
+     "polarity": "흉",
+     "id": "入限:745",
+     "star": "칠살"
+    }
+   ],
+   "note": "七殺之星主啾唧는 주체. 惡曜는 6살로 읽음(권4 𢙣殺 해독과 같음)"
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -16572,7 +17396,30 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "한통칭",
+   "kind": "限통칭",
+   "frame": "大限",
+   "branches": [
+    {
+     "clause": "破軍入限要推詳，庙地方知福禄昌",
+     "conds": [
+      {
+       "kind": "밝기",
+       "values": [
+        "묘왕"
+       ],
+       "negate": false,
+       "word": "庙地"
+      }
+     ],
+     "polarity": "길",
+     "id": "入限:780",
+     "star": "파군"
+    }
+   ]
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -16589,7 +17436,36 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "한통칭",
+   "kind": "限통칭",
+   "frame": "大限",
+   "branches": [
+    {
+     "clause": "更遇文昌同魁鉞，限臨此地極風光",
+     "conds": [
+      {
+       "kind": "동궁",
+       "values": [
+        "문창",
+        "천괴",
+        "천월"
+       ],
+       "negate": false,
+       "scope": "동궁",
+       "all": true,
+       "word": "文昌同魁鉞"
+      }
+     ],
+     "polarity": "길",
+     "inherits": "入限:780",
+     "id": "入限:781",
+     "star": "파군"
+    }
+   ],
+   "note": "更 가지라 780의 조건을 이어받음. 魁鉞은 짝이라 모두(5절 12번 가)"
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -16606,7 +17482,31 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "한통칭",
+   "kind": "限통칭",
+   "frame": "大限",
+   "branches": [
+    {
+     "clause": "破軍入限要推詳，庙地無㐫少損傷",
+     "conds": [
+      {
+       "kind": "밝기",
+       "values": [
+        "묘왕"
+       ],
+       "negate": false,
+       "word": "庙地"
+      }
+     ],
+     "polarity": "길",
+     "id": "入限:782",
+     "star": "파군"
+    }
+   ],
+   "note": "無㐫은 조건이 아니라 결과문으로 읽음"
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -16623,7 +17523,13 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "한도 낱말 없음",
+   "kind": null,
+   "frame": null,
+   "reason": "한도 낱말이 없는 줄: 앞 줄 결과의 이음이거나 성질 서술이라 조건 궁을 정할 수 없음(문장 이음 판단이 필요)"
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -16640,7 +17546,21 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "한통칭",
+   "kind": "限통칭",
+   "frame": "大限",
+   "branches": [
+    {
+     "clause": "破軍主限多膿血，失脫𠂯張不可說",
+     "conds": [],
+     "polarity": "흉",
+     "id": "入限:784",
+     "star": "파군"
+    }
+   ]
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -16657,7 +17577,13 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "한도 낱말 없음",
+   "kind": null,
+   "frame": null,
+   "reason": "한도 낱말이 없는 줄: 앞 줄 결과의 이음이거나 성질 서술이라 조건 궁을 정할 수 없음(문장 이음 판단이 필요)"
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -17634,7 +18560,13 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "한도 낱말 없음",
+   "kind": null,
+   "frame": null,
+   "reason": "한도 낱말이 없는 줄: 앞 줄 결과의 이음이거나 성질 서술이라 조건 궁을 정할 수 없음(문장 이음 판단이 필요)"
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -17651,7 +18583,13 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "小限·太歲",
+   "kind": null,
+   "frame": "틀밖",
+   "reason": "太歳를 조건으로 든 구절(11-2의 2번: 틀 밖, 검사하지 않음)"
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -17668,7 +18606,53 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "한통칭",
+   "kind": "限통칭",
+   "frame": "大限",
+   "branches": [
+    {
+     "clause": "限遇文昌不得地，更有羊陀火鈴忌",
+     "conds": [
+      {
+       "kind": "동궁",
+       "values": [
+        "문창"
+       ],
+       "negate": false,
+       "scope": "동궁",
+       "role": "주체",
+       "word": ""
+      },
+      {
+       "kind": "밝기",
+       "values": [
+        "함"
+       ],
+       "negate": false,
+       "word": "不得地"
+      },
+      {
+       "kind": "살",
+       "values": [
+        "경양",
+        "타라",
+        "화성",
+        "영성"
+       ],
+       "negate": false,
+       "scope": "동궁",
+       "word": "更有羊陀火鈴"
+      }
+     ],
+     "polarity": "흉",
+     "id": "入限:809",
+     "star": "문창"
+    }
+   ],
+   "note": "목록 끝의 忌(사화)는 뺐다"
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -18682,7 +19666,32 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "한통칭",
+   "kind": "二限",
+   "frame": "大限",
+   "branches": [
+    {
+     "clause": "二限若逢文曲星，士庶斯年湏發福",
+     "conds": [
+      {
+       "kind": "동궁",
+       "values": [
+        "문곡"
+       ],
+       "negate": false,
+       "scope": "동궁",
+       "role": "주체",
+       "word": ""
+      }
+     ],
+     "polarity": "길",
+     "id": "入限:831",
+     "star": "문곡"
+    }
+   ]
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -18699,7 +19708,13 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "한도 낱말 없음",
+   "kind": null,
+   "frame": null,
+   "reason": "한도 낱말이 없는 줄: 앞 줄 결과의 이음이거나 성질 서술이라 조건 궁을 정할 수 없음(문장 이음 판단이 필요)"
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -18716,7 +19731,13 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "한통칭",
+   "kind": "限통칭",
+   "frame": "大限",
+   "reason": "𤎉陀羊의 𤎉이 火인지 廉인지 불명"
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -18733,7 +19754,13 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "한도 낱말 없음",
+   "kind": null,
+   "frame": null,
+   "reason": "한도 낱말이 없는 줄: 앞 줄 결과의 이음이거나 성질 서술이라 조건 궁을 정할 수 없음(문장 이음 판단이 필요)"
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -19271,7 +20298,32 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "한통칭",
+   "kind": "限통칭",
+   "frame": "大限",
+   "branches": [
+    {
+     "clause": "左輔限行福氣深，常人冨足累千金",
+     "conds": [
+      {
+       "kind": "동궁",
+       "values": [
+        "좌보"
+       ],
+       "negate": false,
+       "scope": "동궁",
+       "role": "주체",
+       "word": ""
+      }
+     ],
+     "polarity": "길",
+     "id": "入限:850",
+     "star": "좌보"
+    }
+   ]
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -19288,7 +20340,13 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "한도 낱말 없음",
+   "kind": null,
+   "frame": null,
+   "reason": "한도 낱말이 없는 줄: 앞 줄 결과의 이음이거나 성질 서술이라 조건 궁을 정할 수 없음(문장 이음 판단이 필요)"
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -19305,7 +20363,46 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "한통칭",
+   "kind": "限통칭",
+   "frame": "大限",
+   "branches": [
+    {
+     "clause": "左輔之星入限來，不冝殺凑主悲哀",
+     "conds": [
+      {
+       "kind": "동궁",
+       "values": [
+        "좌보"
+       ],
+       "negate": false,
+       "scope": "동궁",
+       "role": "주체",
+       "word": ""
+      },
+      {
+       "kind": "살",
+       "values": [
+        "경양",
+        "타라",
+        "화성",
+        "영성",
+        "지공",
+        "지겁"
+       ],
+       "negate": false,
+       "scope": "동궁삼방대궁",
+       "word": "殺凑"
+      }
+     ],
+     "polarity": "흉",
+     "id": "入限:852",
+     "star": "좌보"
+    }
+   ]
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -19322,7 +20419,13 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "한도 낱말 없음",
+   "kind": null,
+   "frame": null,
+   "reason": "한도 낱말이 없는 줄: 앞 줄 결과의 이음이거나 성질 서술이라 조건 궁을 정할 수 없음(문장 이음 판단이 필요)"
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -19831,7 +20934,32 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "한통칭",
+   "kind": "限통칭",
+   "frame": "大限",
+   "branches": [
+    {
+     "clause": "右弼入限最為荣，人財興旺必多能",
+     "conds": [
+      {
+       "kind": "동궁",
+       "values": [
+        "우필"
+       ],
+       "negate": false,
+       "scope": "동궁",
+       "role": "주체",
+       "word": ""
+      }
+     ],
+     "polarity": "길",
+     "id": "入限:866",
+     "star": "우필"
+    }
+   ]
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -19848,7 +20976,47 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "한통칭",
+   "kind": "限통칭",
+   "frame": "大限",
+   "branches": [
+    {
+     "clause": "右弼主限遇㐫星，掃盡家資百不成",
+     "conds": [
+      {
+       "kind": "동궁",
+       "values": [
+        "우필"
+       ],
+       "negate": false,
+       "scope": "동궁",
+       "role": "주체",
+       "word": ""
+      },
+      {
+       "kind": "살",
+       "values": [
+        "경양",
+        "타라",
+        "화성",
+        "영성",
+        "지공",
+        "지겁"
+       ],
+       "negate": false,
+       "scope": "동궁삼방대궁",
+       "word": "遇㐫星"
+      }
+     ],
+     "polarity": "흉",
+     "id": "入限:867",
+     "star": "우필"
+    }
+   ],
+   "note": "㐫星은 6살로 읽음(권4 㑹㐫星 해독과 같음)"
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -19865,7 +21033,13 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "한도 낱말 없음",
+   "kind": null,
+   "frame": null,
+   "reason": "한도 낱말이 없는 줄: 앞 줄 결과의 이음이거나 성질 서술이라 조건 궁을 정할 수 없음(문장 이음 판단이 필요)"
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -20575,7 +21749,32 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "한통칭",
+   "kind": "限통칭",
+   "frame": "大限",
+   "branches": [
+    {
+     "clause": "禄存主限最為良，作事求謀𥁞吉祥",
+     "conds": [
+      {
+       "kind": "동궁",
+       "values": [
+        "녹존"
+       ],
+       "negate": false,
+       "scope": "동궁",
+       "role": "주체",
+       "word": ""
+      }
+     ],
+     "polarity": "길",
+     "id": "入限:888",
+     "star": "녹존"
+    }
+   ]
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -20592,7 +21791,13 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "한도 낱말 없음",
+   "kind": null,
+   "frame": null,
+   "reason": "한도 낱말이 없는 줄: 앞 줄 결과의 이음이거나 성질 서술이라 조건 궁을 정할 수 없음(문장 이음 판단이 필요)"
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -20609,7 +21814,32 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "한통칭",
+   "kind": "限통칭",
+   "frame": "大限",
+   "branches": [
+    {
+     "clause": "禄存主限夀延長，作事营謀萬事昌",
+     "conds": [
+      {
+       "kind": "동궁",
+       "values": [
+        "녹존"
+       ],
+       "negate": false,
+       "scope": "동궁",
+       "role": "주체",
+       "word": ""
+      }
+     ],
+     "polarity": "길",
+     "id": "入限:890",
+     "star": "녹존"
+    }
+   ]
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -20626,7 +21856,13 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "한통칭",
+   "kind": "限통칭",
+   "frame": "大限",
+   "reason": "화록·화권·화과·화기 구절: 대한 사화(대한 궁간의 사화)인지 생년 사화인지 원문에 없고 L2는 생년 사화만 검사하므로 옮기지 않음(L3의 대한 사화 표시가 필요)"
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -20643,7 +21879,13 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "한도 낱말 없음",
+   "kind": null,
+   "frame": null,
+   "reason": "한도 낱말이 없는 줄: 앞 줄 결과의 이음이거나 성질 서술이라 조건 궁을 정할 수 없음(문장 이음 판단이 필요)"
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -20660,7 +21902,13 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "한통칭",
+   "kind": "限통칭",
+   "frame": "大限",
+   "reason": "禄馬交馳의 자리 정의가 불명하고 결과 구절이 없음(最怕刼空은 흉의 조건)"
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -20677,7 +21925,13 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "小限·太歲",
+   "kind": null,
+   "frame": "틀밖",
+   "reason": "太𡻕를 조건으로 든 구절(11-2의 2번: 틀 밖, 검사하지 않음)"
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -20894,7 +22148,37 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "한통칭",
+   "kind": "限통칭",
+   "frame": "大限",
+   "branches": [
+    {
+     "clause": "限歩逢之，必主淸高，名成利就",
+     "conds": [
+      {
+       "kind": "동궁",
+       "values": [
+        "천괴",
+        "천월"
+       ],
+       "negate": false,
+       "scope": "동궁",
+       "role": "주체",
+       "word": ""
+      }
+     ],
+     "polarity": "길",
+     "star": [
+      "천괴",
+      "천월"
+     ],
+     "id": "入限:897"
+    }
+   ],
+   "note": "之는 魁鉞(천괴·천월 가운데 하나)"
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -20914,7 +22198,13 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "한도 낱말 없음",
+   "kind": null,
+   "frame": null,
+   "reason": "한도 낱말이 없는 줄: 앞 줄 결과의 이음이거나 성질 서술이라 조건 궁을 정할 수 없음(문장 이음 판단이 필요)"
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -21027,7 +22317,13 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "한통칭",
+   "kind": "限통칭",
+   "frame": "大限",
+   "reason": "魁鉞命身限遇昌: 魁鉞이 명신에 들고 한도에서 문창을 만난다는 뜻인지 한도에 魁鉞이 드는지 불명"
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -21945,7 +23241,44 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "한통칭",
+   "kind": "限통칭",
+   "frame": "大限",
+   "branches": [
+    {
+     "clause": "擎羊守限細推詳，四墓生人免禍殃",
+     "conds": [
+      {
+       "kind": "동궁",
+       "values": [
+        "경양"
+       ],
+       "negate": false,
+       "scope": "동궁",
+       "role": "주체",
+       "word": ""
+      },
+      {
+       "kind": "생년지지",
+       "values": [
+        "辰",
+        "戌",
+        "丑",
+        "未"
+       ],
+       "negate": false,
+       "word": "四墓生人"
+      }
+     ],
+     "polarity": "길",
+     "id": "入限:922",
+     "star": "경양"
+    }
+   ],
+   "note": "四墓는 辰戌丑未(11-3 6번 추론)"
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -21962,7 +23295,13 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "한도 낱말 없음",
+   "kind": null,
+   "frame": null,
+   "reason": "한도 낱말이 없는 줄: 앞 줄 결과의 이음이거나 성질 서술이라 조건 궁을 정할 수 없음(문장 이음 판단이 필요)"
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -21979,7 +23318,13 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "한통칭",
+   "kind": "二限",
+   "frame": "大限",
+   "reason": "天羅地網(辰戌)의 정의가 원문에 없음"
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -21996,7 +23341,13 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "한도 낱말 없음",
+   "kind": null,
+   "frame": null,
+   "reason": "한도 낱말이 없는 줄: 앞 줄 결과의 이음이거나 성질 서술이라 조건 궁을 정할 수 없음(문장 이음 판단이 필요)"
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -22013,7 +23364,72 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "한통칭",
+   "kind": "二限",
+   "frame": "大限",
+   "branches": [
+    {
+     "clause": "擎羊加殺最爲㐫",
+     "conds": [
+      {
+       "kind": "동궁",
+       "values": [
+        "경양"
+       ],
+       "negate": false,
+       "scope": "동궁",
+       "role": "주체",
+       "word": ""
+      },
+      {
+       "kind": "살",
+       "values": [
+        "경양",
+        "타라",
+        "화성",
+        "영성",
+        "지공",
+        "지겁"
+       ],
+       "negate": false,
+       "scope": "동궁",
+       "word": "加殺"
+      }
+     ],
+     "polarity": "흉",
+     "id": "入限:926#1",
+     "star": "경양"
+    },
+    {
+     "clause": "二限休教落𨺻逢",
+     "conds": [
+      {
+       "kind": "동궁",
+       "values": [
+        "경양"
+       ],
+       "negate": false,
+       "scope": "동궁",
+       "role": "주체",
+       "word": ""
+      },
+      {
+       "kind": "밝기",
+       "values": [
+        "함"
+       ],
+       "negate": false,
+       "word": "𨺻"
+      }
+     ],
+     "polarity": "흉",
+     "id": "入限:926#2",
+     "star": "경양"
+    }
+   ]
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -22030,7 +23446,13 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "한도 낱말 없음",
+   "kind": null,
+   "frame": null,
+   "reason": "한도 낱말이 없는 줄: 앞 줄 결과의 이음이거나 성질 서술이라 조건 궁을 정할 수 없음(문장 이음 판단이 필요)"
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -22863,7 +24285,32 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "한통칭",
+   "kind": "限통칭",
+   "frame": "大限",
+   "branches": [
+    {
+     "clause": "限遇陀羅事亦多，必然忍耐要謙和",
+     "conds": [
+      {
+       "kind": "동궁",
+       "values": [
+        "타라"
+       ],
+       "negate": false,
+       "scope": "동궁",
+       "role": "주체",
+       "word": ""
+      }
+     ],
+     "polarity": "미정",
+     "id": "入限:945",
+     "star": "타라"
+    }
+   ]
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -22880,7 +24327,13 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "한도 낱말 없음",
+   "kind": null,
+   "frame": null,
+   "reason": "한도 낱말이 없는 줄: 앞 줄 결과의 이음이거나 성질 서술이라 조건 궁을 정할 수 없음(문장 이음 판단이 필요)"
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -22897,7 +24350,13 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "한도 낱말 없음",
+   "kind": null,
+   "frame": null,
+   "reason": "한도 낱말이 없는 줄: 앞 줄 결과의 이음이거나 성질 서술이라 조건 궁을 정할 수 없음(문장 이음 판단이 필요)"
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -22914,7 +24373,13 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "한도 낱말 없음",
+   "kind": null,
+   "frame": null,
+   "reason": "한도 낱말이 없는 줄: 앞 줄 결과의 이음이거나 성질 서술이라 조건 궁을 정할 수 없음(문장 이음 판단이 필요)"
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -23319,7 +24784,40 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "한통칭",
+   "kind": "限통칭",
+   "frame": "大限",
+   "branches": [
+    {
+     "clause": "火星得地限宫逢，喜氣盈門百事通",
+     "conds": [
+      {
+       "kind": "동궁",
+       "values": [
+        "화성"
+       ],
+       "negate": false,
+       "scope": "동궁",
+       "role": "주체",
+       "word": ""
+      },
+      {
+       "kind": "밝기",
+       "values": [
+        "묘왕"
+       ],
+       "negate": false,
+       "word": "得地"
+      }
+     ],
+     "polarity": "길",
+     "id": "入限:957",
+     "star": "화성"
+    }
+   ]
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -23336,7 +24834,13 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "한도 낱말 없음",
+   "kind": null,
+   "frame": null,
+   "reason": "한도 낱말이 없는 줄: 앞 줄 결과의 이음이거나 성질 서술이라 조건 궁을 정할 수 없음(문장 이음 판단이 필요)"
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -23353,7 +24857,13 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "한도 낱말 없음",
+   "kind": null,
+   "frame": null,
+   "reason": "한도 낱말이 없는 줄: 앞 줄 결과의 이음이거나 성질 서술이라 조건 궁을 정할 수 없음(문장 이음 판단이 필요)"
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -23370,7 +24880,13 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "한도 낱말 없음",
+   "kind": null,
+   "frame": null,
+   "reason": "한도 낱말이 없는 줄: 앞 줄 결과의 이음이거나 성질 서술이라 조건 궁을 정할 수 없음(문장 이음 판단이 필요)"
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -23413,7 +24929,13 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "한통칭",
+   "kind": "限통칭",
+   "frame": "大限",
+   "reason": "출신지(南人, 北人, 西北人) 조건은 11-3 2번대로 미검사"
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -23430,7 +24952,13 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "한도 낱말 없음",
+   "kind": null,
+   "frame": null,
+   "reason": "한도 낱말이 없는 성질 서술"
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -23517,7 +25045,41 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "한통칭",
+   "kind": "限통칭",
+   "frame": "大限",
+   "branches": [
+    {
+     "clause": "限至鈴星事若何，貪狼相遇福還多",
+     "conds": [
+      {
+       "kind": "동궁",
+       "values": [
+        "영성"
+       ],
+       "negate": false,
+       "scope": "동궁",
+       "role": "주체",
+       "word": ""
+      },
+      {
+       "kind": "삼방대궁",
+       "values": [
+        "탐랑"
+       ],
+       "negate": false,
+       "scope": "동궁삼방대궁",
+       "word": "貪狼相遇"
+      }
+     ],
+     "polarity": "길",
+     "id": "入限:966",
+     "star": "영성"
+    }
+   ]
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -23534,7 +25096,60 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "한도 낱말 없음",
+   "kind": "更 이음",
+   "frame": "大限",
+   "branches": [
+    {
+     "clause": "更加入庙逢諸吉，冨貴声揚處處歌",
+     "conds": [
+      {
+       "kind": "동궁",
+       "values": [
+        "영성"
+       ],
+       "negate": false,
+       "scope": "동궁",
+       "role": "주체",
+       "word": ""
+      },
+      {
+       "kind": "밝기",
+       "values": [
+        "묘왕"
+       ],
+       "negate": false,
+       "word": "入庙"
+      },
+      {
+       "kind": "길",
+       "values": [
+        "좌보",
+        "우필",
+        "문창",
+        "문곡",
+        "천괴",
+        "천월",
+        "녹존",
+        "화록",
+        "화권",
+        "화과"
+       ],
+       "negate": false,
+       "scope": "동궁삼방대궁",
+       "word": "逢諸吉"
+      }
+     ],
+     "polarity": "길",
+     "inherits": "入限:966",
+     "id": "入限:967",
+     "star": "영성"
+    }
+   ],
+   "note": "更 가지라 966의 조건을 이어받음"
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -23551,7 +25166,32 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "한통칭",
+   "kind": "二限",
+   "frame": "大限",
+   "branches": [
+    {
+     "clause": "鈴星一宿不可當，守臨二限必顛狂",
+     "conds": [
+      {
+       "kind": "동궁",
+       "values": [
+        "영성"
+       ],
+       "negate": false,
+       "scope": "동궁",
+       "role": "주체",
+       "word": ""
+      }
+     ],
+     "polarity": "흉",
+     "id": "入限:968",
+     "star": "영성"
+    }
+   ]
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -23568,7 +25208,13 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "한도 낱말 없음",
+   "kind": null,
+   "frame": null,
+   "reason": "한도 낱말이 없는 줄: 앞 줄 결과의 이음이거나 성질 서술이라 조건 궁을 정할 수 없음(문장 이음 판단이 필요)"
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -23903,7 +25549,13 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "한도 낱말 없음",
+   "kind": null,
+   "frame": null,
+   "reason": "한도 낱말이 없는 줄: 앞 줄 결과의 이음이거나 성질 서술이라 조건 궁을 정할 수 없음(문장 이음 판단이 필요)"
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -23920,7 +25572,13 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "한도 낱말 없음",
+   "kind": null,
+   "frame": null,
+   "reason": "한도 낱말이 없는 줄: 앞 줄 결과의 이음이거나 성질 서술이라 조건 궁을 정할 수 없음(문장 이음 판단이 필요)"
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -23937,7 +25595,45 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "한통칭",
+   "kind": "限통칭",
+   "frame": "大限",
+   "branches": [
+    {
+     "clause": "火鈴限𨺻血膿侵，失脫時常不可尋",
+     "conds": [
+      {
+       "kind": "동궁",
+       "values": [
+        "화성",
+        "영성"
+       ],
+       "negate": false,
+       "scope": "동궁",
+       "role": "주체",
+       "word": ""
+      },
+      {
+       "kind": "밝기",
+       "values": [
+        "함"
+       ],
+       "negate": false,
+       "word": "限𨺻"
+      }
+     ],
+     "polarity": "흉",
+     "star": [
+      "화성",
+      "영성"
+     ],
+     "id": "入限:983"
+    }
+   ],
+   "note": "火鈴은 화성·영성 가운데 이 궁에 든 별"
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -23954,7 +25650,13 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "한도 낱말 없음",
+   "kind": null,
+   "frame": null,
+   "reason": "한도 낱말이 없는 줄: 앞 줄 결과의 이음이거나 성질 서술이라 조건 궁을 정할 수 없음(문장 이음 판단이 필요)"
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -24162,7 +25864,32 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "한통칭",
+   "kind": "二限",
+   "frame": "大限",
+   "branches": [
+    {
+     "clause": "刼星二限若逢之，未免當年無禍危",
+     "conds": [
+      {
+       "kind": "동궁",
+       "values": [
+        "지겁"
+       ],
+       "negate": false,
+       "scope": "동궁",
+       "role": "주체",
+       "word": ""
+      }
+     ],
+     "polarity": "흉",
+     "id": "入限:992",
+     "star": "지겁"
+    }
+   ]
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -24179,7 +25906,13 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "小限·太歲",
+   "kind": null,
+   "frame": "틀밖",
+   "reason": "太𡻕를 조건으로 든 구절(11-2의 2번: 틀 밖, 검사하지 않음)"
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -24295,7 +26028,13 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "小限·太歲",
+   "kind": null,
+   "frame": "틀밖",
+   "reason": "太嵗를 조건으로 든 구절(11-2의 2번: 틀 밖, 검사하지 않음)"
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -24312,7 +26051,32 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "한통칭",
+   "kind": "限통칭",
+   "frame": "大限",
+   "branches": [
+    {
+     "clause": "項羽英雄，限到天空而䘮國",
+     "conds": [
+      {
+       "kind": "동궁",
+       "values": [
+        "천공"
+       ],
+       "negate": false,
+       "scope": "동궁",
+       "role": "주체",
+       "word": ""
+      }
+     ],
+     "polarity": "흉",
+     "id": "入限:998",
+     "star": "천공"
+    }
+   ]
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -24429,7 +26193,13 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "한통칭",
+   "kind": "限통칭",
+   "frame": "大限",
+   "reason": "空亡이 天空·地空·截空·旬空 가운데 무엇인지 불명"
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -24446,7 +26216,13 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "한도 낱말 없음",
+   "kind": null,
+   "frame": null,
+   "reason": "한도 낱말이 없는 줄: 앞 줄 결과의 이음이거나 성질 서술이라 조건 궁을 정할 수 없음(문장 이음 판단이 필요)"
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -24463,7 +26239,13 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "한도 낱말 없음",
+   "kind": null,
+   "frame": null,
+   "reason": "한도 낱말이 없는 줄: 앞 줄 결과의 이음이거나 성질 서술이라 조건 궁을 정할 수 없음(문장 이음 판단이 필요)"
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -24480,7 +26262,13 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "한통칭",
+   "kind": "二限",
+   "frame": "大限",
+   "reason": "刼空이 地空·地劫 두 별 모두인지 하나 이상인지 5절 12번에 정의가 없음"
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -24497,7 +26285,13 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "한도 낱말 없음",
+   "kind": null,
+   "frame": null,
+   "reason": "한도 낱말이 없는 줄: 앞 줄 결과의 이음이거나 성질 서술이라 조건 궁을 정할 수 없음(문장 이음 판단이 필요)"
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -24514,7 +26308,13 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "小限·太歲",
+   "kind": null,
+   "frame": "틀밖",
+   "reason": "太嵗를 조건으로 든 구절(11-2의 2번: 틀 밖, 검사하지 않음)"
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -24531,7 +26331,13 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "한도 낱말 없음",
+   "kind": null,
+   "frame": null,
+   "reason": "한도 낱말이 없는 줄: 앞 줄 결과의 이음이거나 성질 서술이라 조건 궁을 정할 수 없음(문장 이음 판단이 필요)"
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -24548,7 +26354,32 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "한통칭",
+   "kind": "限통칭",
+   "frame": "大限",
+   "branches": [
+    {
+     "clause": "夫子絶粮，限到天傷之内",
+     "conds": [
+      {
+       "kind": "동궁",
+       "values": [
+        "천상(傷)"
+       ],
+       "negate": false,
+       "scope": "동궁",
+       "role": "주체",
+       "word": ""
+      }
+     ],
+     "polarity": "흉",
+     "id": "入限:1012",
+     "star": "천상(傷)"
+    }
+   ]
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -24591,7 +26422,13 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "小限·太歲",
+   "kind": null,
+   "frame": "틀밖",
+   "reason": "太𡻕를 조건으로 든 구절(11-2의 2번: 틀 밖, 검사하지 않음)"
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -24608,7 +26445,13 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "한도 낱말 없음",
+   "kind": null,
+   "frame": null,
+   "reason": "한도 낱말이 없는 줄: 앞 줄 결과의 이음이거나 성질 서술이라 조건 궁을 정할 수 없음(문장 이음 판단이 필요)"
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -24625,7 +26468,13 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "한통칭",
+   "kind": "限통칭",
+   "frame": "大限",
+   "reason": "天耗가 대모인지 天傷의 다른 이름인지 불명"
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -24642,7 +26491,32 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "한통칭",
+   "kind": "限통칭",
+   "frame": "大限",
+   "branches": [
+    {
+     "clause": "天使限臨人共忌，石崇豪冨破家亡",
+     "conds": [
+      {
+       "kind": "동궁",
+       "values": [
+        "천사"
+       ],
+       "negate": false,
+       "scope": "동궁",
+       "role": "주체",
+       "word": ""
+      }
+     ],
+     "polarity": "흉",
+     "id": "入限:1018",
+     "star": "천사"
+    }
+   ]
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -24869,7 +26743,40 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "한통칭",
+   "kind": "限통칭",
+   "frame": "大限",
+   "branches": [
+    {
+     "clause": "天馬臨限最為良",
+     "conds": [
+      {
+       "kind": "동궁",
+       "values": [
+        "천마"
+       ],
+       "negate": false,
+       "scope": "동궁",
+       "role": "주체",
+       "word": ""
+      }
+     ],
+     "polarity": "길",
+     "id": "入限:1023#1",
+     "star": "천마"
+    },
+    {
+     "clause": "紫府禄存遇非常",
+     "conds": [],
+     "polarity": "미정",
+     "unparsed": "紫府禄存이 셋 모두인지 하나 이상인지 불명",
+     "id": "入限:1023#2",
+     "star": "천마"
+    }
+   ]
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -24886,7 +26793,13 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "한도 낱말 없음",
+   "kind": null,
+   "frame": null,
+   "reason": "한도 낱말이 없는 줄: 앞 줄 결과의 이음이거나 성질 서술이라 조건 궁을 정할 수 없음(문장 이음 판단이 필요)"
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -24903,7 +26816,42 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "한통칭",
+   "kind": "限통칭",
+   "frame": "大限",
+   "branches": [
+    {
+     "clause": "天馬守限不得住，又怕刼空來相遇",
+     "conds": [
+      {
+       "kind": "동궁",
+       "values": [
+        "천마"
+       ],
+       "negate": false,
+       "scope": "동궁",
+       "role": "주체",
+       "word": ""
+      },
+      {
+       "kind": "살",
+       "values": [
+        "지공",
+        "지겁"
+       ],
+       "negate": false,
+       "scope": "동궁삼방대궁",
+       "word": "又怕刼空來相遇"
+      }
+     ],
+     "polarity": "흉",
+     "id": "入限:1025",
+     "star": "천마"
+    }
+   ]
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -24920,7 +26868,13 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "小限·太歲",
+   "kind": null,
+   "frame": "틀밖",
+   "reason": "太𡻕를 조건으로 든 구절(11-2의 2번: 틀 밖, 검사하지 않음)"
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -24979,7 +26933,13 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "小限·太歲",
+   "kind": null,
+   "frame": "틀밖",
+   "reason": "小限를 조건으로 든 구절(11-2의 2번: 틀 밖, 검사하지 않음)"
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -24996,7 +26956,13 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "大限",
+   "kind": "大限명시",
+   "frame": "大限",
+   "reason": "화록·화권·화과·화기 구절: 대한 사화(대한 궁간의 사화)인지 생년 사화인지 원문에 없고 L2는 생년 사화만 검사하므로 옮기지 않음(L3의 대한 사화 표시가 필요)"
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -25280,7 +27246,13 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "한통칭",
+   "kind": "限통칭",
+   "frame": "大限",
+   "reason": "화록·화권·화과·화기 구절: 대한 사화(대한 궁간의 사화)인지 생년 사화인지 원문에 없고 L2는 생년 사화만 검사하므로 옮기지 않음(L3의 대한 사화 표시가 필요)"
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -25297,7 +27269,13 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "한도 낱말 없음",
+   "kind": null,
+   "frame": null,
+   "reason": "화록·화권·화과·화기 구절: 대한 사화(대한 궁간의 사화)인지 생년 사화인지 원문에 없고 L2는 생년 사화만 검사하므로 옮기지 않음(L3의 대한 사화 표시가 필요)"
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -25412,7 +27390,13 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "小限·太歲",
+   "kind": null,
+   "frame": "틀밖",
+   "reason": "小限를 조건으로 든 구절(11-2의 2번: 틀 밖, 검사하지 않음)"
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -25429,7 +27413,13 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "大限",
+   "kind": "大限명시",
+   "frame": "大限",
+   "reason": "화록·화권·화과·화기 구절: 대한 사화(대한 궁간의 사화)인지 생년 사화인지 원문에 없고 L2는 생년 사화만 검사하므로 옮기지 않음(L3의 대한 사화 표시가 필요)"
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -25446,7 +27436,13 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "한도 낱말 없음",
+   "kind": null,
+   "frame": null,
+   "reason": "화록·화권·화과·화기 구절: 대한 사화(대한 궁간의 사화)인지 생년 사화인지 원문에 없고 L2는 생년 사화만 검사하므로 옮기지 않음(L3의 대한 사화 표시가 필요)"
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -25712,7 +27708,13 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "한통칭",
+   "kind": "限통칭",
+   "frame": "大限",
+   "reason": "화록·화권·화과·화기 구절: 대한 사화(대한 궁간의 사화)인지 생년 사화인지 원문에 없고 L2는 생년 사화만 검사하므로 옮기지 않음(L3의 대한 사화 표시가 필요)"
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -25729,7 +27731,13 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "한도 낱말 없음",
+   "kind": null,
+   "frame": null,
+   "reason": "화록·화권·화과·화기 구절: 대한 사화(대한 궁간의 사화)인지 생년 사화인지 원문에 없고 L2는 생년 사화만 검사하므로 옮기지 않음(L3의 대한 사화 표시가 필요)"
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -25746,7 +27754,13 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "한도 낱말 없음",
+   "kind": null,
+   "frame": null,
+   "reason": "화록·화권·화과·화기 구절: 대한 사화(대한 궁간의 사화)인지 생년 사화인지 원문에 없고 L2는 생년 사화만 검사하므로 옮기지 않음(L3의 대한 사화 표시가 필요)"
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -25763,7 +27777,13 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "한도 낱말 없음",
+   "kind": null,
+   "frame": null,
+   "reason": "화록·화권·화과·화기 구절: 대한 사화(대한 궁간의 사화)인지 생년 사화인지 원문에 없고 L2는 생년 사화만 검사하므로 옮기지 않음(L3의 대한 사화 표시가 필요)"
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -26317,7 +28337,13 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "한통칭",
+   "kind": "二限",
+   "frame": "大限",
+   "reason": "화록·화권·화과·화기 구절: 대한 사화(대한 궁간의 사화)인지 생년 사화인지 원문에 없고 L2는 생년 사화만 검사하므로 옮기지 않음(L3의 대한 사화 표시가 필요)"
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -26334,7 +28360,13 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "한도 낱말 없음",
+   "kind": null,
+   "frame": null,
+   "reason": "화록·화권·화과·화기 구절: 대한 사화(대한 궁간의 사화)인지 생년 사화인지 원문에 없고 L2는 생년 사화만 검사하므로 옮기지 않음(L3의 대한 사화 표시가 필요)"
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -26377,7 +28409,14 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "大限",
+   "kind": "大限명시",
+   "frame": "大限",
+   "reason": "화록·화권·화과·화기 구절: 대한 사화(대한 궁간의 사화)인지 생년 사화인지 원문에 없고 L2는 생년 사화만 검사하므로 옮기지 않음(L3의 대한 사화 표시가 필요)",
+   "note": "小限 가지(小限逢之，一年不足)는 틀 밖, 大限 가지(大限相遇，十年悔吝)는 화기라 옮기지 않음"
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -26394,7 +28433,13 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "小限·太歲",
+   "kind": null,
+   "frame": "틀밖",
+   "reason": "太𡻕를 조건으로 든 구절(11-2의 2번: 틀 밖, 검사하지 않음)"
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -26411,7 +28456,13 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "한도 낱말 없음",
+   "kind": null,
+   "frame": null,
+   "reason": "화록·화권·화과·화기 구절: 대한 사화(대한 궁간의 사화)인지 생년 사화인지 원문에 없고 L2는 생년 사화만 검사하므로 옮기지 않음(L3의 대한 사화 표시가 필요)"
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -26428,7 +28479,13 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "한도 낱말 없음",
+   "kind": null,
+   "frame": null,
+   "reason": "화록·화권·화과·화기 구절: 대한 사화(대한 궁간의 사화)인지 생년 사화인지 원문에 없고 L2는 생년 사화만 검사하므로 옮기지 않음(L3의 대한 사화 표시가 필요)"
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -26445,7 +28502,13 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "한도 낱말 없음",
+   "kind": null,
+   "frame": null,
+   "reason": "화록·화권·화과·화기 구절: 대한 사화(대한 궁간의 사화)인지 생년 사화인지 원문에 없고 L2는 생년 사화만 검사하므로 옮기지 않음(L3의 대한 사화 표시가 필요)"
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -26462,7 +28525,13 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "한도 낱말 없음",
+   "kind": null,
+   "frame": null,
+   "reason": "화록·화권·화과·화기 구절: 대한 사화(대한 궁간의 사화)인지 생년 사화인지 원문에 없고 L2는 생년 사화만 검사하므로 옮기지 않음(L3의 대한 사화 표시가 필요)"
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -26479,7 +28548,13 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "한도 낱말 없음",
+   "kind": null,
+   "frame": null,
+   "reason": "화록·화권·화과·화기 구절: 대한 사화(대한 궁간의 사화)인지 생년 사화인지 원문에 없고 L2는 생년 사화만 검사하므로 옮기지 않음(L3의 대한 사화 표시가 필요)"
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -26502,7 +28577,13 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "한도 낱말 없음",
+   "kind": null,
+   "frame": null,
+   "reason": "화록·화권·화과·화기 구절: 대한 사화(대한 궁간의 사화)인지 생년 사화인지 원문에 없고 L2는 생년 사화만 검사하므로 옮기지 않음(L3의 대한 사화 표시가 필요)"
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -26519,7 +28600,13 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "한도 낱말 없음",
+   "kind": null,
+   "frame": null,
+   "reason": "화록·화권·화과·화기 구절: 대한 사화(대한 궁간의 사화)인지 생년 사화인지 원문에 없고 L2는 생년 사화만 검사하므로 옮기지 않음(L3의 대한 사화 표시가 필요)"
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -26536,7 +28623,13 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "한도 낱말 없음",
+   "kind": null,
+   "frame": null,
+   "reason": "화록·화권·화과·화기 구절: 대한 사화(대한 궁간의 사화)인지 생년 사화인지 원문에 없고 L2는 생년 사화만 검사하므로 옮기지 않음(L3의 대한 사화 표시가 필요)"
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -26553,7 +28646,13 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "한도 낱말 없음",
+   "kind": null,
+   "frame": null,
+   "reason": "화록·화권·화과·화기 구절: 대한 사화(대한 궁간의 사화)인지 생년 사화인지 원문에 없고 L2는 생년 사화만 검사하므로 옮기지 않음(L3의 대한 사화 표시가 필요)"
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -26954,7 +29053,13 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "한도 낱말 없음",
+   "kind": null,
+   "frame": null,
+   "reason": "화록·화권·화과·화기 구절: 대한 사화(대한 궁간의 사화)인지 생년 사화인지 원문에 없고 L2는 생년 사화만 검사하므로 옮기지 않음(L3의 대한 사화 표시가 필요)"
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -26971,7 +29076,13 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "한도 낱말 없음",
+   "kind": null,
+   "frame": null,
+   "reason": "화록·화권·화과·화기 구절: 대한 사화(대한 궁간의 사화)인지 생년 사화인지 원문에 없고 L2는 생년 사화만 검사하므로 옮기지 않음(L3의 대한 사화 표시가 필요)"
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -26988,7 +29099,13 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "한통칭",
+   "kind": "二限",
+   "frame": "大限",
+   "reason": "화록·화권·화과·화기 구절: 대한 사화(대한 궁간의 사화)인지 생년 사화인지 원문에 없고 L2는 생년 사화만 검사하므로 옮기지 않음(L3의 대한 사화 표시가 필요)"
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -27005,7 +29122,13 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "한도 낱말 없음",
+   "kind": null,
+   "frame": null,
+   "reason": "화록·화권·화과·화기 구절: 대한 사화(대한 궁간의 사화)인지 생년 사화인지 원문에 없고 L2는 생년 사화만 검사하므로 옮기지 않음(L3의 대한 사화 표시가 필요)"
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -27022,7 +29145,13 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "한도 낱말 없음",
+   "kind": null,
+   "frame": null,
+   "reason": "화록·화권·화과·화기 구절: 대한 사화(대한 궁간의 사화)인지 생년 사화인지 원문에 없고 L2는 생년 사화만 검사하므로 옮기지 않음(L3의 대한 사화 표시가 필요)"
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -27039,7 +29168,13 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "한도 낱말 없음",
+   "kind": null,
+   "frame": null,
+   "reason": "화록·화권·화과·화기 구절: 대한 사화(대한 궁간의 사화)인지 생년 사화인지 원문에 없고 L2는 생년 사화만 검사하므로 옮기지 않음(L3의 대한 사화 표시가 필요)"
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -27056,7 +29191,13 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "한도 낱말 없음",
+   "kind": null,
+   "frame": null,
+   "reason": "화록·화권·화과·화기 구절: 대한 사화(대한 궁간의 사화)인지 생년 사화인지 원문에 없고 L2는 생년 사화만 검사하므로 옮기지 않음(L3의 대한 사화 표시가 필요)"
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -27073,7 +29214,13 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "한도 낱말 없음",
+   "kind": null,
+   "frame": null,
+   "reason": "화록·화권·화과·화기 구절: 대한 사화(대한 궁간의 사화)인지 생년 사화인지 원문에 없고 L2는 생년 사화만 검사하므로 옮기지 않음(L3의 대한 사화 표시가 필요)"
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -27090,7 +29237,13 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "小限·太歲",
+   "kind": null,
+   "frame": "틀밖",
+   "reason": "歲君(流年 太歲) 절의 구절(11-2의 2번: 틀 밖, 검사하지 않음)"
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -27107,7 +29260,13 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "小限·太歲",
+   "kind": null,
+   "frame": "틀밖",
+   "reason": "歲君(流年 太歲) 절의 구절(11-2의 2번: 틀 밖, 검사하지 않음)"
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -27124,7 +29283,13 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "小限·太歲",
+   "kind": null,
+   "frame": "틀밖",
+   "reason": "歲君(流年 太歲) 절의 구절(11-2의 2번: 틀 밖, 검사하지 않음)"
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -27141,7 +29306,13 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "小限·太歲",
+   "kind": null,
+   "frame": "틀밖",
+   "reason": "歲君(流年 太歲) 절의 구절(11-2의 2번: 틀 밖, 검사하지 않음)"
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -27158,7 +29329,13 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "小限·太歲",
+   "kind": null,
+   "frame": "틀밖",
+   "reason": "歲君(流年 太歲) 절의 구절(11-2의 2번: 틀 밖, 검사하지 않음)"
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -27175,7 +29352,13 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "小限·太歲",
+   "kind": null,
+   "frame": "틀밖",
+   "reason": "歲君(流年 太歲) 절의 구절(11-2의 2번: 틀 밖, 검사하지 않음)"
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -27192,7 +29375,13 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "小限·太歲",
+   "kind": null,
+   "frame": "틀밖",
+   "reason": "歲君(流年 太歲) 절의 구절(11-2의 2번: 틀 밖, 검사하지 않음)"
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -27209,7 +29398,13 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "小限·太歲",
+   "kind": null,
+   "frame": "틀밖",
+   "reason": "歲君(流年 太歲) 절의 구절(11-2의 2번: 틀 밖, 검사하지 않음)"
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -27226,7 +29421,13 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "小限·太歲",
+   "kind": null,
+   "frame": "틀밖",
+   "reason": "歲君(流年 太歲) 절의 구절(11-2의 2번: 틀 밖, 검사하지 않음)"
+  }
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -27243,6 +29444,12 @@
   "parse": "unparsed",
   "reason": "운 구절",
   "abbr": "入限",
-  "decode_type": "운(限) 구절"
+  "decode_type": "운(限) 구절",
+  "limit": {
+   "type": "한도 낱말 없음",
+   "kind": null,
+   "frame": null,
+   "reason": "권말 표제(紫㣲斗數全書下)"
+  }
  }
 ]

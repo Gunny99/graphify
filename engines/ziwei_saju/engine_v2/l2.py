@@ -314,8 +314,11 @@ def evaluate_palace(ctx, z, passages, role):
         v = '선다' if met == total else ('반만' if (met > 0 or (half > 0 and nohit == 0)) else '서지 않는다')
         if hard:
             v = '서지 않는다'
-        out.append({'id': p['id'], 'verdict': v, 'met': met, 'half': half, 'total': total, 'failed': failed + unknown,
-                    'unknown': unknown, 'polarity': p['polarity'], 'enum': enum})
+        item = {'id': p['id'], 'verdict': v, 'met': met, 'half': half, 'total': total, 'failed': failed + unknown,
+                'unknown': unknown, 'polarity': p['polarity'], 'enum': enum}
+        if p.get('half') and v == '선다':      # 減半 구절(명세 11-2 3번): 수를 곱하지 않고 글만 곁에 적는다
+            item['half_note'] = p['half']['note']
+        out.append(item)
     return out, unparsed
 
 
@@ -386,3 +389,79 @@ def evaluate(result, passages=None):
     if default:
         res.update(evaluate_j3(result))
     return res
+
+
+# ── 운(限) 구절 (명세 11-2, 2026-11-18) ───────────────────────────────────
+def _expand_limit(passages3, kinds=None):
+    """권3 限 구절의 limit 가지를 evaluate_palace가 읽는 구절 꼴로 편다(data/apply_limit_j3.py가 만든 limit 필드).
+    -> (가지 목록, 옮기지 못한 구절 목록, 틀 밖 구절 목록, 종류 제외 수)"""
+    enc, unp, out, skipped = [], [], [], 0
+    for p in passages3:
+        if p.get('scope') != '限':
+            continue
+        lim = p.get('limit')
+        base = {'id': p['id'], 'line': p['line'], 'text': p['text'], 'star': p['star']}
+        if not lim:
+            unp.append(dict(base, reason='limit 필드 없음(data/apply_limit_j3.py를 돌리지 않았다)', type=None))
+            continue
+        if lim.get('frame') == '틀밖':
+            out.append(dict(base, reason=lim.get('reason'), type=lim.get('type')))
+            continue
+        if not lim.get('branches'):
+            unp.append(dict(base, reason=lim.get('reason'), type=lim.get('type')))
+            continue
+        if kinds is not None and lim.get('kind') not in kinds:
+            skipped += 1
+            continue
+        for b in lim['branches']:
+            q = {'id': b['id'], 'palace': '명', 'line': p['line'], 'text': p['text'], 'clause': b['clause'], 'result': b['clause'],
+                 'star': b['star'], 'conds': b['conds'], 'polarity': b['polarity'], 'scope': '限',
+                 'parse': 'unparsed' if b.get('unparsed') else 'manual', 'limit_kind': lim.get('kind'), 'limit_type': lim.get('type')}
+            if b.get('inherits'):
+                q['inherits'] = b['inherits']
+            if b.get('unparsed'):
+                q['reason'] = b['unparsed']
+            enc.append(q)
+    return enc, unp, out, skipped
+
+
+def _wide(q):
+    """조건에 삼방·대궁·삼합 범위가 든 구절인가(구절 차례 11-2 4번의 '동궁 조건만인 구절'을 가른다)"""
+    return any(c['kind'] in PRESENCE_KINDS and not c.get('role') and _cscope(c) != '동궁' for c in q['conds'])
+
+
+def evaluate_limit(result, daehan_index, passages=None, kinds=None):
+    """한 대한(result['daehan'][daehan_index], 0부터)의 대한 명궁에 권3 限 구절 가운데 大限에 적용되는 구절을 L2 방식으로 검사한다.
+    小限·太歲 조건 구절(limit.frame '틀밖')은 검사하지 않고 outside에 적는다(11-2 2번). 사화 구절 따위 옮기지 못한 구절은 unparsed(대한 명궁에 주체 별이 든 것만).
+    kinds: 검사할 limit.kind의 모임(None이면 모두: 大限명시, 大小限, 二限, 限통칭, 更 이음). 대한의 길흉 판정(노출도, 화기 중첩)과 합치지 않는다(11-2 1번).
+    반환은 evaluate_j3의 한 궁과 같다: {palace, passages:[{id, verdict(선다·반만·서지 않는다), met, total, failed, enum, polarity, ...}], unparsed, summary}.
+    구절 차례(11-2 4번): 선다가 반만보다 앞, 동궁 조건만인 구절이 삼방을 든 구절보다 앞, 흉이 길보다 앞, 그다음 원문 행 번호."""
+    passages3 = passages if passages is not None else load_passages(DATA3)
+    ctx = _Ctx(result)
+    d = result['daehan'][daehan_index]
+    z = d['palace']
+    enc, unp, outside, skipped = _expand_limit(passages3, kinds)
+    enc = _inherit(enc)
+    use = []
+    for q in enc:
+        if q['parse'] == 'unparsed':
+            if _subject3(ctx, z, q):
+                unp.append({'id': q['id'], 'line': q['line'], 'text': q.get('clause') or q['text'], 'star': q['star'], 'reason': q.get('reason'), 'type': q['limit_type']})
+        else:
+            use.append(q)
+    unp = [{'id': u['id'], 'line': u['line'], 'text': u.get('text'), 'reason': u.get('reason'), 'type': u.get('type')} for u in unp
+           if u.get('star') is None or _subject3(ctx, z, u)]
+    items, _ = evaluate_palace(ctx, z, use, '명')
+    by = {q['id']: q for q in use}
+    rank = {'흉': 0, '길': 1}
+    for it in items:
+        q = by[it['id']]
+        if it['total'] == 0:                  # 주체 별이 이 대한 명궁에 든 것이 곧 조건이다(조건 하나가 선 것으로 센다)
+            it['met'] = it['total'] = 1
+            it['subject_only'] = True
+        it.update(line=q['line'], text=q['clause'], limit_kind=q['limit_kind'], limit_type=q['limit_type'], wide=_wide(q))
+    order = {'선다': 0, '반만': 1, '서지 않는다': 2}
+    items.sort(key=lambda it: (order[it['verdict']], 1 if it['wide'] else 0, rank.get(it['polarity'], 2), it['line'], it['id']))
+    return {'palace': z, 'daehan': {k: d[k] for k in ('n', 'natal_role', 'age_from', 'age_to')}, 'passages': items,
+            'unparsed': unp, 'outside': outside, 'skipped_kinds': skipped, 'summary': summarize(items)}
+
