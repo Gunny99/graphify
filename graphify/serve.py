@@ -3099,6 +3099,132 @@ def _build_server(graph_path: str):
                     },
                 },
             ),
+            types.Tool(
+                name="orchestrator_create_run",
+                description="Create a durable task run and dependency graph. The coordinator should select single_agent or single_with_review by default; parallel_independent is accepted only with disjoint write sets.",
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "run": {"type": "object", "description": "Versioned run envelope including execution_policy, quality_policy, and cost_policy."},
+                        "tasks": {"type": "array", "items": {"type": "object"}, "description": "Validated task envelopes for this run."},
+                        "coordinator_token": {"type": "string"},
+                    },
+                    "required": ["run", "tasks", "coordinator_token"],
+                },
+            ),
+            types.Tool(
+                name="orchestrator_list_agents",
+                description="List locally registered agents, capabilities, and trusted quality-profile status. Authentication tokens and token hashes are never returned.",
+                inputSchema={"type": "object", "properties": {}},
+            ),
+            types.Tool(
+                name="orchestrator_claim_task",
+                description="Claim the lowest-total-cost eligible task for a registered agent. Returns a lease token that must be used for heartbeat and result submission.",
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "agent_id": {"type": "string"},
+                        "agent_token": {"type": "string"},
+                        "lease_seconds": {"type": "integer", "default": 300},
+                    },
+                    "required": ["agent_id", "agent_token"],
+                },
+            ),
+            types.Tool(
+                name="orchestrator_heartbeat_task",
+                description="Renew an active task lease held by this registered agent.",
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "task_id": {"type": "string"},
+                        "agent_id": {"type": "string"},
+                        "agent_token": {"type": "string"},
+                        "lease_token": {"type": "string"},
+                        "lease_seconds": {"type": "integer", "default": 300},
+                    },
+                    "required": ["task_id", "agent_id", "agent_token", "lease_token"],
+                },
+            ),
+            types.Tool(
+                name="orchestrator_submit_result",
+                description="Submit a structured result for an active non-verification task. Material factual claims may create a separate verifier task according to the run strategy.",
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "result": {"type": "object"},
+                        "agent_token": {"type": "string"},
+                        "lease_token": {"type": "string"},
+                    },
+                    "required": ["result", "agent_token", "lease_token"],
+                },
+            ),
+            types.Tool(
+                name="orchestrator_get_verification_payload",
+                description="Retrieve the immutable producer result only while holding the verifier task's active lease.",
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "task_id": {"type": "string"},
+                        "agent_id": {"type": "string"},
+                        "agent_token": {"type": "string"},
+                        "lease_token": {"type": "string"},
+                    },
+                    "required": ["task_id", "agent_id", "agent_token", "lease_token"],
+                },
+            ),
+            types.Tool(
+                name="orchestrator_submit_review",
+                description="Submit claim-level independent verification. The caller must hold the leased verification task bound to the result.",
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "review": {"type": "object"},
+                        "agent_token": {"type": "string"},
+                        "lease_token": {"type": "string"},
+                    },
+                    "required": ["review", "agent_token", "lease_token"],
+                },
+            ),
+            types.Tool(
+                name="orchestrator_fail_task",
+                description="Mark an owned task attempt as failed, with a bounded retry decision.",
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "task_id": {"type": "string"},
+                        "agent_id": {"type": "string"},
+                        "agent_token": {"type": "string"},
+                        "lease_token": {"type": "string"},
+                        "reason": {"type": "string"},
+                        "retryable": {"type": "boolean", "default": True},
+                    },
+                    "required": ["task_id", "agent_id", "agent_token", "lease_token", "reason"],
+                },
+            ),
+            types.Tool(
+                name="orchestrator_get_run_status",
+                description="Get run/task states, blockers, actual cost, reserved cost, and remaining budget.",
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "run_id": {"type": "string"},
+                        "coordinator_token": {"type": "string"},
+                    },
+                    "required": ["run_id", "coordinator_token"],
+                },
+            ),
+            types.Tool(
+                name="orchestrator_cancel_run",
+                description="Cancel pending work and invalidate active leases for a run.",
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "run_id": {"type": "string"},
+                        "coordinator_token": {"type": "string"},
+                    },
+                    "required": ["run_id", "coordinator_token"],
+                },
+            ),
         ]
         # Multi-project support: every tool accepts an optional project_path.
         # Injected here (rather than repeated in 11 literal schemas) so the set
@@ -3356,6 +3482,119 @@ def _build_server(graph_path: str):
             )
         return "\n\n".join(lines)
 
+    # Durable orchestration state is scoped to the selected graph project.
+    _orchestration_stores: dict[str, Any] = {}
+    _orchestration_store_lock = threading.Lock()
+
+    def _orchestration_store():
+        from graphify.task_store import TaskStore
+        store_path = str((Path(active_graph_path).parent / "orchestrator.sqlite3").resolve())
+        with _orchestration_store_lock:
+            store = _orchestration_stores.get(store_path)
+            if store is None:
+                store = TaskStore(store_path)
+                _orchestration_stores[store_path] = store
+            return store
+
+    def _orchestration_json(value: Any) -> str:
+        return json.dumps(value, ensure_ascii=False, default=str)
+
+    def _authenticate_orchestration_agent(store, agent_id: str, token: str) -> None:
+        store.authenticate_agent(agent_id, token)
+
+    def _require_orchestration_coordinator(arguments: dict) -> None:
+        expected = os.environ.get("GRAPHIFY_ORCHESTRATOR_TOKEN", "")
+        supplied = arguments.get("coordinator_token", "")
+        if not expected or not isinstance(supplied, str) or not __import__("hmac").compare_digest(
+            expected, supplied
+        ):
+            raise ToolError(
+                "Coordinator authentication failed. Configure GRAPHIFY_ORCHESTRATOR_TOKEN "
+                "in the MCP server environment and pass the matching coordinator_token."
+            )
+
+    def _tool_orchestrator_create_run(arguments: dict) -> str:
+        _require_orchestration_coordinator(arguments)
+        store = _orchestration_store()
+        return _orchestration_json(store.create_run(arguments["run"], arguments["tasks"]))
+
+    def _tool_orchestrator_list_agents(_: dict) -> str:
+        return _orchestration_json(_orchestration_store().list_agents())
+
+    def _tool_orchestrator_claim_task(arguments: dict) -> str:
+        store = _orchestration_store()
+        store.authenticate_agent(arguments["agent_id"], arguments["agent_token"])
+        result = store.claim_task(
+            arguments["agent_id"],
+            lease_seconds=int(arguments.get("lease_seconds", 300)),
+        )
+        return _orchestration_json({"task": result})
+
+    def _tool_orchestrator_heartbeat_task(arguments: dict) -> str:
+        store = _orchestration_store()
+        store.authenticate_agent(arguments["agent_id"], arguments["agent_token"])
+        expires = store.heartbeat_task(
+            arguments["task_id"],
+            arguments["agent_id"],
+            arguments["lease_token"],
+            lease_seconds=int(arguments.get("lease_seconds", 300)),
+        )
+        return _orchestration_json({"lease_expires_at": expires})
+
+    def _tool_orchestrator_submit_result(arguments: dict) -> str:
+        store = _orchestration_store()
+        result = arguments["result"]
+        if not isinstance(result, dict) or not isinstance(result.get("agent"), dict):
+            raise ToolError("result must be an object with an agent identity")
+        agent_id = result["agent"].get("agent_id")
+        _authenticate_orchestration_agent(store, agent_id, arguments["agent_token"])
+        return _orchestration_json(
+            store.submit_result(result, arguments["lease_token"])
+        )
+
+    def _tool_orchestrator_get_verification_payload(arguments: dict) -> str:
+        store = _orchestration_store()
+        store.authenticate_agent(arguments["agent_id"], arguments["agent_token"])
+        return _orchestration_json(
+            store.get_verification_payload(
+                arguments["task_id"],
+                arguments["agent_id"],
+                arguments["lease_token"],
+            )
+        )
+
+    def _tool_orchestrator_submit_review(arguments: dict) -> str:
+        store = _orchestration_store()
+        review = arguments["review"]
+        if not isinstance(review, dict) or not isinstance(review.get("reviewer"), dict):
+            raise ToolError("review must be an object with a reviewer identity")
+        reviewer_id = review["reviewer"].get("agent_id")
+        _authenticate_orchestration_agent(store, reviewer_id, arguments["agent_token"])
+        return _orchestration_json(
+            store.submit_review(review, arguments["lease_token"])
+        )
+
+    def _tool_orchestrator_fail_task(arguments: dict) -> str:
+        store = _orchestration_store()
+        store.authenticate_agent(arguments["agent_id"], arguments["agent_token"])
+        return _orchestration_json(
+            store.fail_task(
+                arguments["task_id"],
+                arguments["agent_id"],
+                arguments["lease_token"],
+                arguments["reason"],
+                retryable=arguments.get("retryable", True),
+            )
+        )
+
+    def _tool_orchestrator_get_run_status(arguments: dict) -> str:
+        _require_orchestration_coordinator(arguments)
+        return _orchestration_json(_orchestration_store().get_run_status(arguments["run_id"]))
+
+    def _tool_orchestrator_cancel_run(arguments: dict) -> str:
+        _require_orchestration_coordinator(arguments)
+        return _orchestration_json(_orchestration_store().cancel_run(arguments["run_id"]))
+
     _handlers = {
         "query_graph": _tool_query_graph,
         "get_node": _tool_get_node,
@@ -3367,6 +3606,16 @@ def _build_server(graph_path: str):
         "list_prs": _tool_list_prs,
         "get_pr_impact": _tool_get_pr_impact,
         "triage_prs": _tool_triage_prs,
+        "orchestrator_create_run": _tool_orchestrator_create_run,
+        "orchestrator_list_agents": _tool_orchestrator_list_agents,
+        "orchestrator_claim_task": _tool_orchestrator_claim_task,
+        "orchestrator_heartbeat_task": _tool_orchestrator_heartbeat_task,
+        "orchestrator_submit_result": _tool_orchestrator_submit_result,
+        "orchestrator_get_verification_payload": _tool_orchestrator_get_verification_payload,
+        "orchestrator_submit_review": _tool_orchestrator_submit_review,
+        "orchestrator_fail_task": _tool_orchestrator_fail_task,
+        "orchestrator_get_run_status": _tool_orchestrator_get_run_status,
+        "orchestrator_cancel_run": _tool_orchestrator_cancel_run,
     }
 
     def _load_community_labels() -> dict[int, str]:

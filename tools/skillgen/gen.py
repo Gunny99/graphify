@@ -544,7 +544,12 @@ def _core_to_powershell(body: str) -> str:
 # Step B3's re-run hints name the agent that can write chunk files. A dispatch
 # variant whose host has no `general-purpose` agent names its own (#4494).
 _DEFAULT_WRITER_AGENT = ("general-purpose agent", '`subagent_type="general-purpose"`')
-_WRITER_AGENT = {"pi-subagents": ("the `delegate` agent", "the `delegate` agent")}
+_WRITER_AGENT = {
+    "pi-subagents": ("the `delegate` agent", "the `delegate` agent"),
+    "codex-agenttask": ("the Codex `worker` agent", '`agent_type="worker"`'),
+    "opencode-mention": ("an OpenCode `@agent` worker", "the worker's own absolute `CHUNK_PATH`"),
+    "manual-paste": ("a manually dispatched worker", "the worker's chunk-specific absolute `CHUNK_PATH`"),
+}
 
 
 def _render_core(platform: Platform) -> str:
@@ -1442,6 +1447,45 @@ def _is_cloud_cta_section_line(line: str) -> bool:
 # baseline. Each predicate documents one sanctioned change-class; a blank line is
 # allowed because the multi-line fix blocks insert spacing. Anything else failing
 # all of these is an unsanctioned drift the round-trip must catch.
+
+def _is_single_session_first_fix_line(line: str) -> bool:
+    """Allow only the reviewed single-session-first workflow changes in monoliths."""
+    markers = (
+        "You must pass `DEEP_MODE=true` to every subagent in Step B2",
+        "Preserve that setting in every file/chunk",
+        "**Run Part A (AST) and Part B (semantic) in parallel.",
+        "Note: Parallelizing AST + semantic saves 5-15s",
+        "Run structural extraction and semantic extraction as separate stages",
+        "For any code files detected, run AST extraction in parallel with Part B subagents:",
+        "For any detected code files, run the deterministic AST extraction below.",
+        "#### Part B - Semantic extraction (parallel subagents)",
+        "#### Part B - Semantic extraction",
+        "Before dispatching any subagents, check which files already have cached extraction results:",
+        "Before processing any uncached files, check which files already have cached extraction results:",
+        "Before dispatching subagents, print a timing estimate:",
+        "Load `total_words` and file counts from `graphify-out/.graphify_detect.json`",
+        "Only dispatch subagents for files listed in",
+        "Only process files listed in",
+        "**MANDATORY: You MUST use the subagent system here.",
+        "Reading files yourself one-by-one is forbidden",
+        "Estimate agents needed:",
+        "Estimate time: ~45s per agent batch",
+        "Print: \"Semantic extraction: ~N files",
+        "If you do not use parallel subagents you are doing this wrong.",
+        "**Single-session-first rule:**",
+        "**Inline path:**",
+        "**Delegated path:**",
+        "Semantic extraction: N files (sequential — Aider)",
+        "Dispatch ALL subagents in the same response so they run in parallel.",
+        "On the delegated path, dispatch all approved independent subagents",
+        "Wait for all subagents. For each result:",
+        "Wait for all delegated subagents to finish, or finish the inline chunks",
+        "After each subagent call completes, write its result to",
+        "After each subagent call completes, read the real token counts",
+        "After each chunk completes, persist its result to its assigned",
+    )
+    return any(marker in line for marker in markers)
+
 _SANCTIONED_MONOLITH_DIFFS = (
     _is_enum_line,
     _is_frontmatter_description_line,
@@ -1472,6 +1516,7 @@ _SANCTIONED_MONOLITH_DIFFS = (
     _is_skip_steps_clarification_line,
     _is_when_to_build_guidance_line,
     _is_hub_bypass_check_fix_line,
+    _is_single_session_first_fix_line,
 )
 
 

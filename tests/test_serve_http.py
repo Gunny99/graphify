@@ -582,3 +582,46 @@ def test_ipv6_loopback_bind_still_rejects_foreign_host_header(tmp_path):
     with _client(app) as client:
         resp = client.post("/mcp", headers={**_MCP_HEADERS, "Host": "evil.example:8080"}, json=_INIT_BODY)
         assert resp.status_code == 421
+
+
+
+def test_orchestrator_tool_schemas_and_status_authentication_are_consistent(tmp_path, monkeypatch):
+    monkeypatch.setenv("GRAPHIFY_ORCHESTRATOR_TOKEN", "coordinator-secret")
+    app = serve_mod._build_http_app(_graph_file(tmp_path), json_response=True)
+    with _client(app) as client:
+        init = client.post("/mcp", headers=_MCP_HEADERS, json=_INIT_BODY)
+        assert init.status_code == 200
+        session_id = init.headers["mcp-session-id"]
+        headers = {**_MCP_HEADERS, "mcp-session-id": session_id}
+        client.post(
+            "/mcp",
+            headers=headers,
+            json={"jsonrpc": "2.0", "method": "notifications/initialized"},
+        )
+        listed = client.post(
+            "/mcp",
+            headers=headers,
+            json={"jsonrpc": "2.0", "id": 2, "method": "tools/list", "params": {}},
+        )
+        schemas = {
+            tool["name"]: tool["inputSchema"]
+            for tool in listed.json()["result"]["tools"]
+        }
+        assert "coordinator_token" not in schemas["orchestrator_fail_task"]["properties"]
+        assert "coordinator_token" in schemas["orchestrator_cancel_run"]["properties"]
+        assert "coordinator_token" in schemas["orchestrator_cancel_run"]["required"]
+
+        rejected = client.post(
+            "/mcp",
+            headers=headers,
+            json={
+                "jsonrpc": "2.0",
+                "id": 3,
+                "method": "tools/call",
+                "params": {
+                    "name": "orchestrator_get_run_status",
+                    "arguments": {"run_id": "missing-run", "coordinator_token": "wrong-token"},
+                },
+            },
+        )
+        assert "Coordinator authentication failed" in json.dumps(rejected.json())

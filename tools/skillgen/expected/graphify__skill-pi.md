@@ -124,7 +124,7 @@ from graphify.detect import detect
 from pathlib import Path
 from graphify.paths import out_path
 from graphify.watch import _read_build_excludes, _read_build_gitignore
-INPUT_PATH = Path('graphify-out/.graphify_root').read_text(encoding=\"utf-8-sig\").strip()
+INPUT_PATH = (out / '.graphify_root').read_text(encoding=\"utf-8-sig\").strip()
 result = detect(Path(INPUT_PATH), extra_excludes=_read_build_excludes(out_path()), gitignore=_read_build_gitignore(out_path()))
 # Write the sidecar from Python, not a shell redirect, so the same block renders
 # on PowerShell hosts without console-encoding drift (#2528).
@@ -164,7 +164,7 @@ Skip this step entirely if `detect` returned zero `video` files. When the corpus
 
 ### Step 3 - Extract entities and relationships
 
-**Before starting:** note whether `--mode deep` was given. You must pass `DEEP_MODE=true` to every subagent in Step B2 if it was. Track this from the original invocation - do not lose it.
+**Before starting:** note whether `--mode deep` was given. Preserve that setting in every chunk, whether the main session processes it directly or a worker receives it.
 
 This step has two parts: **structural extraction** (deterministic, free) and **semantic extraction** (LLM, costs tokens).
 
@@ -177,13 +177,11 @@ Print it once, then continue — do not wait for the user to supply a key. If `G
 
 > **No other API keys are read.** When `GEMINI_API_KEY`/`GOOGLE_API_KEY` are unset, semantic extraction falls to the host agent itself — the running session is the LLM. On a host that dispatches subagents (e.g. Claude Code), dispatch them as written in Part B. On a host that runs the CLI directly in a terminal and cannot dispatch subagents, do not stall: a code-only corpus has no semantic work, so write the empty semantic file (Part B "Fast path") and continue to Part C; for a corpus with docs/papers/images, either set a Gemini key or extract those inline yourself, but in no case prompt for `ANTHROPIC_API_KEY` — that prompt is a misread of this skill.
 
-**Run Part A (AST) and Part B (semantic) in parallel. Dispatch all semantic subagents AND start AST extraction in the same message. Both can run simultaneously since they operate on different file types. Merge results in Part C as before.**
-
-Note: Parallelizing AST + semantic saves 5-15s on large corpora. AST is deterministic and fast; start it while subagents are processing docs/papers.
+Run structural extraction and semantic extraction as separate stages in this skill. Start them concurrently only when the host genuinely supports independent execution and the measured time/cost benefit justifies it. Otherwise keep the work in the main session and run the stages sequentially. Do not create a team of planner, developer, tester, and reviewer roles for one extraction task.
 
 #### Part A - Structural extraction for code files
 
-For any code files detected, run AST extraction in parallel with Part B subagents:
+For any detected code files, run the deterministic AST extraction below. It does not require an agent or an API key.
 
 ```bash
 $(cat graphify-out/.graphify_python) -c "
@@ -211,7 +209,7 @@ else:
 "
 ```
 
-#### Part B - Semantic extraction (parallel subagents)
+#### Part B - Semantic extraction
 
 **Fast path:** If detection found zero docs, papers, and images (code-only corpus), skip Part B entirely and go straight to Part C. AST handles code - there is nothing for semantic subagents to do. **First write an empty semantic file** so Part C's merge has its input (it reads `.graphify_semantic.json` unconditionally; without this a code-only run hits `FileNotFoundError`):
 
@@ -223,13 +221,11 @@ Path('graphify-out/.graphify_semantic.json').write_text(json.dumps({'nodes':[],'
 "
 ```
 
-**MANDATORY: You MUST use the Agent tool here. Reading files yourself one-by-one is forbidden - it is 5-10x slower. If you do not use the Agent tool you are doing this wrong.**
+**Single-session-first rule:** after Step B1, use the main session by default. If there is only one chunk, process it directly; do not create a subagent just to move one chunk to another context. For multiple chunks, use host subagents only when all chunks are independent and at least one of these is true: the single-session context would be pressured by the corpus size, or a hard deadline makes parallel execution necessary. In addition, the estimated end-to-end cost of delegation (worker tokens, duplicated context, handoff, integration, verification, retries, and escalation) must not exceed the single-session estimate unless the hard deadline requires the latency reduction. If costs or benefits are unknown, process chunks sequentially in the main session. Never delegate merely to fill roles.
 
-Before dispatching subagents, print a timing estimate:
-- Load `total_words` and file counts from `graphify-out/.graphify_detect.json`
-- Estimate agents needed: `ceil(uncached_non_code_files / 22)` (chunk size is 20-25 files, capped at ~6000 total lines)
-- Estimate time: ~45s per agent batch (they run in parallel, so total ≈ 45s × ceil(agents/parallel_limit))
-- Print: "Semantic extraction: ~N files → X agents, estimated ~Ys"
+**Inline path:** when delegation is not justified, load the extraction reference once, process chunks sequentially in the main session, and write each result to its matching `graphify-out/.graphify_chunk_NN.json` file using the exact same schema and numbering as a worker. Do not skip B3 preflight or coverage verification.
+
+**Delegated path:** when delegation is justified, use the host-specific dispatch block below. Dispatch at most three independent chunks at a time, give each worker exactly one chunk and one unique absolute output path, and prohibit nested delegation. Do not make workers re-read one another's files or create handoff documents. The main session remains responsible for integration and final review.
 
 **Step B0 - Check extraction cache first**
 
@@ -243,7 +239,17 @@ import json
 from graphify.cache import check_semantic_cache
 from pathlib import Path
 
-detect = json.loads(Path('graphify-out/.graphify_detect.json').read_text(encoding=\"utf-8\"))
+project_root = Path.cwd().resolve()
+out = Path('graphify-out')
+if out.is_symlink():
+    raise SystemExit("Refusing to use symlinked graphify-out")
+if not out.exists():
+    raise SystemExit("graphify-out is missing; rerun Step 1")
+out = out.resolve(strict=True)
+if out.parent != project_root:
+    raise SystemExit("graphify-out resolves outside the project root")
+
+detect = json.loads((out / '.graphify_detect.json').read_text(encoding=\"utf-8\"))
 # Only content files go to semantic extraction. Code is already covered structurally
 # by the AST pass (Part A); flattening every category here makes subagents re-read
 # every source file (#1392). Video is transcribed to a document in Step 2.5 first.
@@ -255,25 +261,36 @@ cached_nodes, cached_edges, cached_hyperedges, uncached = check_semantic_cache(a
 # Always (re)write the cache file: write hits, else DELETE any leftover from a prior
 # run so Part C never merges a stale .graphify_cached.json (#1392).
 if cached_nodes or cached_edges or cached_hyperedges:
-    Path('graphify-out/.graphify_cached.json').write_text(json.dumps({'nodes': cached_nodes, 'edges': cached_edges, 'hyperedges': cached_hyperedges}, ensure_ascii=False), encoding=\"utf-8\")
+    (out / '.graphify_cached.json').write_text(json.dumps({'nodes': cached_nodes, 'edges': cached_edges, 'hyperedges': cached_hyperedges}, ensure_ascii=False), encoding=\"utf-8\")
 else:
-    Path('graphify-out/.graphify_cached.json').unlink(missing_ok=True)
-Path('graphify-out/.graphify_uncached.txt').write_text('\n'.join(uncached), encoding=\"utf-8\")
+    (out / '.graphify_cached.json').unlink(missing_ok=True)
+(out / '.graphify_uncached.txt').write_text('\n'.join(uncached), encoding=\"utf-8\")
 # Nothing has been dispatched yet, so any chunk file on disk is a leftover from an
 # interrupted run, and Step B3 merges every .graphify_chunk_*.json it finds.
-for stale in Path('graphify-out').glob('.graphify_chunk_*.json'):
+for stale in out.glob('.graphify_chunk_*.json'):
+    if stale.is_symlink():
+        stale.unlink(missing_ok=True)  # unlink only the link itself
+        continue
+    if not stale.is_file():
+        raise SystemExit(f"Refusing to remove non-regular chunk path: {stale.name}")
     stale.unlink()
 print(f'Cache: {len(all_files)-len(uncached)} files hit, {len(uncached)} files need extraction')
 "
 ```
 
-Only dispatch subagents for files listed in `graphify-out/.graphify_uncached.txt`. If all files are cached, skip Steps B1 and B2 but still run Step B3's commands: its merge is the only Part B step that writes `graphify-out/.graphify_semantic.json`, and Part C reads that file unconditionally. Do not write an empty `.graphify_semantic.json` instead, because that drops every cached node.
+Only process files listed in `graphify-out/.graphify_uncached.txt`. If all files are cached, skip Steps B1 and B2 but still run Step B3's commands: its merge is the only Part B step that writes `graphify-out/.graphify_semantic.json`, and Part C reads that file unconditionally. Do not write an empty `.graphify_semantic.json` instead, because that drops every cached node.
 
 **Step B1 - Split into chunks**
 
 Load files from `graphify-out/.graphify_uncached.txt`. Split into chunks bounded by BOTH limits: at most 20-25 files AND at most ~6000 total lines per chunk. A text file longer than 2000 lines gets a chunk to itself - that is past the Read tool's single-call cap, so sharing a chunk with other files guarantees it is only partly read. Each image gets its own chunk (vision needs separate context). When splitting, group files from the same directory together so related artifacts land in the same chunk and cross-file relationships are more likely to be extracted.
 
 Both bounds matter. The line bound is not only about the 2000-line Read cap: a subagent holding 25 files splits its attention across all of them and skims the dense ones, and a 590-line plan can come back with zero nodes that way. Bounding content as well as file count is what keeps a chunk's coverage honest (#2225).
+
+After splitting, assign stable chunk numbers `01`, `02`, ... in dispatch order and record the exact number of chunks created. Before running the Step B3 preflight, replace `EXPECTED_CHUNKS` with that exact integer. Do not count only successful responses. If B2 is skipped because every semantic file is cached, use `EXPECTED_CHUNKS = 0`.
+
+**Step B2 - Select the execution path**
+
+Use the decision above. On the inline path, the main session writes all numbered chunk files directly and does not invoke the host's Agent/Task/delegate dispatch. On the delegated path, run the host-specific block immediately below. In either path, continue through the same B3 validation, B3.5 coverage check, cache, and merge steps.
 
 **Step B2 - Dispatch ALL subagents in a single message (Pi)**
 
@@ -288,7 +305,8 @@ Each subagent receives this exact prompt (substitute FILE_LIST, CHUNK_NUM, TOTAL
 CHUNK_PATH must be an **absolute** path — derive it before dispatching:
 ```bash
 PROJECT_ROOT=$(pwd)  # cwd — where Part C globs graphify-out/ (NOT .graphify_root/scan dir, #1392)
-# Then for chunk N: CHUNK_PATH="${PROJECT_ROOT}/graphify-out/.graphify_chunk_0N.json"
+CHUNK_NUM=1  # replace with the actual chunk number
+CHUNK_PATH="${PROJECT_ROOT}/graphify-out/.graphify_chunk_$(printf '%02d' "$CHUNK_NUM").json"
 ```
 
 Subagent prompt template:
@@ -297,13 +315,106 @@ See `references/extraction-spec.md` for the exact subagent prompt (JSON schema, 
 
 **Step B3 - Collect, cache, and merge**
 
-Wait for all subagents. For each result:
-- Check that `graphify-out/.graphify_chunk_NN.json` exists on disk — this is the success signal
-- If the file exists and contains valid JSON with `nodes` and `edges`, include it and save to cache
-- If the file is missing, the subagent was likely dispatched as read-only (Explore type) — print a warning: "chunk N missing from disk — subagent may have been read-only. Re-run with the `delegate` agent." Do not silently skip.
-- If a subagent failed or returned invalid JSON, print a warning and skip that chunk - do not abort
+Wait for all dispatched workers before collecting results. Use the exact number of chunks created in Step B1 as `EXPECTED_CHUNKS` below; use `0` when B2 was skipped because every semantic file was cached. Do not estimate this count from the files that happen to exist — missing files must count as failures.
 
-If more than half the chunks failed or are missing, stop and tell the user to re-run and ensure the `delegate` agent is used.
+The preflight below is authoritative. It checks every expected chunk filename, removes invalid or unexpected temporary chunk files so later merge steps cannot crash on malformed JSON, and counts missing/invalid chunks. A chunk is valid only when it contains object-valued nodes and edges as lists, optional hyperedges as a list, coverage as a string-to-nonnegative-integer object, and nonnegative integer token counts. Empty node/edge lists are valid results.
+
+If more than half the expected chunks are missing or invalid, the command exits with an error. **Stop the pipeline immediately in that case** — do not run Step B3.5, write semantic cache entries, or continue to Part C. If half or fewer failed, continue using only the valid chunk files; files belonging to failed chunks remain uncached and will be retried by the next `--update`.
+
+If same-run retry is supported and appropriate, re-dispatch the affected chunk with the host's writable worker. Re-run with the `delegate` agent. Ensure the `delegate` agent is used. Otherwise retain the failed source files for the next `--update`; never convert a failed chunk into an empty success.
+
+```bash
+$(cat graphify-out/.graphify_python) -c "
+import json
+import os
+import stat
+from pathlib import Path
+
+EXPECTED_CHUNKS = EXPECTED_CHUNKS
+project_root = Path.cwd().resolve()
+out = Path('graphify-out')
+if out.is_symlink():
+    raise SystemExit("Refusing to use symlinked graphify-out")
+if not out.exists():
+    raise SystemExit("graphify-out is missing; rerun Step 1")
+out = out.resolve(strict=True)
+if out.parent != project_root:
+    raise SystemExit("graphify-out resolves outside the project root")
+expected_names = {
+    f'.graphify_chunk_{number:02d}.json'
+    for number in range(1, EXPECTED_CHUNKS + 1)
+}
+failed = []
+valid = []
+
+for path in sorted(out.glob('.graphify_chunk_*.json')):
+    if path.name not in expected_names:
+        print(f'WARNING: removing unexpected chunk file {path.name}')
+        if path.is_symlink() or path.is_file():
+            path.unlink(missing_ok=True)
+        else:
+            raise SystemExit(f"Refusing to remove non-regular chunk path: {path.name}")
+
+for number in range(1, EXPECTED_CHUNKS + 1):
+    name = f'.graphify_chunk_{number:02d}.json'
+    path = out / name
+    if path.is_symlink():
+        path.unlink(missing_ok=True)
+        failed.append((name, 'symlink not allowed'))
+        continue
+    if not path.is_file():
+        failed.append((name, 'missing or not a regular file'))
+        continue
+    try:
+        descriptor = os.open(path, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
+        with os.fdopen(descriptor, "r", encoding="utf-8") as stream:
+            if not stat.S_ISREG(os.fstat(stream.fileno()).st_mode):
+                raise ValueError("chunk must be a regular file")
+            data = json.load(stream)
+        if not isinstance(data, dict):
+            raise ValueError('root must be a JSON object')
+        for field in ('nodes', 'edges'):
+            if not isinstance(data.get(field), list):
+                raise ValueError(f'{field} must be a list')
+            if any(not isinstance(item, dict) for item in data[field]):
+                raise ValueError(f'every {field} item must be an object')
+        if not isinstance(data.get('hyperedges', []), list):
+            raise ValueError('hyperedges must be a list when present')
+        if any(not isinstance(item, dict) for item in data.get('hyperedges', [])):
+            raise ValueError('every hyperedge must be an object')
+        coverage = data.get('coverage')
+        if not isinstance(coverage, dict):
+            raise ValueError('coverage must be an object')
+        if any(
+            not isinstance(source, str)
+            or not isinstance(count, int)
+            or isinstance(count, bool)
+            or count < 0
+            for source, count in coverage.items()
+        ):
+            raise ValueError('coverage must map file paths to nonnegative integer line counts')
+        for field in ('input_tokens', 'output_tokens'):
+            value = data.get(field)
+            if not isinstance(value, int) or isinstance(value, bool) or value < 0:
+                raise ValueError(f'{field} must be a nonnegative integer')
+    except Exception as exc:
+        failed.append((name, str(exc)))
+        path.unlink(missing_ok=True)
+    else:
+        valid.append(name)
+
+if failed:
+    print(f'WARNING: {len(failed)} of {EXPECTED_CHUNKS} chunks are missing or invalid:')
+    for name, reason in failed:
+        print(f'  {name}: {reason}')
+    if EXPECTED_CHUNKS and len(failed) * 2 > EXPECTED_CHUNKS:
+        print('ERROR: more than half the chunks failed; stop before cache or Part C.')
+        raise SystemExit(1)
+    print(f'Continuing with {len(valid)} valid chunk(s); failed source files remain uncached for --update retry.')
+else:
+    print(f'Chunk preflight OK: {len(valid)} of {EXPECTED_CHUNKS} expected chunk(s) are valid.')
+"
+```
 
 **Step B3.5 - Verify each reported file was actually read to its end**
 
@@ -749,6 +860,25 @@ The graph is the map. Your job after the pipeline is to be the guide.
 Before running any subcommand below (`--update`, `--cluster-only`, `query`, `path`, `explain`, `add`), check that `.graphify_python` exists. If it's missing (e.g. user deleted `graphify-out/`), re-resolve the interpreter first:
 
 ```bash
+PROJECT_ROOT=$(pwd -P) || exit 1
+if [ -L graphify-out ]; then
+    printf '%s\n' 'Refusing to use symlinked graphify-out' >&2
+    exit 1
+fi
+if [ -e graphify-out ] && [ ! -d graphify-out ]; then
+    printf '%s\n' 'graphify-out exists but is not a directory' >&2
+    exit 1
+fi
+mkdir -p graphify-out
+GRAPHIFY_OUT=$(cd graphify-out && pwd -P) || exit 1
+if [ "$GRAPHIFY_OUT" != "$PROJECT_ROOT/graphify-out" ]; then
+    printf '%s\n' 'graphify-out resolves outside the project root' >&2
+    exit 1
+fi
+if [ -L graphify-out/.graphify_python ]; then
+    printf '%s\n' 'Refusing to read a symlinked Python interpreter marker' >&2
+    exit 1
+fi
 if [ ! -f graphify-out/.graphify_python ]; then
     GRAPHIFY_BIN=$(which graphify 2>/dev/null)
     if [ -n "$GRAPHIFY_BIN" ]; then

@@ -188,19 +188,17 @@ After transcription:
 
 ### Step 3 - Extract entities and relationships
 
-**Before starting:** note whether `--mode deep` was given. You must pass `DEEP_MODE=true` to every subagent in Step B2 if it was. Track this from the original invocation - do not lose it.
+**Before starting:** note whether `--mode deep` was given. Preserve that setting in every file/chunk, whether the main session processes it directly or a worker receives it.
 
 This step has two parts: **structural extraction** (deterministic, free) and **semantic extraction** (your AI model, costs tokens).
 
 > **graphify needs no API key. Never ask the user for one, and never block on one.** Code is extracted structurally (AST) with no LLM and no key at all — a code-only corpus (the common `/graphify .` on a repo) skips semantic extraction entirely, so go straight to Part A and skip Part B. Semantic extraction (only for docs, papers, and images) is done by your own model. graphify does **not** read `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, or any other provider key. If you cannot dispatch subagents, do not stall: a code-only corpus has no semantic work (write the empty semantic file and continue to Part C); for docs/papers/images, extract them inline yourself. If you catch yourself about to prompt for or block on a missing API key, that is a misread of this skill — proceed without one.
 
-**Run Part A (AST) and Part B (semantic) in parallel. Dispatch all semantic subagents AND start AST extraction in the same message. Both can run simultaneously since they operate on different file types. Merge results in Part C as before.**
-
-Note: Parallelizing AST + semantic saves 5-15s on large corpora. AST is deterministic and fast; start it while subagents are processing docs/papers.
+Run structural extraction and semantic extraction as separate stages. Start them concurrently only when the host genuinely supports independent execution and a measured time/cost benefit justifies it. Otherwise keep the work in the main session and run the stages sequentially. Do not create a planner/developer/tester/reviewer team for one extraction task.
 
 #### Part A - Structural extraction for code files
 
-For any code files detected, run AST extraction in parallel with Part B subagents:
+For any detected code files, run the deterministic AST extraction below. It does not require an agent or an API key.
 
 ```bash
 $(cat graphify-out/.graphify_python) -c "
@@ -224,7 +222,7 @@ else:
 "
 ```
 
-#### Part B - Semantic extraction (parallel subagents)
+#### Part B - Semantic extraction
 
 **Fast path:** If detection found zero docs, papers, and images (code-only corpus), skip Part B entirely and go straight to Part C. AST handles code - there is nothing for semantic subagents to do. **First write an empty semantic file** so Part C's merge has its input (it reads `.graphify_semantic.json` unconditionally; without this a code-only run hits `FileNotFoundError`):
 
@@ -238,11 +236,11 @@ Path('.graphify_semantic.json').write_text(json.dumps({'nodes':[],'edges':[],'hy
 
 > **Aider platform:** Multi-agent support is still early on Aider. Extraction runs sequentially — you read and extract each file yourself. This is slower than parallel platforms but fully reliable.
 
-Print: `"Semantic extraction: N files (sequential — Aider)"`
+Print: `"Semantic extraction: N files (single-session sequential — Aider)"`
 
 **Step B0 - Check extraction cache first**
 
-Before dispatching any subagents, check which files already have cached extraction results:
+Before processing any uncached files, check which files already have cached extraction results:
 
 ```bash
 $(cat graphify-out/.graphify_python) -c "
@@ -269,11 +267,17 @@ print(f'Cache: {len(all_files)-len(uncached)} files hit, {len(uncached)} files n
 "
 ```
 
-Only dispatch subagents for files listed in `.graphify_uncached.txt`. If all files are cached, skip to Part C directly.
+Only process files listed in `.graphify_uncached.txt`. If all files are cached, skip to Part C directly.
 
 **Step B1 - Split into chunks**
 
 Load files from `.graphify_uncached.txt`. Split into chunks of 20-25 files each. Each image gets its own chunk (vision needs separate context). When splitting, group files from the same directory together so related artifacts land in the same chunk and cross-file relationships are more likely to be extracted.
+
+**Single-session-first rule:** the main session is the default owner of the task. If the uncached corpus is small enough to fit without context pressure, process it sequentially in this session; do not create a worker just to move one chunk into another context. Consider delegation only when there are at least two independent chunks and the main context would otherwise be pressured, or a hard deadline requires parallelism. Delegation's expected end-to-end cost (worker tokens, duplicated context, handoff, integration, verification, retries, escalation) must be no higher than the single-session estimate unless the hard deadline requires the latency reduction. If cost or benefit is unknown, stay in the main session. Never delegate merely to fill roles. Cap worker concurrency at three and never spawn nested workers.
+
+**Inline path:** process chunks sequentially in the main session, retaining source order and one context. Save each completed chunk to the same numbered chunk-file format; run the same validation and coverage checks.
+
+**Delegated path:** only when the above gate passes, send one independent chunk to each worker, with disjoint inputs/outputs. The main session retains ownership of integration and final review.
 
 **Step B2 - Sequential extraction (Aider)**
 

@@ -372,7 +372,7 @@ _STEP_HEADINGS = (
     "### Step 2 - Detect files",
     "### Step 3 - Extract entities and relationships",
     "#### Part A - Structural extraction for code files",
-    "#### Part B - Semantic extraction (parallel subagents)",
+    "#### Part B - Semantic extraction",
     "#### Part C - Merge AST + semantic into final extraction",
     "### Step 4 - Build graph, cluster, analyze, generate outputs",
     "### Step 4.5 - Graph health check (read-only integrity gate)",
@@ -522,6 +522,68 @@ def test_all_progressive_hosts_check_and_audit_clean():
         assert probs == [], f"[{key}] audit\n" + "\n".join(probs)
 
 
+def test_single_session_first_policy_is_rendered_for_every_host():
+    platforms = gen.load_platforms()
+    artifacts = gen.render_all(platforms)
+    skills = [a for a in artifacts if a.path.startswith("graphify/skill")]
+    assert skills
+    for artifact in skills:
+        body = artifact.content
+        assert "Single-session-first rule" in body, artifact.path
+        assert "main session" in body.lower(), artifact.path
+        assert "estimated end-to-end cost" in body.lower(), artifact.path
+        assert "MANDATORY: You MUST use the Agent tool here" not in body, artifact.path
+        assert "MANDATORY: You MUST use the subagent system here" not in body, artifact.path
+        assert "Run Part A (AST) and Part B (semantic) in parallel." not in body, artifact.path
+
+    aider = next(a.content for a in skills if a.path == "graphify/skill-aider.md")
+    assert "sequential extraction (Aider)" in aider
+    assert "process each file one at a time" in aider
+    assert "Delegated path" in aider  # policy documents the exception, not Aider's implementation
+
+
+def test_single_session_first_monolith_roundtrip_allowlist_is_scoped():
+    assert gen._is_single_session_first_fix_line("**Single-session-first rule:** main session.")
+    assert gen._is_single_session_first_fix_line(
+        "After each chunk completes, persist its result to its assigned file."
+    )
+    assert not gen._is_single_session_first_fix_line(
+        "Unrelated wording changed without an accompanying workflow change."
+    )
+
+
+def test_single_session_first_policy_is_rendered_for_every_host():
+    platforms = gen.load_platforms()
+    artifacts = gen.render_all(platforms)
+    skills = [
+        artifact for artifact in artifacts
+        if artifact.path.startswith("graphify/skill") and artifact.path.endswith(".md")
+    ]
+    assert skills
+    for artifact in skills:
+        body = artifact.content
+        assert "Single-session-first rule" in body, artifact.path
+        assert "estimated end-to-end cost" in body.lower(), artifact.path
+        assert "Do not create a planner/developer/tester/reviewer team" in body, artifact.path
+        assert "MANDATORY: You MUST use the Agent tool here" not in body, artifact.path
+        assert "MANDATORY: You MUST use the subagent system here" not in body, artifact.path
+        assert "Run Part A (AST) and Part B (semantic) in parallel." not in body, artifact.path
+
+    aider = next(a.content for a in skills if a.path == "graphify/skill-aider.md")
+    assert "sequential extraction (Aider)" in aider
+    assert "Process each file one at a time" in aider
+
+
+def test_single_session_first_monolith_roundtrip_allowlist_is_scoped():
+    assert gen._is_single_session_first_fix_line("**Single-session-first rule:** main session.")
+    assert gen._is_single_session_first_fix_line(
+        "After each chunk completes, persist its result to its assigned file."
+    )
+    assert not gen._is_single_session_first_fix_line(
+        "Unrelated wording changed without an accompanying workflow change."
+    )
+
+
 def test_no_host_has_trigger_in_frontmatter():
     """No split host emits a trigger: field — not part of Agent Skills spec (#1180)."""
     for key in ("claude", "codex", "opencode", "kilo", "copilot", "claw", "droid",
@@ -565,6 +627,9 @@ def test_pi_never_names_the_claude_general_purpose_agent():
     claude, _ = _platform_artifacts("claude")
     assert "Re-run with general-purpose agent." in claude
     assert 'ensure `subagent_type="general-purpose"` is used.' in claude
+    codex, _ = _platform_artifacts("codex")
+    assert "Re-run with the Codex `worker` agent." in codex
+    assert 'ensure `agent_type="worker"` is used.' in codex
 
 
 def test_compact_extraction_hosts_use_the_compact_spec():
@@ -1238,12 +1303,56 @@ def test_extraction_spec_writes_chunk_path_when_dispatch_passes_one():
         core = _platform_artifacts(key)[0]
         spec = _platform_artifacts(key)[1]["extraction-spec.md"]
         if "CHUNK_PATH must be an **absolute** path" in core:
+            b2 = core.split("**Step B2", 1)[1].split("**Step B3", 1)[0]
+            assert "CHUNK_PATH" in b2, f"[{key}] dispatch does not pass a chunk output path"
             assert "and CHUNK_PATH)" in spec, f"[{key}] spec omits CHUNK_PATH from its substitutions"
             assert spec.rstrip().endswith("CHUNK_PATH\n```"), (
                 f"[{key}] spec never tells the subagent to write its JSON to CHUNK_PATH"
             )
         if "return the JSON inline" in core:
             assert "CHUNK_PATH" not in spec, f"[{key}] spec asks for a CHUNK_PATH the dispatch never passes"
+
+
+def test_b3_preflight_removes_invalid_chunks_and_stops_when_more_than_half_fail(
+    tmp_path, capsys, monkeypatch
+):
+    """Malformed files must be removed before B3.5/merge; missing chunks count too."""
+    import json
+
+    monkeypatch.chdir(tmp_path)
+    core, _ = _platform_artifacts("claude")
+    source = _substituted(_step_body(core, "EXPECTED_CHUNKS = EXPECTED_CHUNKS"), tmp_path)
+    out = tmp_path / "graphify-out"
+
+    valid = {
+        "nodes": [{"id": "n1"}],
+        "edges": [],
+        "hyperedges": [],
+        "input_tokens": 3,
+        "output_tokens": 2,
+        "coverage": {"docs/one.md": 5},
+    }
+    (out / ".graphify_chunk_01.json").write_text(json.dumps(valid), encoding="utf-8")
+    (out / ".graphify_chunk_02.json").write_text("{not-json", encoding="utf-8")
+    (out / ".graphify_chunk_99.json").write_text(json.dumps(valid), encoding="utf-8")
+
+    # Two of three expected chunks fail (one malformed, one missing): stop.
+    failing = source.replace("EXPECTED_CHUNKS = EXPECTED_CHUNKS", "EXPECTED_CHUNKS = 3")
+    with pytest.raises(SystemExit) as exc:
+        exec(compile(failing, "step-b3-preflight", "exec"), {"__name__": "__main__"})
+    assert exc.value.code == 1
+    output = capsys.readouterr().out
+    assert "2 of 3 chunks are missing or invalid" in output
+    assert not (out / ".graphify_chunk_02.json").exists()
+    assert not (out / ".graphify_chunk_99.json").exists()
+    assert (out / ".graphify_chunk_01.json").exists()
+
+    # Exactly half missing is recoverable: retain the good chunk for B3.
+    passing = source.replace("EXPECTED_CHUNKS = EXPECTED_CHUNKS", "EXPECTED_CHUNKS = 2")
+    exec(compile(passing, "step-b3-preflight", "exec"), {"__name__": "__main__"})
+    output = capsys.readouterr().out
+    assert "1 of 2 chunks are missing or invalid" in output
+    assert (out / ".graphify_chunk_01.json").exists()
 
 
 def test_core_bounds_semantic_chunks_by_lines_as_well_as_file_count():
@@ -1259,6 +1368,7 @@ def test_core_bounds_semantic_chunks_by_lines_as_well_as_file_count():
     assert "2000 lines gets a chunk to itself" in b1, (
         "a file past the Read cap must be dispatched alone"
     )
+    assert "replace `EXPECTED_CHUNKS` with that exact integer" in b1
 
 
 def test_coverage_check_flags_a_partly_read_file_and_clears_a_complete_one(
@@ -1395,3 +1505,42 @@ def test_step4_skill_honors_force_flag_on_shrink(tmp_path, capsys, monkeypatch):
     assert len(persisted5["nodes"]) == 10
     assert persisted5["nodes"][0]["community_name"] == "Test Community"
 
+
+
+def test_chunk_dispatch_paths_use_two_digit_chunk_numbers():
+    for fragment in (
+        "dispatch/agent-tool-disk.md",
+        "dispatch/task-tool-disk.md",
+        "dispatch/task-tool-disk-trae.md",
+        "dispatch/pi-subagents.md",
+        "dispatch/manual-paste.md",
+    ):
+        body = gen._read_fragment(fragment)
+        assert "printf '%02d'" in body
+        assert ".graphify_chunk_0N.json" not in body
+
+    powershell = gen._read_fragment("dispatch/agent-tool-disk-powershell.md")
+    assert '"{0:D2}" -f $CHUNK_NUM' in powershell
+    assert ".graphify_chunk_0N.json" not in powershell
+
+
+def test_shared_chunk_pipeline_rejects_symlinked_paths():
+    core = gen._read_fragment("core/core.md")
+    posix_guard = gen._read_fragment("shell/interpreter-guard-posix.md")
+    powershell_guard = gen._read_fragment("shell/interpreter-guard-powershell.md")
+    assert "out.is_symlink()" in core
+    assert "path.is_symlink()" in core
+    assert "O_NOFOLLOW" in core
+    assert "[ -L graphify-out ]" in posix_guard
+    assert "FileAttributes]::ReparsePoint" in powershell_guard
+
+
+def test_retry_hints_name_host_specific_writers():
+    assert "opencode-mention" in gen._WRITER_AGENT
+    assert "manual-paste" in gen._WRITER_AGENT
+    opencode, _ = _platform_artifacts("opencode")
+    vscode, _ = _platform_artifacts("vscode")
+    assert "OpenCode `@agent` worker" in opencode
+    assert "manually dispatched worker" in vscode
+    assert 'subagent_type="general-purpose"' not in opencode
+    assert 'subagent_type="general-purpose"' not in vscode

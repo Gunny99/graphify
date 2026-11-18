@@ -1966,13 +1966,152 @@ def _clone_repo(
     return dest
 
 
+def _parse_agent_register_args(arguments):
+    """Parse the trusted profile and optional graph path in either order."""
+    profile_path = None
+    graph_path = Path("graphify-out/graph.json")
+    index = 0
+    while index < len(arguments):
+        argument = arguments[index]
+        if argument == "--graph":
+            if index + 1 >= len(arguments) or arguments[index + 1].startswith("--"):
+                raise ValueError("--graph requires a path")
+            graph_path = Path(arguments[index + 1])
+            index += 2
+            continue
+        if argument.startswith("--graph="):
+            value = argument.partition("=")[2]
+            if not value:
+                raise ValueError("--graph requires a path")
+            graph_path = Path(value)
+            index += 1
+            continue
+        if argument.startswith("-"):
+            raise ValueError(f"unexpected option: {argument}")
+        if profile_path is not None:
+            raise ValueError(f"unexpected extra argument: {argument}")
+        profile_path = argument
+        index += 1
+    if not profile_path:
+        raise ValueError("trusted profile path is required")
+    return profile_path, graph_path
+
+
 def _reenter_main() -> None:
     from graphify.__main__ import main
     main()
 
 
 def dispatch_command(cmd: str) -> None:
-    if cmd == "provider":
+    if cmd == "agent":
+        import json as _json
+        import secrets as _secrets
+        from datetime import datetime, timezone
+        from graphify.task_store import TaskStore, TaskStoreError
+
+        args = sys.argv[2:]
+        subcmd = args[0] if args else ""
+        if subcmd == "template":
+            output = Path(args[1]) if len(args) > 1 and not args[1].startswith("-") else Path("agent-profile-template.json")
+            now = datetime.now(timezone.utc).isoformat()
+            template = {
+                "schema_version": 1,
+                "agent_id": "replace-with-stable-agent-id",
+                "provider": "replace-with-provider",
+                "model": "replace-with-model",
+                "model_version": "replace-with-model-version",
+                "protocol": "mcp",
+                "capabilities": ["research", "verify"],
+                "max_concurrency": 1,
+                "status": "active",
+                "allowed_data_scopes": [str(Path.cwd().resolve())],
+                "cost_profile": {
+                    "currency": "USD",
+                    "input_cost_per_million_tokens": 0.0,
+                    "cached_input_cost_per_million_tokens": 0.0,
+                    "output_cost_per_million_tokens": 0.0,
+                    "verification_cost_per_task": 0.0,
+                    "expected_retry_cost_per_task": 0.0,
+                    "expected_escalation_cost_per_task": 0.0,
+                    "orchestration_cost_per_task": 0.0,
+                    "pricing_source": "replace-with-verifiable-price-source",
+                    "effective_at": now,
+                },
+                "quality_profiles": [
+                    {
+                        "role": role,
+                        "domain": "technical",
+                        "benchmark_id": "replace-with-benchmark-id",
+                        "evaluation_set_hash": "sha256:replace-with-held-out-set-hash",
+                        "evaluator_version": "replace-with-independent-evaluator-version",
+                        "sample_size": 1,
+                        "confidence_level": 0.95,
+                        "accuracy_lower_bound": 0.0,
+                        "hallucination_upper_bound": 1.0,
+                        "evaluated_at": now,
+                    }
+                    for role in ("researcher", "verifier")
+                ],
+                "registered_at": now,
+                "updated_at": now,
+            }
+            if output.exists():
+                print(f"Refusing to overwrite existing file: {output}", file=sys.stderr)
+                sys.exit(1)
+            output.write_text(_json.dumps(template, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+            print(f"Created trusted-profile template: {output}")
+            print("Replace every placeholder with verified model identity, pricing, and held-out evaluation results.")
+            print("The template intentionally fails the >99% accuracy / <1% hallucination gate until real benchmark bounds are supplied.")
+        elif subcmd == "register":
+            try:
+                profile_path, graph_path = _parse_agent_register_args(args[1:])
+            except ValueError as exc:
+                print(
+                    f"Error: {exc}\nUsage: graphify agent register <trusted-profile.json> [--graph graph.json]",
+                    file=sys.stderr,
+                )
+                sys.exit(1)
+            try:
+                profile = _json.loads(Path(profile_path).read_text(encoding="utf-8"))
+                if not isinstance(profile, dict):
+                    raise ValueError("profile root must be an object")
+                if "auth_token" in profile or "_auth_token_hash" in profile:
+                    raise ValueError("profile files must not supply auth_token or auth_token_hash")
+                token = _secrets.token_urlsafe(36)
+                profile["auth_token"] = token
+                store = TaskStore(Path(graph_path).resolve().parent / "orchestrator.sqlite3")
+                saved = store.register_agent(profile, trusted_profile=True)
+            except (OSError, ValueError, TaskStoreError) as exc:
+                print(f"Agent registration failed: {exc}", file=sys.stderr)
+                sys.exit(1)
+            print(f"Registered agent: {saved['agent_id']} ({saved['provider']}/{saved['model']})")
+            print("One-time agent token (copy it into that agent's MCP client config now):")
+            print(token)
+            print("The token is stored only as a hash in the local task database.")
+        elif subcmd == "list":
+            graph_path = Path("graphify-out/graph.json")
+            if "--graph" in args:
+                index = args.index("--graph")
+                if index + 1 >= len(args):
+                    print("Error: --graph requires a path.", file=sys.stderr)
+                    sys.exit(1)
+                graph_path = Path(args[index + 1])
+            store = TaskStore(graph_path.resolve().parent / "orchestrator.sqlite3")
+            for agent in store.list_agents():
+                quality = ", ".join(
+                    f"{item['role']}/{item['domain']}"
+                    for item in agent["quality_profiles"]
+                )
+                print(
+                    f"{agent['agent_id']}  {agent['provider']}/{agent['model']} "
+                    f"[{agent['status']}] capabilities={','.join(agent['capabilities'])} "
+                    f"quality={quality}"
+                )
+        else:
+            print("Usage: graphify agent [template [file]|register <trusted-profile.json>|list] [--graph graph.json]", file=sys.stderr)
+            sys.exit(1)
+
+    elif cmd == "provider":
         from graphify.llm import _custom_providers_path, BACKENDS
         import json as _json
         subcmd = sys.argv[2] if len(sys.argv) > 2 else ""
