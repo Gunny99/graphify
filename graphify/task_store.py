@@ -77,6 +77,31 @@ def _token_hash(token: str) -> str:
     return hashlib.sha256(token.encode("utf-8")).hexdigest()
 
 
+
+def _failure_input_signature(task: Mapping[str, Any]) -> str:
+    """Hash the stable task contract, excluding retry-routing metadata."""
+    task_input = dict(task.get("input") or {})
+    # This list changes after a worker failure but does not change the work
+    # being requested; including it would hide a deterministic retry loop.
+    task_input.pop("failed_agent_ids", None)
+    contract = {
+        key: task.get(key)
+        for key in (
+            "task_type",
+            "role",
+            "domain",
+            "objective",
+            "data_scopes",
+            "context_refs",
+            "acceptance_criteria",
+            "required_capabilities",
+            "output_schema",
+        )
+    }
+    contract["input"] = task_input
+    return hashlib.sha256(_json(contract).encode("utf-8")).hexdigest()
+
+
 def _expired(stamp: str | None, now: datetime) -> bool:
     if not stamp:
         return False
@@ -1300,18 +1325,58 @@ class TaskStore:
         reason: str,
         *,
         retryable: bool = True,
+        error_signature: str | None = None,
     ) -> dict[str, Any]:
         reason = _required_string(reason, "reason")
         if not isinstance(retryable, bool):
             raise ValueError("retryable must be a boolean")
+        if error_signature is not None:
+            error_signature = _required_string(error_signature, "error_signature").strip()
+            if len(error_signature) > 256:
+                raise ValueError("error_signature must be at most 256 characters")
         with self._transaction() as con:
             row = self._owned_lease(con, task_id, agent_id, lease_token)
             task = _decode(row["task_json"])
+            attempt = int(row["attempt"])
             new_status = (
                 "queued"
-                if retryable and int(row["attempt"]) < int(row["max_attempts"])
+                if retryable and attempt < int(row["max_attempts"])
                 else "failed"
             )
+            loop_detected = False
+            if error_signature is not None:
+                history = task.setdefault("failure_history", [])
+                if not isinstance(history, list):
+                    raise TaskStoreError("stored failure_history is not a list")
+                input_signature = _failure_input_signature(task)
+                previous = history[-1] if history else None
+                loop_detected = bool(
+                    new_status == "queued"
+                    and isinstance(previous, dict)
+                    and previous.get("error_signature") == error_signature
+                    and previous.get("input_signature") == input_signature
+                    and previous.get("attempt") == attempt - 1
+                )
+                history.append({
+                    "attempt": attempt,
+                    "error_signature": error_signature,
+                    "input_signature": input_signature,
+                    "reason": reason,
+                    "created_at": _utc_now(),
+                })
+                # The immutable events table is the complete audit history.
+                # Task state only needs a bounded window for consecutive-loop
+                # detection, regardless of the caller-supplied max_attempts.
+                if len(history) > 2:
+                    del history[:-2]
+                if loop_detected:
+                    new_status = "failed"
+                    task["failure_loop_detected"] = {
+                        "error_signature": error_signature,
+                        "first_attempt": attempt - 1,
+                        "repeat_attempt": attempt,
+                        "input_signature": input_signature,
+                    }
             task["last_failure"] = reason
             if new_status == "queued":
                 failed_agents = set(task["input"].get("failed_agent_ids", []))
@@ -1341,6 +1406,8 @@ class TaskStore:
                     "attempt": int(row["attempt"]),
                     "retryable": retryable,
                     "reason": reason,
+                    "error_signature": error_signature,
+                    "loop_detected": loop_detected,
                     "new_status": new_status,
                 },
             )
