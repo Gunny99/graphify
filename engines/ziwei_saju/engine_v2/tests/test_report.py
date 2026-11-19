@@ -64,3 +64,18 @@ def test_section2_gyeok_extras_and_section5_daehyung_table(target_doc):
     assert '화탐격(R25)' in sec2 and '명궁 주성 파군·탐랑(R26)' in sec2
     sec5 = target_doc[target_doc.index('## 5. 운(L3)'):target_doc.index('## 6. 능력 차례')]
     assert 'daehyung' in sec5 and 'k_effective' in sec5
+
+
+def test_unconfirmed_condition_is_not_asserted():
+    from engine_v2 import compute
+    from engine_v2.report import _sec7
+    R = compute('1999-08-04', '10:14', True, -38)
+    row = [l for l in '\n'.join(_sec7(R)).splitlines() if l.startswith('| SJ29 ') and '지능' in l][0]
+    assert '단정하지 않는다' in row
+
+
+def test_joined_passage_shows_full_sentence():
+    p = {'id': '妻:47', 'text': '無四殺', 'text_full': '太陽同。無四殺', 'joins': ['妻:46']}
+    assert report._txt(p) == '太陽同。無四殺'
+    assert report._txt(dict(p, id='妻:47#1', clause='가지')) == '가지'
+    assert report._txt({'id': 'a', 'text': 't'}) == 't'

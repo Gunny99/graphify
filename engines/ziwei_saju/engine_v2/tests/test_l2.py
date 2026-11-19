@@ -181,7 +181,8 @@ def test_nature_not_counted_as_stand():
         nat = [it for it in v['passages'] if it['verdict'] == '성질']
         assert nat and all(it['total'] == 0 for it in nat)
         assert v['summary']['성질서술'] == len(nat)
-        assert all(it['verdict'] != S or it['total'] > 0 for it in v['passages'])
+        cp = {p['id']: p.get('cond_palace') for p in l2.load_passages(l2.DATA3)}
+        assert all(it['verdict'] != S or it['total'] > 0 or cp[it['id']] in ('명', '명신') for it in v['passages'])
 
 
 def test_split_sentence_merged_896():
@@ -408,3 +409,27 @@ def test_nanbeidou_kind(ev):
     assert not set(t['南斗']) & set(t['北斗']) and not (set(t['南斗']) | set(t['北斗'])) & set(t['南北斗'])
     assert ev[0]['子:8#2']['verdict'] == '선다'
     assert ev[0]['子:8#3']['verdict'] == '서지 않는다'
+
+
+def _p3(pid, cp, pol='길'):
+    return {'id': pid, 'file': 'x', 'line': 1, 'palace': '명', 'text': 't', 'clause': None, 'abbr': None,
+            'scope': '命', 'cond_palace': cp, 'star': '화성', 'conds': [], 'result': 'r', 'polarity': pol, 'parse': 'auto'}
+
+
+def test_j3_placement_only_counts_and_nature_does_not():
+    """PR #14 리뷰: 자리만 조건인 명·명신 구절은 길흉 집계에 남고, cond_palace 성질만 성질 서술이 된다(명세 5절 12번 라·카)."""
+    r = compute('1999-08-04', '10:14', True, -38)       # 명궁 寅에 화성
+    out = l2.evaluate_j3(r, [_p3('T:1', '명'), _p3('T:2', '명신', '흉'), _p3('T:3', '성질')])
+    v = {it['id']: it['verdict'] for it in out['명궁']['passages']}
+    assert v == {'T:1': '선다', 'T:2': '선다', 'T:3': '성질'}
+    assert out['명궁']['summary'] and sum(1 for it in out['명궁']['passages'] if it['verdict'] == '선다') == 2
+
+
+def test_j3_result_rows_and_untranslated_conditions():
+    d = l2.load_passages(l2.DATA3)
+    by = {p['id']: p for p in d}
+    assert by['入限:344']['inherits'] == '入限:343' and by['入限:410']['inherits'] == '入限:409#2'
+    assert by['入限:341']['parse'] == 'unparsed' and '吉星扶' in by['入限:341']['reason']
+    loose = [p for p in d if p['scope'] in ('命', '女命') and p['parse'] != 'unparsed' and not p.get('conds')
+             and p.get('cond_palace') in ('명', '명신') and not p.get('inherits')]
+    assert len(loose) == 56 - 18 - 23     # 56건 가운데 조건어 18, 결과 행 23을 뺀 자리만 조건인 구절

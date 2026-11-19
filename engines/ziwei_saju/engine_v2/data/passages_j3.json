@@ -1238,9 +1238,11 @@
   "conds": [],
   "result": "紫㣲女命守身宫，天府尊同到宫",
   "polarity": "중",
-  "parse": "auto",
+  "parse": "unparsed",
   "clause": "紫㣲女命守身宫，天府尊同到宫",
-  "abbr": "入限"
+  "abbr": "入限",
+  "reason": "원문 조건어(天府同到宫)를 조건표로 옮기지 못함(명세 5절 12번 마)",
+  "note": "결과 행 정리(apply_result_rows_j3.py)"
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -1290,9 +1292,11 @@
   "conds": [],
   "result": "紫㣲女命守夫宫",
   "polarity": "중",
-  "parse": "auto",
+  "parse": "unparsed",
   "clause": "紫㣲女命守夫宫",
-  "abbr": "入限"
+  "abbr": "入限",
+  "reason": "원문 조건어(守夫宫, 三方吉拱)를 조건표로 옮기지 못함(명세 5절 12번 마)",
+  "note": "결과 행 정리(apply_result_rows_j3.py)"
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -2238,7 +2242,9 @@
   "parse": "auto",
   "clause": "退盡家財𠔥夀殀，飄蓬僧道住山中",
   "mixed": true,
-  "abbr": "入限"
+  "abbr": "入限",
+  "inherits": "入限:338",
+  "note": "결과 행 정리(apply_result_rows_j3.py): 결과 행, 앞 행 入限:338의 조건을 이어받음(명세 5절 12번 카)"
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -2252,9 +2258,11 @@
   "conds": [],
   "result": "天機女命吉星扶，作事操持過丈夫",
   "polarity": "길",
-  "parse": "auto",
+  "parse": "unparsed",
   "clause": "天機女命吉星扶，作事操持過丈夫",
-  "abbr": "入限"
+  "abbr": "入限",
+  "reason": "원문 조건어(吉星扶)를 조건표로 옮기지 못함(명세 5절 12번 마)",
+  "note": "결과 행 정리(apply_result_rows_j3.py)"
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -2268,9 +2276,11 @@
   "conds": [],
   "result": "𫞐禄宫中逢守照，荣膺誥命貴如何",
   "polarity": "길",
-  "parse": "auto",
+  "parse": "unparsed",
   "clause": "𫞐禄宫中逢守照，荣膺誥命貴如何",
-  "abbr": "入限"
+  "abbr": "入限",
+  "reason": "원문 조건어(𫞐禄宫中逢守照)를 조건표로 옮기지 못함(명세 5절 12번 마)",
+  "note": "결과 행 정리(apply_result_rows_j3.py)"
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -2312,7 +2322,9 @@
   "polarity": "흉",
   "parse": "auto",
   "clause": "衣禄𧯮饒終不羙，為娼為妾主滛風",
-  "abbr": "入限"
+  "abbr": "入限",
+  "inherits": "入限:343",
+  "note": "결과 행 정리(apply_result_rows_j3.py): 결과 행, 앞 행 入限:343의 조건을 이어받음(명세 5절 12번 카)"
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -3409,9 +3421,11 @@
   "conds": [],
   "result": "太陽正照婦人身，姿貌殊常性格貞",
   "polarity": "미정",
-  "parse": "auto",
+  "parse": "unparsed",
   "clause": "太陽正照婦人身，姿貌殊常性格貞",
-  "abbr": "入限"
+  "abbr": "入限",
+  "reason": "원문 조건어(正照)를 조건표로 옮기지 못함(명세 5절 12번 마)",
+  "note": "결과 행 정리(apply_result_rows_j3.py)"
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -3461,9 +3475,11 @@
   "conds": [],
   "result": "太陽女命有竒能",
   "polarity": "중",
-  "parse": "auto",
+  "parse": "unparsed",
   "clause": "太陽女命有竒能",
-  "abbr": "入限"
+  "abbr": "入限",
+  "reason": "원문 조건어(𨺻地)를 조건표로 옮기지 못함(명세 5절 12번 마)",
+  "note": "결과 행 정리(apply_result_rows_j3.py)"
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -3504,7 +3520,9 @@
   "polarity": "흉",
   "parse": "auto",
   "clause": "作事沉吟多進退，辛勤度日免家傾",
-  "abbr": "入限"
+  "abbr": "入限",
+  "inherits": "入限:377#2",
+  "note": "결과 행 정리(apply_result_rows_j3.py): 결과 행, 앞 행 入限:377#2의 조건을 이어받음(명세 5절 12번 카)"
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -3518,9 +3536,11 @@
   "conds": [],
   "result": "太陽反照主心忙",
   "polarity": "미정",
-  "parse": "auto",
+  "parse": "unparsed",
   "clause": "太陽反照主心忙",
-  "abbr": "入限"
+  "abbr": "入限",
+  "reason": "원문 조건어(反照)를 조건표로 옮기지 못함(명세 5절 12번 마)",
+  "note": "결과 행 정리(apply_result_rows_j3.py)"
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -3561,7 +3581,9 @@
   "polarity": "흉",
   "parse": "auto",
   "clause": "尅過良人還尅子，只冝隂下作偏房",
-  "abbr": "入限"
+  "abbr": "入限",
+  "inherits": "入限:379#2",
+  "note": "결과 행 정리(apply_result_rows_j3.py): 결과 행, 앞 행 入限:379#2의 조건을 이어받음(명세 5절 12번 카)"
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -4744,7 +4766,9 @@
   "polarity": "길",
   "parse": "auto",
   "clause": "志氣峥嵘多出衆，超凢入聖向人前",
-  "abbr": "入限"
+  "abbr": "入限",
+  "inherits": "入限:409#2",
+  "note": "결과 행 정리(apply_result_rows_j3.py): 결과 행, 앞 행 入限:409#2의 조건을 이어받음(명세 5절 12번 카)"
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -4823,12 +4847,13 @@
   "conds": [],
   "result": "女人武曲命中逢",
   "polarity": "중",
-  "parse": "manual",
+  "parse": "unparsed",
   "clause": "女人武曲命中逢",
   "abbr": "入限",
   "decode_type": "성별 말(女人·男子)",
   "decoded_from": "조건 낱말 해석 불가: 女人",
-  "note": "O25 해독: 女命 범위가 이미 담은 女人 머리말, 그 밖의 조건 낱말 없음. 근거 3_安星諸訣_入限入命斷訣.txt 414행 「女人武曲命中逢」"
+  "note": "결과 행 정리(apply_result_rows_j3.py)",
+  "reason": "원문 조건어(天府加之)를 조건표로 옮기지 못함(명세 5절 12번 마)"
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -4868,10 +4893,12 @@
   "conds": [],
   "result": "左右再來相逢聚，雙全冨貴美無窮",
   "polarity": "중",
-  "parse": "auto",
+  "parse": "unparsed",
   "clause": "左右再來相逢聚，雙全冨貴美無窮",
   "mixed": true,
-  "abbr": "入限"
+  "abbr": "入限",
+  "reason": "원문 조건어(左右再來相逢聚)를 조건표로 옮기지 못함(명세 5절 12번 마)",
+  "note": "결과 행 정리(apply_result_rows_j3.py)"
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -4904,7 +4931,9 @@
   "parse": "auto",
   "clause": "衣禄㴞㴞終有破，不然壽夭主㐫亡",
   "mixed": true,
-  "abbr": "入限"
+  "abbr": "入限",
+  "inherits": "入限:416",
+  "note": "결과 행 정리(apply_result_rows_j3.py): 결과 행, 앞 행 入限:416의 조건을 이어받음(명세 5절 12번 카)"
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -6080,9 +6109,11 @@
   "conds": [],
   "result": "天同守命婦人貞，性格聦明伶俐人，昌曲更來相會處，悠悠財福自天申",
   "polarity": "길",
-  "parse": "auto",
+  "parse": "unparsed",
   "clause": "天同守命婦人貞，性格聦明伶俐人，昌曲更來相會處，悠悠財福自天申",
-  "abbr": "入限"
+  "abbr": "入限",
+  "reason": "원문 조건어(昌曲更來相會)를 조건표로 옮기지 못함(명세 5절 12번 마)",
+  "note": "결과 행 정리(apply_result_rows_j3.py)"
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -6124,7 +6155,9 @@
   "polarity": "흉",
   "parse": "auto",
   "clause": "衣禄雖豊終不美，偏房侍妾與人通",
-  "abbr": "入限"
+  "abbr": "入限",
+  "inherits": "入限:457",
+  "note": "결과 행 정리(apply_result_rows_j3.py): 결과 행, 앞 행 入限:457의 조건을 이어받음(명세 5절 12번 카)"
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -7563,7 +7596,9 @@
   "polarity": "길",
   "parse": "auto",
   "clause": "革故𪔂新冝大貴，為官淸顕姓名香",
-  "abbr": "入限"
+  "abbr": "入限",
+  "inherits": "入限:493",
+  "note": "결과 행 정리(apply_result_rows_j3.py): 결과 행, 앞 행 入限:493의 조건을 이어받음(명세 5절 12번 카)"
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -7872,7 +7907,9 @@
   "polarity": "흉",
   "parse": "auto",
   "clause": "定主刑夫并尅子，只好通房娼婢容",
-  "abbr": "入限"
+  "abbr": "入限",
+  "inherits": "入限:502",
+  "note": "결과 행 정리(apply_result_rows_j3.py): 결과 행, 앞 행 入限:502의 조건을 이어받음(명세 5절 12번 카)"
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -8244,9 +8281,11 @@
   "conds": [],
   "result": "女命淸白机巧",
   "polarity": "중",
-  "parse": "auto",
+  "parse": "unparsed",
   "clause": "女命淸白机巧",
-  "abbr": "入限"
+  "abbr": "入限",
+  "reason": "원문 조건어(遇紫㣲左右同垣)를 조건표로 옮기지 못함(명세 5절 12번 마)",
+  "note": "결과 행 정리(apply_result_rows_j3.py)"
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -9614,7 +9653,9 @@
   "polarity": "미정",
   "parse": "auto",
   "clause": "禀性温良恭儉讓，為官淸顕列朝紳",
-  "abbr": "入限"
+  "abbr": "入限",
+  "inherits": "入限:558",
+  "note": "결과 행 정리(apply_result_rows_j3.py): 결과 행, 앞 행 入限:558의 조건을 이어받음(명세 5절 12번 카)"
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -9844,9 +9885,11 @@
   "conds": [],
   "result": "月㑹同陽在命宫",
   "polarity": "미정",
-  "parse": "auto",
+  "parse": "unparsed",
   "clause": "月㑹同陽在命宫",
-  "abbr": "入限"
+  "abbr": "入限",
+  "reason": "원문 조건어(月㑹同陽, 三方吉拱)를 조건표로 옮기지 못함(명세 5절 12번 마)",
+  "note": "결과 행 정리(apply_result_rows_j3.py)"
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -9992,7 +10035,9 @@
   "parse": "auto",
   "clause": "尅害夫君夀又殀，更虚血氣少精神",
   "mixed": true,
-  "abbr": "入限"
+  "abbr": "入限",
+  "inherits": "入限:568#2",
+  "note": "결과 행 정리(apply_result_rows_j3.py): 결과 행, 앞 행 入限:568#2의 조건을 이어받음(명세 5절 12번 카)"
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -11302,9 +11347,11 @@
   "conds": [],
   "result": "性格剛強多志氣",
   "polarity": "미정",
-  "parse": "auto",
+  "parse": "unparsed",
   "clause": "性格剛強多志氣",
-  "abbr": "入限"
+  "abbr": "入限",
+  "reason": "원문 조건어(𨺻地)를 조건표로 옮기지 못함(명세 5절 12번 마)",
+  "note": "결과 행 정리(apply_result_rows_j3.py)"
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -11345,7 +11392,9 @@
   "polarity": "흉",
   "parse": "auto",
   "clause": "尅害良人并男女，又教衾枕守孤孀",
-  "abbr": "入限"
+  "abbr": "入限",
+  "inherits": "入限:606#2",
+  "note": "결과 행 정리(apply_result_rows_j3.py): 결과 행, 앞 행 入限:606#2의 조건을 이어받음(명세 5절 12번 카)"
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -12629,9 +12678,11 @@
   "conds": [],
   "result": "官高極品衣紫袍",
   "polarity": "길",
-  "parse": "auto",
+  "parse": "unparsed",
   "clause": "官高極品衣紫袍",
-  "abbr": "入限"
+  "abbr": "入限",
+  "reason": "원문 조건어(三合化吉科𫞐禄)를 조건표로 옮기지 못함(명세 5절 12번 마)",
+  "note": "결과 행 정리(apply_result_rows_j3.py)"
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -12697,12 +12748,13 @@
   "conds": [],
   "result": "唇齒有傷𠔥性猛",
   "polarity": "흉",
-  "parse": "manual",
+  "parse": "unparsed",
   "clause": "唇齒有傷𠔥性猛",
   "abbr": "入限",
   "decode_type": "조건어 없는 성질 서술(문장만 복잡)",
   "decoded_from": "문장 구조가 복잡해 자동 판독 보류(수작업 미처리)",
-  "note": "O25 해독: 조건 낱말 없는 성질 서술. 근거 3_安星諸訣_入限入命斷訣.txt 638행 「唇齒有傷𠔥性猛」"
+  "note": "결과 행 정리(apply_result_rows_j3.py)",
+  "reason": "원문 조건어(若然入庙)를 조건표로 옮기지 못함(명세 5절 12번 마)"
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -12772,7 +12824,9 @@
   "polarity": "미정",
   "parse": "auto",
   "clause": "為人性急多顛倒，百事茫茫亂主張",
-  "abbr": "入限"
+  "abbr": "入限",
+  "inherits": "入限:639",
+  "note": "결과 행 정리(apply_result_rows_j3.py): 결과 행, 앞 행 入限:639의 조건을 이어받음(명세 5절 12번 카)"
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -12844,7 +12898,8 @@
   "abbr": "入限",
   "decode_type": "성별 말(女人·男子)",
   "decoded_from": "조건 낱말 해석 불가: 女人",
-  "note": "O25 해독: 女命 범위가 이미 담은 女人 머리말, 그 밖의 조건 낱말 없음. 근거 3_安星諸訣_入限入命斷訣.txt 643행 「女人得此誠為貴」"
+  "note": "결과 행 정리(apply_result_rows_j3.py): 결과 행, 앞 행 入限:642#2의 조건을 이어받음(명세 5절 12번 카)",
+  "inherits": "入限:642#2"
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -12860,7 +12915,9 @@
   "polarity": "미정",
   "parse": "auto",
   "clause": "簾捲珍珠坐綉房",
-  "abbr": "入限"
+  "abbr": "入限",
+  "inherits": "入限:642#2",
+  "note": "결과 행 정리(apply_result_rows_j3.py): 결과 행, 앞 행 入限:642#2의 조건을 이어받음(명세 5절 12번 카)"
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -12902,7 +12959,9 @@
   "parse": "auto",
   "clause": "相貌清竒多近寵，不然夀夭主㐫亡",
   "mixed": true,
-  "abbr": "入限"
+  "abbr": "入限",
+  "inherits": "入限:644",
+  "note": "결과 행 정리(apply_result_rows_j3.py): 결과 행, 앞 행 入限:644의 조건을 이어받음(명세 5절 12번 카)"
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -13725,7 +13784,9 @@
   "polarity": "길",
   "parse": "auto",
   "clause": "衣禄豊盈財帛足",
-  "abbr": "入限"
+  "abbr": "入限",
+  "inherits": "入限:672#2",
+  "note": "결과 행 정리(apply_result_rows_j3.py): 결과 행, 앞 행 入限:672#2의 조건을 이어받음(명세 5절 12번 카)"
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -14776,9 +14837,11 @@
   "conds": [],
   "result": "辰戌機鿄非小補，破軍卯酉不為良",
   "polarity": "미정",
-  "parse": "auto",
+  "parse": "unparsed",
   "clause": "辰戌機鿄非小補，破軍卯酉不為良",
-  "abbr": "入限"
+  "abbr": "入限",
+  "reason": "원문 조건어(辰戍機鿄, 破軍卯酉)를 조건표로 옮기지 못함(명세 5절 12번 마)",
+  "note": "결과 행 정리(apply_result_rows_j3.py)"
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -16062,7 +16125,9 @@
   "parse": "auto",
   "clause": "氣高志大無男女，不免刑夫歷苦辛",
   "mixed": true,
-  "abbr": "入限"
+  "abbr": "入限",
+  "inherits": "入限:738#2",
+  "note": "결과 행 정리(apply_result_rows_j3.py): 결과 행, 앞 행 入限:738#2의 조건을 이어받음(명세 5절 12번 카)"
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -16076,10 +16141,12 @@
   "conds": [],
   "result": "七殺孤星貪宿逢，火陀凑合非為貴",
   "polarity": "중",
-  "parse": "auto",
+  "parse": "unparsed",
   "clause": "七殺孤星貪宿逢，火陀凑合非為貴",
   "mixed": true,
-  "abbr": "入限"
+  "abbr": "入限",
+  "reason": "원문 조건어(貪宿逢, 火陀凑合)를 조건표로 옮기지 못함(명세 5절 12번 마)",
+  "note": "결과 행 정리(apply_result_rows_j3.py)"
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -16098,7 +16165,8 @@
   "abbr": "入限",
   "decode_type": "성별 말(女人·男子)",
   "decoded_from": "조건 낱말 해석 불가: 女人",
-  "note": "O25 해독: 女命 범위가 이미 담은 女人 머리말, 그 밖의 조건 낱말 없음. 근거 3_安星諸訣_入限入命斷訣.txt 741행 「女人得此性不良」"
+  "note": "결과 행 정리(apply_result_rows_j3.py): 결과 행, 앞 행 入限:740의 조건을 이어받음(명세 5절 12번 카)",
+  "inherits": "入限:740"
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -16114,7 +16182,9 @@
   "polarity": "미정",
   "parse": "auto",
   "clause": "只好偏房為使婢",
-  "abbr": "入限"
+  "abbr": "入限",
+  "inherits": "入限:740",
+  "note": "결과 행 정리(apply_result_rows_j3.py): 결과 행, 앞 행 入限:740의 조건을 이어받음(명세 5절 12번 카)"
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -17167,7 +17237,9 @@
   "polarity": "길",
   "parse": "auto",
   "clause": "財帛豊盈多慷慨，財官昭著佐君王",
-  "abbr": "入限"
+  "abbr": "入限",
+  "inherits": "入限:768",
+  "note": "결과 행 정리(apply_result_rows_j3.py): 결과 행, 앞 행 入限:768의 조건을 이어받음(명세 5절 12번 카)"
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -17391,7 +17463,9 @@
   "polarity": "미정",
   "parse": "auto",
   "clause": "性格有能偏出衆",
-  "abbr": "入限"
+  "abbr": "入限",
+  "inherits": "入限:775",
+  "note": "결과 행 정리(apply_result_rows_j3.py): 결과 행, 앞 행 入限:775의 조건을 이어받음(명세 5절 12번 카)"
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -17430,9 +17504,11 @@
   "conds": [],
   "result": "破軍女命不冝逢",
   "polarity": "중",
-  "parse": "auto",
+  "parse": "unparsed",
   "clause": "破軍女命不冝逢",
-  "abbr": "入限"
+  "abbr": "入限",
+  "reason": "원문 조건어(擎羊加𨺻)를 조건표로 옮기지 못함(명세 5절 12번 마)",
+  "note": "결과 행 정리(apply_result_rows_j3.py)"
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",
@@ -17482,7 +17558,9 @@
   "polarity": "흉",
   "parse": "auto",
   "clause": "尅害良人非一次，湏教悲哭度朝昏",
-  "abbr": "入限"
+  "abbr": "入限",
+  "inherits": "入限:777#2",
+  "note": "결과 행 정리(apply_result_rows_j3.py): 결과 행, 앞 행 入限:777#2의 조건을 이어받음(명세 5절 12번 카)"
  },
  {
   "file": "3_安星諸訣_入限入命斷訣.txt",

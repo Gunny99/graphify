@@ -175,11 +175,16 @@ def _sec2(R):
 
 
 # ---- 3절 ----
+def _txt(p):
+    """표에 싣는 글귀. 가지로 나눈 문장(#n)은 그 가지의 글귀만(명세 5절 12번 바), 앞 행을 이은 구절(joins)은 이은 문장 전체(사)."""
+    if '#' in p['id']:
+        return p.get('clause') or p['result']
+    return (p.get('text_full') or p['text']) if p.get('joins') else p['text']
+
+
 def _sec3(R, passages):
     ev = dict(l2.evaluate(R, passages))
     ev.update(l2.evaluate_j3(R))
-    def _txt(p):   # 가지로 나눈 문장(#n)은 그 가지의 글귀만 싣는다(명세 5절 12번 바)
-        return (p.get('clause') or p['result']) if '#' in p['id'] else p['text']
     text = {p['id']: _txt(p) for p in passages}
     text.update({p['id']: _txt(p) for p in l2.load_passages(l2.DATA3)})
     enum = lambda it: ', '.join('%d/%d' % (e['k'], e['n']) for e in it.get('enum', []))
@@ -370,7 +375,8 @@ def _sec7(R):
         body.append((r['판정_id'], j['제목'], '; '.join('%s:%s' % ('/'.join(s['파일'].split('/')[-2:]), s['행']) for s in j['출전'] if s['구실'] in ('본문', '명례')),
                      j['신빙성'], r['영역'], r['시기'], r['방향'], ', '.join(r['견준_궁']) or '-', _zami_value(r),
                      ', '.join(r['근거_구절_id'][:6]) + (' 외' if len(r['근거_구절_id']) > 6 else '') or '-', ', '.join(r['맞은_낱말']) or '-', r['결과'],
-                     _POLICY[r['결과']] + (' (추정형)' if r['결과'] == '무대응' and j['신빙성'] in ('후대', '월령격') else '')))
+                     _POLICY[r['결과']] + (' (추정형)' if r['결과'] == '무대응' and j['신빙성'] in ('후대', '월령격') else '')
+                     + (' (미확인 조건이 있어 단정하지 않는다)' if any(str(b).startswith('미확인 조건') for b in r.get('비고') or []) else '')))
     o += _table(['판정', '사주 판정', '출전(01_raw 폴더/파일:행)', '신빙성', '영역', '시기', '방향', '견준 궁', '자미두수 값', '근거 구절 id', '맞은 낱말', '결과', '처리'], body)
     o += ['', '### 격의 형태와 온전함', '']
     gy = [(j['id'], j['격']['이름'], j['격']['형태'], j['격']['온전함'], '; '.join(j['격']['서지_않는_조건']) or '-', '; '.join(j['격']['미확인_조건']) or '-') for j in data['판정'] if j.get('격')]

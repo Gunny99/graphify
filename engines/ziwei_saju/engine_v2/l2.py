@@ -389,8 +389,9 @@ def evaluate_j3(result, passages3=None):
         fem = [p for p in ps if p['scope'] == '女命']
         use = main + ([] if male else fem)
         items, unp = evaluate_palace(ctx, z, use, '명')
-        for it in items:     # 조건이 없는 별의 성질 서술은 선다로 세지 않는다(명세 5절 12번 라)
-            if it['total'] == 0 and it['verdict'] == '선다':
+        cp = {p['id']: p.get('cond_palace') for p in use}
+        for it in items:     # 조건이 없는 별의 성질 서술(cond_palace 성질)은 선다로 세지 않는다(명세 5절 12번 라).
+            if it['total'] == 0 and it['verdict'] == '선다' and cp.get(it['id']) == '성질':   # 자리만 조건인 명·명신 구절은 결과 구절이다
                 it['verdict'] = '성질'
         out[name] = {'palace': z, 'passages': items, 'unparsed': unp, 'summary': summarize(items),
                      '여명구절수': len(fem) if male else 0}
