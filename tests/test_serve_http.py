@@ -625,3 +625,13 @@ def test_orchestrator_tool_schemas_and_status_authentication_are_consistent(tmp_
             },
         )
         assert "Coordinator authentication failed" in json.dumps(rejected.json())
+
+
+@pytest.mark.parametrize("host", ["0.0.0.0", "::", ""])
+def test_wildcard_bind_without_api_key_is_refused(host, tmp_path):
+    from graphify import serve as serve_mod
+
+    graph = tmp_path / "graph.json"
+    graph.write_text('{"nodes": [], "links": []}', encoding="utf-8")
+    with pytest.raises(SystemExit, match="api-key"):
+        serve_mod.serve_http(str(graph), host=host, api_key=None)

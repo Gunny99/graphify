@@ -3114,8 +3114,12 @@ def _build_server(graph_path: str):
             ),
             types.Tool(
                 name="orchestrator_list_agents",
-                description="List locally registered agents, capabilities, and trusted quality-profile status. Authentication tokens and token hashes are never returned.",
-                inputSchema={"type": "object", "properties": {}},
+                description="List locally registered agents, capabilities, and trusted quality-profile status. Requires the coordinator token. Authentication tokens and token hashes are never returned.",
+                inputSchema={
+                    "type": "object",
+                    "properties": {"coordinator_token": {"type": "string"}},
+                    "required": ["coordinator_token"],
+                },
             ),
             types.Tool(
                 name="orchestrator_claim_task",
@@ -3518,7 +3522,8 @@ def _build_server(graph_path: str):
         store = _orchestration_store()
         return _orchestration_json(store.create_run(arguments["run"], arguments["tasks"]))
 
-    def _tool_orchestrator_list_agents(_: dict) -> str:
+    def _tool_orchestrator_list_agents(arguments: dict) -> str:
+        _require_orchestration_coordinator(arguments)
         return _orchestration_json(_orchestration_store().list_agents())
 
     def _tool_orchestrator_claim_task(arguments: dict) -> str:
@@ -3938,8 +3943,8 @@ def serve_http(
 
     ``api_key`` (or the ``GRAPHIFY_API_KEY`` env var) enables a simple header
     check (``Authorization: Bearer <key>`` or ``X-API-Key: <key>``). OAuth is a
-    deliberate follow-up. Binding ``0.0.0.0`` exposes the server beyond
-    localhost — set an api_key when you do.
+    deliberate follow-up. Binding a wildcard address (``0.0.0.0``/``::``) exposes
+    the server beyond localhost and is refused unless an api_key is set.
     """
     graph_path = graph_path or _default_graph_json()
     try:
@@ -3951,6 +3956,14 @@ def serve_http(
         ) from e
 
     api_key = (api_key or "").strip() or None
+
+    # Fail closed: a wildcard bind without credentials would publish the graph
+    # (and the orchestration tools) to every reachable network.
+    if host in ("0.0.0.0", "::", "[::]", "") and not api_key:
+        raise SystemExit(
+            f"refusing to bind {host or '0.0.0.0'} without an api-key: set --api-key "
+            "(or GRAPHIFY_API_KEY), or bind 127.0.0.1."
+        )
 
     app = _build_http_app(
         graph_path,
@@ -3968,12 +3981,6 @@ def serve_http(
         f"graphify MCP server (streamable-http) on http://{host}:{port}{path} - {auth_note}",
         file=sys.stderr,
     )
-    if host in ("0.0.0.0", "::", "") and not api_key:
-        print(
-            f"WARNING: binding {host or '0.0.0.0'} with no api-key exposes the graph "
-            "unauthenticated on the network. Set --api-key (or GRAPHIFY_API_KEY).",
-            file=sys.stderr,
-        )
     uvicorn.run(app, host=host, port=port)
 
 

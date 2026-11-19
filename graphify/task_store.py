@@ -22,12 +22,14 @@ AGENT_HEARTBEAT_TTL_SECONDS = 120
 from graphify.orchestration import (
     OrchestrationValidationError,
     estimate_end_to_end_cost,
+    model_families_independent,
     rank_qualified_agents,
     result_meets_quality_gate,
     validate_agent_profile,
     validate_result_envelope,
     validate_review_envelope,
     validate_execution_plan,
+    validate_output_against_schema,
     validate_run_envelope,
     validate_task_envelope,
     validate_task_graph,
@@ -412,7 +414,7 @@ class TaskStore:
             raise TaskStoreError(
                 "agent registration with pricing and quality profiles requires a trusted local operator"
             )
-        profile = dict(validate_agent_profile(value))
+        profile = dict(validate_agent_profile(value, require_family=True))
         agent_id = str(profile["agent_id"])
         auth_token = profile.pop("auth_token", None)
         if not isinstance(auth_token, str) or len(auth_token) < 24:
@@ -766,6 +768,13 @@ class TaskStore:
                     continue
                 if task["task_type"] == "verification" and "verify" not in agent["capabilities"]:
                     continue
+                producer_profile = None
+                if task["task_type"] == "verification":
+                    producer_profile = self._verification_producer_profile(con, task)
+                    if producer_profile is None or not model_families_independent(
+                        producer_profile, agent
+                    ):
+                        continue
 
                 # Re-rank currently available agents so polling order cannot make
                 # a more expensive qualified model steal work from a cheaper one.
@@ -793,6 +802,10 @@ class TaskStore:
                     if other["agent_id"] in excluded:
                         continue
                     if task["task_type"] == "verification" and "verify" not in other["capabilities"]:
+                        continue
+                    if producer_profile is not None and not model_families_independent(
+                        producer_profile, other
+                    ):
                         continue
                     if task["input"].get("read_only") is True and "read_only" not in other["capabilities"]:
                         continue
@@ -1097,6 +1110,8 @@ class TaskStore:
                 agent_profile["cost_profile"], result["usage"]
             )
             result["usage"]["pricing_source"] = agent_profile["cost_profile"]["pricing_source"]
+            # Token counts are the agent's own report; only the price is ours.
+            result["usage"]["token_counts_source"] = "agent_reported"
             encoded = _json(result)
             existing = con.execute(
                 "SELECT result_json, task_id FROM results WHERE result_id=?", (result_id,)
@@ -1127,6 +1142,13 @@ class TaskStore:
                 raise TaskStoreError(
                     "ziwei_saju tasks require result.output.domain='ziwei_saju'"
                 )
+            if result["status"] == "submitted":
+                try:
+                    validate_output_against_schema(result["output"], task["output_schema"])
+                except OrchestrationValidationError as exc:
+                    raise TaskStoreError(
+                        f"result output does not satisfy task output_schema: {exc}"
+                    ) from exc
             if result["run_id"] != row["run_id"] or int(result["attempt"]) != int(row["attempt"]):
                 raise TaskStoreError("result run_id or attempt does not match the active task lease")
             run_row = con.execute(
@@ -1265,6 +1287,22 @@ class TaskStore:
             self._refresh_run_status(con, row["run_id"])
             return self._run_status_in_transaction(con, row["run_id"])
 
+    def _verification_producer_profile(
+        self, con: sqlite3.Connection, task: Mapping[str, Any]
+    ) -> Mapping[str, Any] | None:
+        """Profile of the agent that produced the result a verifier task reviews."""
+        result_id = task.get("input", {}).get("result_id")
+        if not isinstance(result_id, str):
+            return None
+        row = con.execute(
+            "SELECT a.profile_json FROM results r JOIN agents a ON a.agent_id=r.agent_id "
+            "WHERE r.result_id=?",
+            (result_id,),
+        ).fetchone()
+        if row is None:
+            return None
+        return validate_agent_profile(_decode(row["profile_json"]))
+
     def get_verification_payload(
         self,
         task_id: str,
@@ -1286,6 +1324,14 @@ class TaskStore:
             result = _decode(result_row["result_json"])
             if result["task_id"] != task.get("parent_task_id"):
                 raise TaskStoreError("verification task is bound to a different source task")
+            # Blind review: the ledger keeps the full result, but the reviewer
+            # receives a ReviewPacket without producer identity (agent, provider,
+            # model, version), usage/pricing, or timing metadata.
+            blind_result = {
+                key: value
+                for key, value in result.items()
+                if key not in {"agent", "usage", "created_at"}
+            }
             return {
                 "verification_task": {
                     "task_id": task_id,
@@ -1295,7 +1341,7 @@ class TaskStore:
                     "domain": task["domain"],
                     "acceptance_criteria": task["acceptance_criteria"],
                 },
-                "result": result,
+                "result": blind_result,
             }
 
     def submit_review(
@@ -1334,6 +1380,7 @@ class TaskStore:
                 verifier["cost_profile"], review["usage"]
             )
             review["usage"]["pricing_source"] = verifier["cost_profile"]["pricing_source"]
+            review["usage"]["token_counts_source"] = "agent_reported"
             encoded_review = _json(review)
 
             prior_review = con.execute(
@@ -1385,6 +1432,10 @@ class TaskStore:
             if producer_row is None:
                 raise TaskNotFoundError(f"producer agent not registered: {result_row['agent_id']}")
             producer = validate_agent_profile(_decode(producer_row["profile_json"]))
+            if not model_families_independent(producer, verifier):
+                raise TaskStoreError(
+                    "reviewer must declare a model_family different from the producer's"
+                )
             source_task = _decode(task_row["task_json"])
             quality_ok = result_meets_quality_gate(
                 result,
@@ -1449,6 +1500,8 @@ class TaskStore:
                     for candidate_row in candidate_rows:
                         candidate = validate_agent_profile(_decode(candidate_row["profile_json"]))
                         if candidate["agent_id"] in excluded:
+                            continue
+                        if not model_families_independent(producer, candidate):
                             continue
                         if not set(review_task["required_capabilities"]).issubset(set(candidate["capabilities"])):
                             continue

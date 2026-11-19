@@ -922,12 +922,108 @@ def validate_execution_plan(
             seen.update(write_set)
         return
 
-def validate_agent_profile(value: Any) -> Mapping[str, Any]:
-    """Validate an agent identity, capability, cost, and evaluation profile."""
+_SCHEMA_TYPES = {
+    "object": lambda v: isinstance(v, Mapping),
+    "array": lambda v: isinstance(v, (list, tuple)),
+    "string": lambda v: isinstance(v, str),
+    "boolean": lambda v: isinstance(v, bool),
+    "integer": lambda v: isinstance(v, int) and not isinstance(v, bool),
+    "number": lambda v: isinstance(v, (int, float)) and not isinstance(v, bool),
+    "null": lambda v: v is None,
+}
+
+
+def validate_output_against_schema(output: Any, schema: Any, path: str = "output") -> None:
+    """Validate a result output against a task ``output_schema`` (JSON Schema subset).
+
+    Supported keywords: type, enum, const, required, properties,
+    additionalProperties (bool), items, minItems, maxItems, minLength,
+    maxLength, minimum, maximum. Any other keyword is rejected rather than
+    silently ignored so a contract can never be weaker than it reads.
+    """
+    supported = {
+        "type", "enum", "const", "required", "properties", "additionalProperties",
+        "items", "minItems", "maxItems", "minLength", "maxLength", "minimum",
+        "maximum", "description", "title", "$schema",
+    }
+    if not isinstance(schema, Mapping):
+        raise OrchestrationValidationError(f"{path}: schema must be an object")
+    unknown = sorted(set(schema) - supported)
+    if unknown:
+        raise OrchestrationValidationError(f"{path}: unsupported schema keywords {unknown}")
+    expected = schema.get("type")
+    if expected is not None:
+        names = [expected] if isinstance(expected, str) else list(expected)
+        if not names or any(name not in _SCHEMA_TYPES for name in names):
+            raise OrchestrationValidationError(f"{path}: unsupported schema type {expected!r}")
+        if not any(_SCHEMA_TYPES[name](output) for name in names):
+            raise OrchestrationValidationError(f"{path}: expected type {expected!r}")
+    if "enum" in schema and output not in schema["enum"]:
+        raise OrchestrationValidationError(f"{path}: value is not one of the allowed enum values")
+    if "const" in schema and output != schema["const"]:
+        raise OrchestrationValidationError(f"{path}: value does not equal the required constant")
+    if isinstance(output, Mapping):
+        for key in schema.get("required", []):
+            if key not in output:
+                raise OrchestrationValidationError(f"{path}.{key}: required property is missing")
+        properties = schema.get("properties", {})
+        for key, sub in properties.items():
+            if key in output:
+                validate_output_against_schema(output[key], sub, f"{path}.{key}")
+        if schema.get("additionalProperties") is False:
+            extra = sorted(set(output) - set(properties))
+            if extra:
+                raise OrchestrationValidationError(f"{path}: unexpected properties {extra}")
+    if isinstance(output, (list, tuple)):
+        if "minItems" in schema and len(output) < schema["minItems"]:
+            raise OrchestrationValidationError(f"{path}: fewer than {schema['minItems']} items")
+        if "maxItems" in schema and len(output) > schema["maxItems"]:
+            raise OrchestrationValidationError(f"{path}: more than {schema['maxItems']} items")
+        if "items" in schema:
+            for index, item in enumerate(output):
+                validate_output_against_schema(item, schema["items"], f"{path}[{index}]")
+    if isinstance(output, str):
+        if "minLength" in schema and len(output) < schema["minLength"]:
+            raise OrchestrationValidationError(f"{path}: shorter than {schema['minLength']}")
+        if "maxLength" in schema and len(output) > schema["maxLength"]:
+            raise OrchestrationValidationError(f"{path}: longer than {schema['maxLength']}")
+    if _SCHEMA_TYPES["number"](output):
+        if "minimum" in schema and output < schema["minimum"]:
+            raise OrchestrationValidationError(f"{path}: below minimum {schema['minimum']}")
+        if "maximum" in schema and output > schema["maximum"]:
+            raise OrchestrationValidationError(f"{path}: above maximum {schema['maximum']}")
+
+
+def model_families_independent(
+    producer: Mapping[str, Any], verifier: Mapping[str, Any]
+) -> bool:
+    """True only when both profiles declare a model_family and the families differ.
+
+    A missing family is unknown, never independent: a legacy profile must not
+    be able to review (or be reviewed by) another model of the same lineage.
+    """
+    families = []
+    for profile in (producer, verifier):
+        family = profile.get("model_family")
+        if not isinstance(family, str) or not family.strip():
+            return False
+        families.append(family.strip().casefold())
+    return families[0] != families[1]
+
+
+def validate_agent_profile(value: Any, *, require_family: bool = False) -> Mapping[str, Any]:
+    """Validate an agent identity, capability, cost, and evaluation profile.
+
+    ``model_family`` is required at registration (``require_family=True``).
+    Stored legacy profiles without it still load but are treated as an unknown
+    family by ``model_families_independent`` and so cannot take part in reviews.
+    """
     agent = _object(value, "agent")
     _schema_version(agent, "agent")
     for key in ("agent_id", "provider", "model", "model_version", "protocol"):
         _string(agent.get(key), f"agent.{key}")
+    if require_family or "model_family" in agent:
+        _string(agent.get("model_family"), "agent.model_family")
     _strings(agent.get("capabilities"), "agent.capabilities")
     _integer(agent.get("max_concurrency"), "agent.max_concurrency", minimum=1)
     if agent.get("status") not in AGENT_STATUSES:
@@ -1181,6 +1277,8 @@ def result_meets_quality_gate(
             raise OrchestrationValidationError(
                 f"verifier agent profile does not match review.reviewer.{key}"
             )
+    if not model_families_independent(producer, verifier):
+        return False
     if (
         producer["agent_id"] == verifier["agent_id"]
         or (

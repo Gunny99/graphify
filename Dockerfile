@@ -19,6 +19,7 @@ RUN pip install --no-cache-dir ".[mcp]"
 RUN useradd --create-home --uid 10001 graphify
 USER graphify
 
+# GRAPHIFY_API_KEY (or --api-key) is required: the wildcard bind below is refused without it.
 EXPOSE 8080
 
 ENTRYPOINT ["python", "-m", "graphify.serve"]

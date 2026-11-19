@@ -50,12 +50,14 @@ def _agent(
     accuracy: float = 0.995,
     hallucination: float = 0.005,
     max_concurrency: int = 2,
+    model_family: str | None = None,
 ) -> dict:
     return {
         "schema_version": 1,
         "agent_id": agent_id,
         "provider": provider,
         "model": model,
+        "model_family": model_family or f"family-{agent_id}",
         "model_version": "1",
         "protocol": "mcp",
         "capabilities": ["research", "verify"],
@@ -1140,3 +1142,70 @@ def test_task_budget_counts_reported_cost_from_failed_attempts(tmp_path):
             "SELECT task_json FROM tasks WHERE task_id='task-1'"
         ).fetchone()
     assert json.loads(row["task_json"])["last_failure"] == "task_cost_budget_exceeded"
+
+
+def _review_flow_setup(tmp_path, *, verifier_family=None):
+    store = TaskStore(tmp_path / "orchestrator.sqlite3")
+    explorer = _agent("explorer", "explorer-provider", "explorer-model", max_concurrency=2)
+    explorer["capabilities"].append("read_only")
+    verifier = _agent(
+        "verifier", "verifier-provider", "verifier-model", role="verifier",
+        model_family=verifier_family,
+    )
+    _register(store, explorer)
+    _register(store, verifier)
+    tasks = [_task("explore-1"), _task("explore-2")]
+    for item in tasks:
+        item["input"]["read_only"] = True
+        item["required_capabilities"] = ["read_only", "research"]
+    return store, explorer, tasks
+
+
+def test_verifier_payload_hides_producer_identity_and_usage(tmp_path):
+    store, explorer, tasks = _review_flow_setup(tmp_path)
+    store.create_run(_run(strategy="read_only_exploration", max_parallel_agents=2), tasks)
+    claimed = store.claim_task("explorer")
+    store.submit_result(_result(claimed["task_id"], explorer), claimed["lease_token"])
+    verification = store.claim_task("verifier")
+    payload = store.get_verification_payload(
+        verification["task_id"], "verifier", verification["lease_token"]
+    )
+    blob = json.dumps(payload)
+    for leaked in ("explorer-provider", "explorer-model", '"agent"', '"usage"', "model_version"):
+        assert leaked not in blob
+    assert payload["result"]["result_id"] == "result-1"
+
+
+def test_same_model_family_cannot_claim_or_review(tmp_path):
+    store, explorer, tasks = _review_flow_setup(
+        tmp_path, verifier_family="family-explorer"
+    )
+    store.create_run(_run(strategy="read_only_exploration", max_parallel_agents=2), tasks)
+    claimed = store.claim_task("explorer")
+    store.submit_result(_result(claimed["task_id"], explorer), claimed["lease_token"])
+    assert store.claim_task("verifier") is None
+
+
+def test_agent_registration_requires_model_family(tmp_path):
+    store = TaskStore(tmp_path / "orchestrator.sqlite3")
+    profile = _agent("no-family", "p", "m")
+    del profile["model_family"]
+    profile["auth_token"] = "x" * 32
+    with pytest.raises(Exception, match="model_family"):
+        store.register_agent(profile, trusted_profile=True)
+
+
+def test_result_output_must_satisfy_task_output_schema(tmp_path):
+    store = TaskStore(tmp_path / "orchestrator.sqlite3")
+    agent = _agent("worker", "p", "m")
+    _register(store, agent)
+    task = _task("task-1")
+    task["output_schema"] = {
+        "type": "object",
+        "required": ["required_key"],
+        "properties": {"required_key": {"type": "string"}},
+    }
+    store.create_run(_run(), [task])
+    claimed = store.claim_task("worker")
+    with pytest.raises(TaskStoreError, match="output_schema"):
+        store.submit_result(_result(claimed["task_id"], agent), claimed["lease_token"])

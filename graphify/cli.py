@@ -2019,6 +2019,7 @@ def dispatch_command(cmd: str) -> None:
                 "agent_id": "replace-with-stable-agent-id",
                 "provider": "replace-with-provider",
                 "model": "replace-with-model",
+                "model_family": "replace-with-model-family",
                 "model_version": "replace-with-model-version",
                 "protocol": "mcp",
                 "capabilities": ["research", "verify"],
