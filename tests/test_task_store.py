@@ -1174,6 +1174,8 @@ def test_verifier_payload_hides_producer_identity_and_usage(tmp_path):
     for leaked in ("explorer-provider", "explorer-model", '"agent"', '"usage"', "model_version"):
         assert leaked not in blob
     assert payload["result"]["result_id"] == "result-1"
+    assert "excluded_agent_ids" not in verification["input"]
+    assert "explorer" not in json.dumps(verification)
 
 
 def test_same_model_family_cannot_claim_or_review(tmp_path):
@@ -1209,3 +1211,12 @@ def test_result_output_must_satisfy_task_output_schema(tmp_path):
     claimed = store.claim_task("worker")
     with pytest.raises(TaskStoreError, match="output_schema"):
         store.submit_result(_result(claimed["task_id"], agent), claimed["lease_token"])
+
+
+def test_unsupported_output_schema_keywords_are_rejected_at_run_creation(tmp_path):
+    store = TaskStore(tmp_path / "orchestrator.sqlite3")
+    _register(store, _agent("worker", "p", "m"))
+    task = _task("task-1")
+    task["output_schema"] = {"type": "object", "oneOf": [{"type": "object"}]}
+    with pytest.raises(OrchestrationValidationError, match="unsupported schema keywords"):
+        store.create_run(_run(), [task])

@@ -747,7 +747,11 @@ def validate_task_envelope(value: Any) -> Mapping[str, Any]:
     for key in ("excluded_agent_ids", "failed_agent_ids"):
         if key in task_input:
             _strings(task_input[key], f"task.input.{key}")
-    _object(task.get("output_schema"), "task.output_schema")
+    output_schema = _object(task.get("output_schema"), "task.output_schema")
+    if task.get("task_type") != "verification":
+        # Verification tasks use an internal {"type": "review"} marker and are
+        # completed through submit_review, never validated as a result output.
+        validate_output_schema_definition(output_schema)
     _strings(task.get("acceptance_criteria"), "task.acceptance_criteria")
     attempt = _integer(task.get("attempt"), "task.attempt")
     max_attempts = _integer(task.get("max_attempts"), "task.max_attempts", minimum=1)
@@ -933,6 +937,33 @@ _SCHEMA_TYPES = {
 }
 
 
+_SCHEMA_KEYWORDS = frozenset({
+    "type", "enum", "const", "required", "properties", "additionalProperties",
+    "items", "minItems", "maxItems", "minLength", "maxLength", "minimum",
+    "maximum", "description", "title", "$schema",
+})
+
+
+def validate_output_schema_definition(schema: Any, path: str = "output_schema") -> None:
+    """Reject schemas this validator cannot enforce, at task creation time."""
+    if not isinstance(schema, Mapping):
+        raise OrchestrationValidationError(f"{path}: schema must be an object")
+    unknown = sorted(set(schema) - _SCHEMA_KEYWORDS)
+    if unknown:
+        raise OrchestrationValidationError(f"{path}: unsupported schema keywords {unknown}")
+    expected = schema.get("type")
+    if expected is not None:
+        names = [expected] if isinstance(expected, str) else list(expected)
+        if not names or any(name not in _SCHEMA_TYPES for name in names):
+            raise OrchestrationValidationError(f"{path}: unsupported schema type {expected!r}")
+    if "additionalProperties" in schema and not isinstance(schema["additionalProperties"], bool):
+        raise OrchestrationValidationError(f"{path}.additionalProperties must be a boolean")
+    for key, sub in (schema.get("properties") or {}).items():
+        validate_output_schema_definition(sub, f"{path}.properties.{key}")
+    if "items" in schema:
+        validate_output_schema_definition(schema["items"], f"{path}.items")
+
+
 def validate_output_against_schema(output: Any, schema: Any, path: str = "output") -> None:
     """Validate a result output against a task ``output_schema`` (JSON Schema subset).
 
@@ -941,11 +972,7 @@ def validate_output_against_schema(output: Any, schema: Any, path: str = "output
     maxLength, minimum, maximum. Any other keyword is rejected rather than
     silently ignored so a contract can never be weaker than it reads.
     """
-    supported = {
-        "type", "enum", "const", "required", "properties", "additionalProperties",
-        "items", "minItems", "maxItems", "minLength", "maxLength", "minimum",
-        "maximum", "description", "title", "$schema",
-    }
+    supported = _SCHEMA_KEYWORDS
     if not isinstance(schema, Mapping):
         raise OrchestrationValidationError(f"{path}: schema must be an object")
     unknown = sorted(set(schema) - supported)

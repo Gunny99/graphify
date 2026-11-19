@@ -444,10 +444,10 @@ class TaskStore:
             if existing and (active or awaiting_review):
                 previous = _decode(existing["profile_json"])
                 immutable_keys = (
-                    "provider", "model", "model_version", "cost_profile",
-                    "quality_profiles", "_auth_token_hash",
+                    "provider", "model", "model_family", "model_version",
+                    "cost_profile", "quality_profiles", "_auth_token_hash",
                 )
-                if any(previous[key] != profile[key] for key in immutable_keys):
+                if any(previous.get(key) != profile.get(key) for key in immutable_keys):
                     raise TaskStoreError(
                         "cannot change model identity, pricing, or quality profile while this agent owns leases or has pending verification results"
                     )
@@ -933,6 +933,14 @@ class TaskStore:
                     },
                 )
                 claimed = dict(task)
+                if task["task_type"] == "verification":
+                    # excluded_agent_ids holds the producer's agent_id; a blind
+                    # verifier must not learn it from the claim response.
+                    claimed["input"] = {
+                        key: value
+                        for key, value in task["input"].items()
+                        if key not in {"excluded_agent_ids", "failed_agent_ids"}
+                    }
                 claimed["lease_token"] = token
                 claimed["lease_expires_at"] = expires_at
                 return claimed

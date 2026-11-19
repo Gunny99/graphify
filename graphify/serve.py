@@ -3924,6 +3924,25 @@ def _build_http_app(
     )
 
 
+def _is_wildcard_host(host: str) -> bool:
+    """True for any all-interfaces bind spelling (0.0.0.0, ::, 0, ::0, [::], ...)."""
+    import ipaddress
+
+    text = (host or "").strip().strip("[]")
+    if not text:
+        return True
+    try:
+        return ipaddress.ip_address(text).is_unspecified
+    except ValueError:
+        pass
+    try:  # inet_aton shorthand such as "0" or "0.0"
+        import socket
+
+        return ipaddress.ip_address(socket.inet_ntoa(socket.inet_aton(text))).is_unspecified
+    except (OSError, ValueError):
+        return False
+
+
 def serve_http(
     graph_path: str | None = None,
     *,
@@ -3959,7 +3978,7 @@ def serve_http(
 
     # Fail closed: a wildcard bind without credentials would publish the graph
     # (and the orchestration tools) to every reachable network.
-    if host in ("0.0.0.0", "::", "[::]", "") and not api_key:
+    if _is_wildcard_host(host) and not api_key:
         raise SystemExit(
             f"refusing to bind {host or '0.0.0.0'} without an api-key: set --api-key "
             "(or GRAPHIFY_API_KEY), or bind 127.0.0.1."
