@@ -179,6 +179,12 @@ def _check(ctx, z, p, c):
         if not any(len(set(x)) >= 2 for x in sets):
             return None                                  # 짝이 안 되는 값은 검사할 수 없다
         got = _jia_ok(ctx, z, sets)
+    elif kind == '남북두':       # 값 ['南'] 또는 ['北']: 범위(기본 三方四正) 안에서 그 무리의 별이 다른 무리보다 많다(같으면 아님)
+        t = _nanbei()
+        pals = _scope_palaces(z, c.get('scope') or '동궁삼방대궁')
+        names = [n for q in pals for n in ctx.names(q)]
+        ns, nb = sum(n in t['南斗'] for n in names), sum(n in t['北斗'] for n in names)
+        got = ns > nb if vals[0] == '南' else nb > ns
     elif kind == '타궁별':       # 값 {궁 이름: [별...]}: 그 궁에 별이 있다(c['all']이면 모두)
         got = True
         for role, stars in vals.items():
@@ -190,6 +196,17 @@ def _check(ctx, z, p, c):
     else:
         return None
     return (not got) if c.get('negate') else got
+
+
+_NB = {}
+
+
+def _nanbei():
+    """data/nanbeidou.json(전서 권3 별별 해설 머리의 南斗·北斗)"""
+    if not _NB:
+        with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data', 'nanbeidou.json'), encoding='utf-8') as f:
+            _NB.update(json.load(f))
+    return _NB
 
 
 def _excl(p, vals):

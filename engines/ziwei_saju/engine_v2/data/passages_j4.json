@@ -4755,7 +4755,7 @@
   "result": "又看三方四正",
   "polarity": "미정",
   "parse": "unparsed",
-  "reason": "낱말 해석 불가 조건: 三方四正",
+  "reason": "읽는 범위 머리(三方四正): 子:8#2·#3에 합침(해독 3차)",
   "inherits": "子:7",
   "decode_type": "三方四正·南斗·北斗(별 무리)"
  },
@@ -4768,17 +4768,21 @@
   "text": "又看三方四正，得南斗星多，主多生男，北斗星以主多生女。",
   "conds": [
    {
-    "kind": "raw",
-    "values": [],
+    "kind": "남북두",
+    "values": [
+     "南"
+    ],
     "negate": false,
-    "word": "南斗"
+    "scope": "동궁삼방대궁",
+    "word": "三方四正，得南斗星多"
    }
   ],
   "result": "得南斗星多，主多生男",
   "polarity": "중",
-  "parse": "unparsed",
-  "reason": "낱말 해석 불가 조건: 南斗",
-  "decode_type": "三方四正·南斗·北斗(별 무리)"
+  "parse": "manual",
+  "reason": null,
+  "decode_type": "三方四正·南斗·北斗(별 무리)",
+  "note": "해독 3차(apply_decode3.py): 南斗·北斗 무리는 data/nanbeidou.json(전서 권3 별별 해설 머리). \"又看\"은 읽는 절차의 이음이라 子:7 조건을 이어받지 않음(추론)"
  },
  {
   "file": "4_四子女.txt",
@@ -4789,17 +4793,21 @@
   "text": "又看三方四正，得南斗星多，主多生男，北斗星以主多生女。",
   "conds": [
    {
-    "kind": "raw",
-    "values": [],
+    "kind": "남북두",
+    "values": [
+     "北"
+    ],
     "negate": false,
-    "word": "北斗"
+    "scope": "동궁삼방대궁",
+    "word": "三方四正，得北斗星多"
    }
   ],
   "result": "北斗星以主多生女",
   "polarity": "중",
-  "parse": "unparsed",
-  "reason": "낱말 해석 불가 조건: 北斗",
-  "decode_type": "三方四正·南斗·北斗(별 무리)"
+  "parse": "manual",
+  "reason": null,
+  "decode_type": "三方四正·南斗·北斗(별 무리)",
+  "note": "해독 3차(apply_decode3.py): 南斗·北斗 무리는 data/nanbeidou.json(전서 권3 별별 해설 머리). \"又看\"은 읽는 절차의 이음이라 子:7 조건을 이어받지 않음(추론)"
  },
  {
   "file": "4_四子女.txt",

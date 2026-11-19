@@ -61,6 +61,15 @@ def j4_fix(items):
             p['reason'] = '相生: 무엇과 무엇의 상생인지(별과 궁, 별과 명) 원문 정의가 없어 옮기지 않음'
         elif pid == '疾:32' and p['parse'] == 'unparsed':
             p['reason'] = '刼殺(地劫인지 劫殺 신살인지)과 空亡(旬空·截空)이 갈려 옮기지 않음'
+        elif pid == '子:8#1' and p['parse'] == 'unparsed':
+            p['reason'] = '읽는 범위 머리(三方四正): 子:8#2·#3에 합침(해독 3차)'
+        elif pid in ('子:8#2', '子:8#3') and p['parse'] == 'unparsed':
+            side = '南' if pid.endswith('#2') else '北'
+            p['conds'] = [{'kind': '남북두', 'values': [side], 'negate': False, 'scope': '동궁삼방대궁',
+                           'word': '三方四正，得%s斗星多' % side}]
+            p.pop('inherits', None)
+            p['parse'] = 'manual'; p['reason'] = None
+            p['note'] = NOTE + ': 南斗·北斗 무리는 data/nanbeidou.json(전서 권3 별별 해설 머리). "又看"은 읽는 절차의 이음이라 子:7 조건을 이어받지 않음(추론)'
         elif pid in ('子:12#1', '子:12#2') and p['polarity'] == '미정':
             p['result'] = p['result'] + '，教君到老無児呌'; p['polarity'] = '흉'
             p['note'] = (p.get('note') or '') + '; ' + NOTE + ': 결과 행 子:13을 합침'

@@ -66,7 +66,7 @@ def test_table_integrity():
             continue
         for c in p['conds']:
             assert c['kind'] in ('동궁', '삼방대궁', '밝기', '궁지', '생년간', '성별', '살', '길', '공망',
-                            '생년지지', '생시', '대궁', '삼합', '협', '타궁별') and 'negate' in c      # 뒤 여섯은 해독 2차(2026-11-18)에 더한 종류
+                            '생년지지', '생시', '대궁', '삼합', '협', '타궁별', '남북두') and 'negate' in c      # 생년지지~타궁별은 해독 2차, 남북두는 해독 3차(2026-11-18)
 
 
 def test_text_verbatim():
@@ -400,3 +400,11 @@ def test_decode3_idempotent_and_verdicts(tmp_path, ev):
     assert v['入限:951#3'] == '선다'
     for i in ('入限:601#2', '入限:602', '入限:515#1', '入限:515#2'):
         assert v[i] == '서지 않는다', i
+
+
+def test_nanbeidou_kind(ev):
+    """子:8 三方四正의 南斗·北斗 수 비교(data/nanbeidou.json). 자녀궁 亥 삼방사정: 南 4(천동·천량·영성·천기) > 北 3(타라·경양·거문)."""
+    t = l2._nanbei()
+    assert not set(t['南斗']) & set(t['北斗']) and not (set(t['南斗']) | set(t['北斗'])) & set(t['南北斗'])
+    assert ev[0]['子:8#2']['verdict'] == '선다'
+    assert ev[0]['子:8#3']['verdict'] == '서지 않는다'
