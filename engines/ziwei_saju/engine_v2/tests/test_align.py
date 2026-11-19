@@ -225,3 +225,16 @@ def test_two_categories_make_two_rows():
     ev = EV(명궁=[P('a', '선다', '길')], 신궁=[], 관록=[], 재백=[], 전택=[])
     rs = run([J('T', '길', ['귀천', '형극'])], ev, texts={'a': '貴'})
     assert [(r['영역'], r['결과']) for r in rs] == [('귀천', '합치'), ('형극', '무대응')]
+
+
+def test_no_category_is_one_mudaeung_row():
+    ev = EV(명궁=[P('a', '선다', '길')], 신궁=[], 관록=[])
+    rs = run([J('T', '흉', [])], ev, texts={'a': '貴'})
+    assert len(rs) == 1 and rs[0]['결과'] == '무대응' and rs[0]['견준_궁'] == []
+
+
+def test_nabeum_year_root_rows(target):
+    _, rows = target
+    by = {r['판정_id']: r for r in rows}
+    assert by['SJ27']['방향'] == '길' and by['SJ28']['방향'] == '흉'
+    assert by['SJ27']['결과'] == by['SJ28']['결과'] == '무대응'

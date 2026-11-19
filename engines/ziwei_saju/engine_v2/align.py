@@ -338,6 +338,8 @@ def align(result, judgments=None, lexicon=None, evaluation=None, texts=None, dae
         if when == '평생' or isinstance(when, str):
             if j['방향'] == '성질':
                 rows += _trait_rows(j, ev, lexicon, texts, explicit, extra)
+            elif not cats:          # 결과 원문에 범주 낱말이 없으면(忌·愛 따위) 견줄 궁이 없다(O23)
+                rows.append(_row(j, 결과='무대응', 비고=extra + ['결과 원문에 범주 낱말이 없어 견줄 궁이 없다(O23)']))
             else:
                 for cat in cats:        # 범주마다 따로 줄을 낸다
                     ps = palaces_for([cat], j.get('육친'))
