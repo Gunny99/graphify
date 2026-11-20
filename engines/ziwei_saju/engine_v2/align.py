@@ -112,6 +112,7 @@ def zabungi_explicit(result):
         out['명궁'] = dict(방향='흉', 범주=['질병'], 낱말=[('정신질환', '질병', None)], 출전='명궁 화성과 천형의 글귀를 정신질환으로 읽음(1081~1089)')
     hw = ((result.get('l1') or {}).get('gyeok') or {}).get('hwatam')
     if hw and hw.get('form') and not hw.get('complete'):
+        # 기록용: 궁 이름이 아니라 life_direction·life_traits가 읽지 않는다. 화탐격의 결과 구절을 쓰지 않는다는 것 자체가 판정이다
         out['화탐격'] = dict(방향='무효', 범주=None, 낱말=[], 출전='화탐격은 형태만 서고 온전하지 않아 결과 구절을 쓰지 않는다(R25, 3922~3929)')
     return out
 
@@ -199,7 +200,7 @@ def judge_trait(cat, jwords, evidence, lexicon):
         return '합치', [e[0] for e in evidence], [e[3] for e in evidence], []
     jp = {p for _, p in jwords if p}
     ep = {e[2] for e in evidence if e[2]}
-    if not ep:
+    if not jp or not ep:      # 판정 쪽이나 자미두수 쪽 극을 모르면 견줄 수 없다
         return '무대응', [], [], []
     same = jp & ep
     opp = ep - jp

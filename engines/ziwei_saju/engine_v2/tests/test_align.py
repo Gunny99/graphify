@@ -238,3 +238,8 @@ def test_nabeum_year_root_rows(target):
     by = {r['판정_id']: r for r in rows}
     assert by['SJ27']['방향'] == '길' and by['SJ28']['방향'] == '흉'
     assert by['SJ27']['결과'] == by['SJ28']['결과'] == '무대응'
+
+
+def test_trait_without_judgment_pole_is_mudaeung():
+    ev = [('貴', '귀천', '貴', 'a', '명궁')]
+    assert align.judge_trait('귀천', [('某', None)], ev, LEX)[0] == '무대응'

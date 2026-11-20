@@ -113,7 +113,9 @@ def _check(ctx, z, p, c):
     if kind in PRESENCE_KINDS and not c.get('role'):
         vals = _excl(p, vals)
     got = None
-    if c.get('pair'):                       # 짝별(R28): 모두 있어야 한다
+    if c.get('pair'):                       # 짝별(R28): 하나는 본궁에, 둘 다 범위 안에 있으면 반만(魁鉞은 한 궁에 들지 않아 반만이 상한)
+        if not any(v in ctx.names(z) for v in vals):
+            return False
         got = all(any(v in ctx.names(q) for q in _scope_palaces(z, '동궁삼방대궁')) for v in vals)
         return 'half' if got else False
     if kind in PRESENCE_KINDS:
@@ -484,7 +486,7 @@ def evaluate_limit(result, daehan_index, passages=None, kinds=None):
             it['met'] = it['total'] = 1
             it['subject_only'] = True
         it.update(line=q['line'], text=q['clause'], limit_kind=q['limit_kind'], limit_type=q['limit_type'], wide=_wide(q))
-    order = {'선다': 0, '반만': 1, '서지 않는다': 2}
+    order = {'선다': 0, '반만': 1, '성질': 2, '서지 않는다': 3}
     items.sort(key=lambda it: (order[it['verdict']], 1 if it['wide'] else 0, rank.get(it['polarity'], 2), it['line'], it['id']))
     return {'palace': z, 'daehan': {k: d[k] for k in ('n', 'natal_role', 'age_from', 'age_to')}, 'passages': items,
             'unparsed': unp, 'outside': outside, 'skipped_kinds': skipped, 'summary': summarize(items)}
