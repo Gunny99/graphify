@@ -574,11 +574,26 @@
     "negate": false,
     "scope": "동궁",
     "word": ""
+   },
+   {
+    "kind": "살",
+    "values": [
+     "경양",
+     "타라",
+     "화성",
+     "영성",
+     "지공",
+     "지겁"
+    ],
+    "negate": true,
+    "scope": "동궁",
+    "word": "無殺"
    }
   ],
   "result": "無移三人",
-  "polarity": "흉",
-  "parse": "auto"
+  "polarity": "중",
+  "parse": "auto",
+  "note": "전서 확정본 대조(apply_canon_j34.py): 확정본 「巨門同無殺三人」(전사본 移는 殺의 오자). 세는 말이라 중"
  },
  {
   "file": "4_二兄弟.txt",
@@ -4428,11 +4443,38 @@
     "negate": false,
     "scope": "동궁",
     "role": "주체"
+   },
+   {
+    "kind": "밝기",
+    "values": [
+     "묘왕"
+    ],
+    "negate": false,
+    "word": "入庙"
+   },
+   {
+    "kind": "길",
+    "values": [
+     "좌보",
+     "우필",
+     "문창",
+     "문곡",
+     "천괴",
+     "천월",
+     "녹존",
+     "화록",
+     "화권",
+     "화과"
+    ],
+    "negate": false,
+    "scope": "동궁",
+    "word": "加吉"
    }
   ],
   "result": "火铃星入西，加士無刑",
   "polarity": "길",
-  "parse": "auto"
+  "parse": "auto",
+  "note": "전서 확정본 대조(apply_canon_j34.py): 확정본 「火鈴星入庙加吉無刑」(전사본 入西加士는 入庙加吉의 오자)"
  },
  {
   "file": "4_三妻妾.txt",
@@ -10934,8 +10976,9 @@
    }
   ],
   "result": "庙出無疾",
-  "polarity": "흉",
-  "parse": "auto"
+  "polarity": "길",
+  "parse": "auto",
+  "note": "전서 확정본 대조(apply_canon_j34.py): 확정본 「貪狼同庙旺無疾」(전사본 出은 旺의 오자). 無疾이라 길"
  },
  {
   "file": "4_六疾厄.txt",

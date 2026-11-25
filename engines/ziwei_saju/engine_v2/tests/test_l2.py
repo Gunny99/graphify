@@ -440,3 +440,13 @@ def test_pair_subject_needs_one_star_here():
     for date, time, off in (('1969-11-05', '16:30', 0), ('1953-12-21', '06:30', 0), ('1999-08-04', '10:14', -38)):
         out = l2.evaluate(compute(date, time, True, off))   # 대상 명반도 복덕 辰에 괴월이 없다(子 천괴, 申 천월)
         assert '福:70' not in {it['id'] for it in out['복덕']['passages']}
+
+
+def test_canon_collation_fixes():
+    """전서 확정본 대조(2026-11-25): 조건·극이 바뀐 구절."""
+    j3 = {p['id']: p for p in l2.load_passages(l2.DATA3)}
+    j4 = {p['id']: p for p in l2.load_passages()}
+    assert any(c['kind'] == '궁지' and c['values'] == ['巳', '酉', '丑'] for c in j3['入限:794#1']['conds'])
+    assert any(c.get('word') == '㑹吉星' for c in j3['入限:859#2']['conds'])
+    assert j4['疾:18']['polarity'] == '길' and j4['兄:14#3']['polarity'] == '중'
+    assert [c['kind'] for c in j4['妻:85']['conds']] == ['동궁', '밝기', '길']
