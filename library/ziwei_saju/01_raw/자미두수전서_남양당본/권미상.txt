@@ -1,0 +1,349 @@
+# 자미두수전서_남양당본 / 권미상
+판본: 명 남양당 7권본, 일본 내각문고
+수집일: 2026-10-10 KST
+상태: 수집완료
+범위: 아래 실제 확보 문단. 원판 교감·이미지 독해와는 별도.
+
+[전서남양당-권미상-目録-0001] 원문문단ID=QS_SDZJ0170_FULL:7356158859225989146
+권/편: 권미상 / 目録
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1l8c31cc86psj
+독해이력: 텍스트 독해 확인
+紫㣲斗數全書上
+
+[전서남양당-권미상-目録-0002] 원문문단ID=QS_SDZJ0170_FULL:7356158859226005530
+권/편: 권미상 / 目録
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1l8c31cc86psj
+독해이력: 텍스트 독해 확인
+陳希夷先生著
+
+[전서남양당-권미상-目録-0003] 원문문단ID=QS_SDZJ0170_FULL:7356158859226021914
+권/편: 권미상 / 目録
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1l8c31cc86psj
+독해이력: 텍스트 독해 확인
+紫㣲斗數全書
+
+[전서남양당-권미상-目録-0004] 원문문단ID=QS_SDZJ0170_FULL:7356158859226038298
+권/편: 권미상 / 目録
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1l8c31cc86psj
+독해이력: 텍스트 독해 확인
+南陽堂較梓
+
+[전서남양당-권미상-目録-0005] 원문문단ID=QS_SDZJ0170_FULL:7356158859226054682
+권/편: 권미상 / 目録
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1l8c31cc86psj
+독해이력: 텍스트 독해 확인
+目録
+
+[전서남양당-권미상-目録-0006] 원문문단ID=QS_SDZJ0170_FULL:7356158859226071066
+권/편: 권미상 / 目録
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1l8c31cc86psj
+독해이력: 텍스트 독해 확인
+壹卷
+
+[전서남양당-권미상-目録-0007] 원문문단ID=QS_SDZJ0170_FULL:7497231418722091046
+권/편: 권미상 / 目録
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1l8c31cc86psj
+독해이력: 텍스트 독해 확인
+太㣲賦 形性賦 星垣論 斗數凖繩
+
+[전서남양당-권미상-目録-0008] 원문문단ID=QS_SDZJ0170_FULL:7356158859226087450
+권/편: 권미상 / 目録
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1l8c31cc86psj
+독해이력: 텍스트 독해 확인
+續形性賦發微論 斗数彀率増補太微賦
+
+[전서남양당-권미상-目録-0009] 원문문단ID=QS_SDZJ0170_FULL:7497231418722107430
+권/편: 권미상 / 目録
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1l8c31cc86psj
+독해이력: 텍스트 독해 확인
+星垣問答論
+
+[전서남양당-권미상-目録-0010] 원문문단ID=QS_SDZJ0170_FULL:7356158859226103834
+권/편: 권미상 / 目録
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1l8c31cc86psj
+독해이력: 텍스트 독해 확인
+貳卷
+
+[전서남양당-권미상-目録-0011] 원문문단ID=QS_SDZJ0170_FULL:7497231418722123814
+권/편: 권미상 / 目録
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1l8c31cc86psj
+독해이력: 텍스트 독해 확인
+斗数骨髓賦註觧 女命骨髓賦註觧
+
+[전서남양당-권미상-目録-0012] 원문문단ID=QS_SDZJ0170_FULL:7497231418722140198
+권/편: 권미상 / 目録
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1l8c31cc86psj
+독해이력: 텍스트 독해 확인
+増補太㣲賦註解 補遺骨髓賦註觧
+
+[전서남양당-권미상-目録-0013] 원문문단ID=QS_SDZJ0170_FULL:7497231418722156582
+권/편: 권미상 / 目録
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1l8c31cc86psj
+독해이력: 텍스트 독해 확인
+定冨貴貧賤等訣 定冨貴貧賤十等論
+
+[전서남양당-권미상-目録-0014] 원문문단ID=QS_SDZJ0170_FULL:7497231418722172966
+권/편: 권미상 / 目録
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1l8c31cc86psj
+독해이력: 텍스트 독해 확인
+十二宫諸星得地訣 十二宮諸星失陷訣
+
+[전서남양당-권미상-目録-0015] 원문문단ID=QS_SDZJ0170_FULL:7497231418722189350
+권/편: 권미상 / 目録
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1l8c31cc86psj
+독해이력: 텍스트 독해 확인
+諸星得地冨貴論 諸星失蹈貧賤論
+
+[전서남양당-권미상-目録-0016] 원문문단ID=QS_SDZJ0170_FULL:7497231418722205734
+권/편: 권미상 / 目録
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1l8c31cc86psj
+독해이력: 텍스트 독해 확인
+定冨局 定貴局 定貧賤局 定雜局
+
+[전서남양당-권미상-目録-0017] 원문문단ID=QS_SDZJ0170_FULL:7356158859226136602
+권/편: 권미상 / 目録
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1l8c31cc86psj
+독해이력: 텍스트 독해 확인
+叁卷
+
+[전서남양당-권미상-目録-0018] 원문문단ID=QS_SDZJ0170_FULL:7497231418722222118
+권/편: 권미상 / 目録
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1l8c31cc86psj
+독해이력: 텍스트 독해 확인
+安身命例 安十二宫例 起五寅例
+
+[전서남양당-권미상-目録-0019] 원문문단ID=QS_SDZJ0170_FULL:7497231418722238502
+권/편: 권미상 / 目録
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1l8c31cc86psj
+독해이력: 텍스트 독해 확인
+花甲納音歌 安南北斗星訣安文昌文曲星訣
+
+[전서남양당-권미상-目録-0020] 원문문단ID=QS_SDZJ0170_FULL:7497231418722254886
+권/편: 권미상 / 目録
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1l8c31cc86psj
+독해이력: 텍스트 독해 확인
+安輔弼星訣 安天魁天鉞訣安火䍅二星訣
+
+[전서남양당-권미상-目録-0021] 원문문단ID=QS_SDZJ0170_FULL:7497231418722271270
+권/편: 권미상 / 目録
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1l8c31cc86psj
+독해이력: 텍스트 독해 확인
+安禄權科忌訣安天空地刼訣安天傷天使訣
+
+[전서남양당-권미상-目録-0022] 원문문단ID=QS_SDZJ0170_FULL:7497231418722287654
+권/편: 권미상 / 目録
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1l8c31cc86psj
+독해이력: 텍스트 독해 확인
+安十二宫太歳殺禄神歌訣 安天刑天姚星訣
+
+[전서남양당-권미상-目録-0023] 원문문단ID=QS_SDZJ0170_FULL:7497231418722304038
+권/편: 권미상 / 目録
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1l8c31cc86psj
+독해이력: 텍스트 독해 확인
+安三台八座訣安天哭天虚訣安龍池鳯閣訣
+
+[전서남양당-권미상-目録-0024] 원문문단ID=QS_SDZJ0170_FULL:7497231418722320422
+권/편: 권미상 / 目録
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1l8c31cc86psj
+독해이력: 텍스트 독해 확인
+安台輔訣 安封誥訣 安長生沐浴訣
+
+[전서남양당-권미상-目録-0025] 원문문단ID=QS_SDZJ0170_FULL:7497231418722336806
+권/편: 권미상 / 目録
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1l8c31cc86psj
+독해이력: 텍스트 독해 확인
+安紅鸞天喜訣安喪門白虎吊客官符四飛星訣
+
+[전서남양당-권미상-目録-0026] 원문문단ID=QS_SDZJ0170_FULL:7497231418722353190
+권/편: 권미상 / 目録
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1l8c31cc86psj
+독해이력: 텍스트 독해 확인
+安斗君訣 安天德月徳解神訣
+
+[전서남양당-권미상-目録-0027] 원문문단ID=QS_SDZJ0170_FULL:7497231418722369574
+권/편: 권미상 / 目録
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1l8c31cc86psj
+독해이력: 텍스트 독해 확인
+安飛天三殺訣安截路空亡訣安旬中空亡訣
+
+[전서남양당-권미상-目録-0028] 원문문단ID=QS_SDZJ0170_FULL:7497231418722385958
+권/편: 권미상 / 目録
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1l8c31cc86psj
+독해이력: 텍스트 독해 확인
+安大限訣 安小限訣 安童限訣
+
+[전서남양당-권미상-目録-0029] 원문문단ID=QS_SDZJ0170_FULL:7497231418722402342
+권/편: 권미상 / 目録
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1l8c31cc86psj
+독해이력: 텍스트 독해 확인
+安命主 安身主 安金鎻鉄蛇関
+
+[전서남양당-권미상-目録-0030] 원문문단ID=QS_SDZJ0170_FULL:7497231418724974629
+권/편: 권미상 / 目録
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1l8c31cc86psj
+독해이력: 텍스트 독해 확인
+安男女竹羅三限訣 安十二宫強弱訣
+
+[전서남양당-권미상-目録-0031] 원문문단ID=QS_SDZJ0170_FULL:7497231418724991013
+권/편: 권미상 / 目録
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1l8c31cc86psj
+독해이력: 텍스트 독해 확인
+定十二宫星辰落閑宫安流禄流羊流陀訣
+
+[전서남양당-권미상-目録-0032] 원문문단ID=QS_SDZJ0170_FULL:7497231418725007397
+권/편: 권미상 / 目録
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1l8c31cc86psj
+독해이력: 텍스트 독해 확인
+論星辰生尅制化論諸星分属南北斗并分属五行
+
+[전서남양당-권미상-目録-0033] 원문문단ID=QS_SDZJ0170_FULL:7497231418725023781
+권/편: 권미상 / 目録
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1l8c31cc86psj
+독해이력: 텍스트 독해 확인
+定金木水火土局 安紫㣲天府圖
+
+[전서남양당-권미상-目録-0034] 원문문단ID=QS_SDZJ0170_FULL:7497231418725040165
+권/편: 권미상 / 目録
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1l8c31cc86psj
+독해이력: 텍스트 독해 확인
+傷使禍福𦂳慢圖 禄權科忌圖
+
+[전서남양당-권미상-目録-0035] 원문문단ID=QS_SDZJ0170_FULL:7497231418725056549
+권/편: 권미상 / 目録
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1l8c31cc86psj
+독해이력: 텍스트 독해 확인
+十二宫庙旺落陷圖 論命宫訣
+
+[전서남양당-권미상-目録-0036] 원문문단ID=QS_SDZJ0170_FULL:7356158859226169370
+권/편: 권미상 / 目録
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1l8c31cc86psj
+독해이력: 텍스트 독해 확인
+肆卷
+
+[전서남양당-권미상-目録-0037] 원문문단ID=QS_SDZJ0170_FULL:7356158860421234726
+권/편: 권미상 / 目録
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1l8c31cc86psj
+독해이력: 텍스트 독해 확인
+論兄弟訣論妻妾訣論子女訣論財帛訣
+
+[전서남양당-권미상-目録-0038] 원문문단ID=QS_SDZJ0170_FULL:7497231418725072933
+권/편: 권미상 / 目録
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1l8c31cc86psj
+독해이력: 텍스트 독해 확인
+論疾厄訣論遷移訣論奴僕訣論官禄訣
+
+[전서남양당-권미상-目録-0039] 원문문단ID=QS_SDZJ0170_FULL:7497231418725089317
+권/편: 권미상 / 目録
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1l8c31cc86psj
+독해이력: 텍스트 독해 확인
+論田宅訣論福徳訣論父母訣
+
+[전서남양당-권미상-目録-0040] 원문문단ID=QS_SDZJ0170_FULL:7356158860421251110
+권/편: 권미상 / 目録
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1l8c31cc86psj
+독해이력: 텍스트 독해 확인
+伍卷
+
+[전서남양당-권미상-目録-0041] 원문문단ID=QS_SDZJ0170_FULL:7497231418725105701
+권/편: 권미상 / 目録
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1l8c31cc86psj
+독해이력: 텍스트 독해 확인
+譚星要論 論人命入格 論格星数高下
+
+[전서남양당-권미상-目録-0042] 원문문단ID=QS_SDZJ0170_FULL:7497231418725122085
+권/편: 권미상 / 目録
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1l8c31cc86psj
+독해이력: 텍스트 독해 확인
+論人性格何如論男女命同異論小児命
+
+[전서남양당-권미상-目録-0043] 원문문단ID=QS_SDZJ0170_FULL:7497231418725138469
+권/편: 권미상 / 目録
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1l8c31cc86psj
+독해이력: 텍스트 독해 확인
+定小児生時訣論人生時安命吉㐫
+
+[전서남양당-권미상-目録-0044] 원문문단ID=QS_SDZJ0170_FULL:7497231418725154853
+권/편: 권미상 / 目録
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1l8c31cc86psj
+독해이력: 텍스트 독해 확인
+論人生時要審的確 論小児尅親
+
+[전서남양당-권미상-目録-0045] 원문문단ID=QS_SDZJ0170_FULL:7497231418725171237
+권/편: 권미상 / 目録
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1l8c31cc86psj
+독해이력: 텍스트 독해 확인
+論命
+先貧後
+冨 論大限十年禍福何如
+
+[전서남양당-권미상-目録-0046] 원문문단ID=QS_SDZJ0170_FULL:7497231418725187621
+권/편: 권미상 / 目録
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1l8c31cc86psj
+독해이력: 텍스트 독해 확인
+論二限太嵗吉㐫 論行限分南北斗
+
+[전서남양당-권미상-目録-0047] 원문문단ID=QS_SDZJ0170_FULL:7497231418725204005
+권/편: 권미상 / 目録
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1l8c31cc86psj
+독해이력: 텍스트 독해 확인
+論流年太嵗吉㐫星殺論隂隲延夀
+
+[전서남양당-권미상-目録-0048] 원문문단ID=QS_SDZJ0170_FULL:7497231418725220389
+권/편: 권미상 / 目録
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1l8c31cc86psj
+독해이력: 텍스트 독해 확인
+論羊陀迭併 論七殺重逢
+
+[전서남양당-권미상-目録-0049] 원문문단ID=QS_SDZJ0170_FULL:7497231418725236773
+권/편: 권미상 / 目録
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1l8c31cc86psj
+독해이력: 텍스트 독해 확인
+論大小二限而辰過十二宫遇十二支人所忌訣
+
+[전서남양당-권미상-目録-0050] 원문문단ID=QS_SDZJ0170_FULL:7497231418725253157
+권/편: 권미상 / 目録
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1l8c31cc86psj
+독해이력: 텍스트 독해 확인
+論立命行限宫歌
+
+[전서남양당-권미상-目録-0051] 원문문단ID=QS_SDZJ0170_FULL:7497231418726580261
+권/편: 권미상 / 目録
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1l8c31cc86psj
+독해이력: 텍스트 독해 확인
+論太嵗小限星辰庙䧟遇十二宫中吉㐫
+
+[전서남양당-권미상-目録-0052] 원문문단ID=QS_SDZJ0170_FULL:7497231418726596645
+권/편: 권미상 / 目録
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1l8c31cc86psj
+독해이력: 텍스트 독해 확인
+論諸星同位垣各司所冝分别冨貴貧賤夭夀
+
+[전서남양당-권미상-目録-0053] 원문문단ID=QS_SDZJ0170_FULL:7356158860421283878
+권/편: 권미상 / 目録
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1l8c31cc86psj
+독해이력: 텍스트 독해 확인
+陸卷
+
+[전서남양당-권미상-目録-0054] 원문문단ID=QS_SDZJ0170_FULL:7356158860421300262
+권/편: 권미상 / 目録
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1l8c31cc86psj
+독해이력: 텍스트 독해 확인
+古今富貴貧賤夭夀命圖
+
+[전서남양당-권미상-目録-0055] 원문문단ID=QS_SDZJ0170_FULL:7497233244811690022
+권/편: 권미상 / 目録
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1l8c31cc86psj
+독해이력: 텍스트 독해 확인
+柒卷
+
+[전서남양당-권미상-目録-0056] 원문문단ID=QS_SDZJ0170_FULL:7497233244811706406
+권/편: 권미상 / 目録
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1l8c31cc86psj
+독해이력: 텍스트 독해 확인
+附批命活𡘷
+
+[전서남양당-권미상-目録-0057] 원문문단ID=QS_SDZJ0170_FULL:7497233244811722790
+권/편: 권미상 / 目録
+출처: https://www.shidianguji.com/zh/book/SDZJ0170/chapter/1l8c31cc86psj
+독해이력: 텍스트 독해 확인
+目録終
