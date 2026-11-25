@@ -385,14 +385,14 @@ def contrast(chart, l1, sihua, p1, p2, boundary='lichun'):
     for p in p1:
         cuts |= {D(p['start']), D(p['end'])}
     for p in p2:
-        cuts |= {p['start'], p['end']}
+        cuts |= {D(p['start']), D(p['end'])}
     lo, hi = D(p1[0]['start']), D(p1[-1]['end'])
     cuts = sorted(c for c in cuts if lo <= c <= hi)
     rows = []
     for a, b in zip(cuts, cuts[1:]):
         mid = a + (b - a) / 2
         d1 = next(p for p in p1 if D(p['start']) <= mid < D(p['end']))
-        d2 = next((p for p in p2 if p['start'] <= mid < p['end']), None)
+        d2 = next((p for p in p2 if D(p['start']) <= mid < D(p['end'])), None)
         SH = d1['sanfang']
         yrs = [y for y in d1['years'] if y['start'] < b and y['end'] > a]
         k1_ji = sorted({o['unit'] for y in yrs for o in y['overlaps'] if o['hua'] == '기'

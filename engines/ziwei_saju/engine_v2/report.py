@@ -385,10 +385,22 @@ def _sec7(R):
     return o
 
 
-def build(result, rank_table=None, cmd=None, years=None, today=None):
+def default_cmd(result):
+    """결과를 다시 낼 명령. 기본값과 다른 선택만 붙인다(__main__의 기본값과 같아야 한다)."""
     inp = result['chart']['birth']['input']
+    opt = result.get('options') or {}
+    cmd = 'python -m engine_v2 %s %s %s --solar-offset %s' % (inp['date'], inp['time'], 'M' if inp['male'] else 'F', inp['solar_offset_min'])
+    for flag, val, default in (('--tz', inp.get('tz', 9), 9), ('--sihua', opt.get('sihua'), None),
+                               ('--zi-rule', inp.get('zi_rule', 'next_day'), 'next_day'), ('--leap-rule', inp.get('leap_rule', 'same'), 'same'),
+                               ('--seun-boundary', opt.get('seun_boundary', 'lichun'), 'lichun')):
+        if val != default:
+            cmd += ' %s %s' % (flag, val)
+    return cmd
+
+
+def build(result, rank_table=None, cmd=None, years=None, today=None):
     if cmd is None:
-        cmd = 'python -m engine_v2 %s %s %s --solar-offset %s' % (inp['date'], inp['time'], 'M' if inp['male'] else 'F', inp['solar_offset_min'])
+        cmd = default_cmd(result)
     today = today or dt.date.today().isoformat()
     o = ['# 판정표 (engine_v2 출력)', '']
     o += _sec1(result) + [''] + _sec2(result) + [''] + _sec3(result, l2.load_passages()) + _sec4(result) + _sec5(result, years)

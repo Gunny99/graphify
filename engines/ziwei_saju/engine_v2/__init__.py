@@ -16,7 +16,8 @@ def compute(date, time='12:00', male=True, solar_offset_min=0, tz=9, sihua_varia
     l1 = structure.analyze(ch, sh)
     dw = luck.daewoon(birth)
     dh = luck.daehan(ch)
-    out = dict(chart=ch, l1=l1, daewoon=dw, daehan=dh, sihua=sh)
+    out = dict(chart=ch, l1=l1, daewoon=dw, daehan=dh, sihua=sh,
+               options=dict(sihua=sihua_variant, seun_boundary=seun_boundary))   # 판정표 생성 명령 재현용
     if with_l3:
         from . import fortune
         out['l3'] = fortune.analyze(ch, l1, dw, dh, sh, seun_boundary)

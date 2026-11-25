@@ -79,3 +79,10 @@ def test_joined_passage_shows_full_sentence():
     assert report._txt(p) == '太陽同。無四殺'
     assert report._txt(dict(p, id='妻:47#1', clause='가지')) == '가지'
     assert report._txt({'id': 'a', 'text': 't'}) == 't'
+
+
+def test_default_cmd_records_non_default_options():
+    from engine_v2 import compute
+    r = compute('1999-08-04', '23:30', True, -38, zi_rule='same_day', seun_boundary='seol')
+    line = [l for l in report.build(r, today='2026-11-26').splitlines() if l.startswith('생성:')][0]
+    assert '--zi-rule same_day' in line and '--seun-boundary seol' in line and '--tz' not in line
