@@ -21,6 +21,29 @@
     "engineering@synced": false,
     "cowork-plugin-management@synced": false,
     "code-review@synced": false,
-    "github@synced": false
+    "github@synced": false,
+    "cache-tax@claude-code-mods": true,
+    "commit-commands@claude-plugins-official": true
+  },
+  "extraKnownMarketplaces": {
+    "claude-plugins-official": {
+      "source": {
+        "source": "github",
+        "repo": "anthropics/claude-plugins-official"
+      }
+    },
+    "claude-code-mods": {
+      "source": {
+        "source": "github",
+        "repo": "karanb192/claude-code-mods"
+      }
+    }
+  },
+  "pluginConfigs": {
+    "cache-tax@claude-code-mods": {
+      "options": {
+        "autoWarm": "off"
+      }
+    }
   }
 }
