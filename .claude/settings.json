@@ -1,0 +1,26 @@
+{
+  "enabledPlugins": {
+    "claude-memory@synced": false,
+    "token-saver@synced": false,
+    "task-observer@synced": false,
+    "datadog@synced": false,
+    "10x-Team@synced": false,
+    "ralph-loop@synced": false,
+    "playwright@synced": false,
+    "frontend-design@synced": false,
+    "data@synced": false,
+    "productivity@synced": false,
+    "bio-research@synced": false,
+    "cloudflare@synced": false,
+    "seo-audit@synced": false,
+    "claude-site-audit@synced": false,
+    "study-desk@synced": false,
+    "adhd-study-coach@synced": false,
+    "humanizer@synced": false,
+    "pyright-lsp@synced": false,
+    "engineering@synced": false,
+    "cowork-plugin-management@synced": false,
+    "code-review@synced": false,
+    "github@synced": false
+  }
+}
