@@ -1,0 +1,9 @@
+# Generated, duplicated or non-code paths excluded from the graph.
+tools/skillgen/expected/
+graphify/skills/
+graphify/skill-*.md
+worked/
+tests/fixtures/
+docs/
+uv.lock
+CHANGELOG.md
