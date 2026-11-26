@@ -243,3 +243,12 @@ def test_nabeum_year_root_rows(target):
 def test_trait_without_judgment_pole_is_mudaeung():
     ev = [('貴', '귀천', '貴', 'a', '명궁')]
     assert align.judge_trait('귀천', [('某', None)], ev, LEX)[0] == '무대응'
+
+
+def test_combine_segments_rule():
+    from engine_v2.align import combine_segments as cs
+    assert cs(['합치', '상충']) == '구간 갈림'
+    assert cs(['상충', '상충']) == '상충'
+    assert cs(['무대응', '무대응']) == '무대응'
+    assert cs(['혼재', '상충']) == '구간 갈림'
+    assert cs(['합치', '혼재']) == '혼재' and cs(['합치', '무대응']) == '합치' and cs(['합치']) == '합치'

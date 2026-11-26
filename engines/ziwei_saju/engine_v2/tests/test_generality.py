@@ -98,10 +98,12 @@ def test_seun_boundary_options(boundary):
 
 
 def test_zi_hour_next_day():
-    """23시대는 다음 날 子時로 센다(zi_rule='next_day' 기본값)."""
-    r = compute('2004-01-10', '23:30', True, 0, with_l3=False)
+    """zi_rule='next_day'(옵션): 23시대는 다음 날 子時로 센다. 기본값은 prev_day(Gunny 11-26 확정)라 그날로 센다."""
+    r = compute('2004-01-10', '23:30', True, 0, with_l3=False, zi_rule='next_day')
     b = r['chart']['birth']
     assert b['hour_branch'] == '子' and b['lunar']['day'] == 20
+    d = compute('2004-01-10', '23:30', True, 0, with_l3=False)['chart']['birth']
+    assert d['hour_branch'] == '子' and d['lunar']['day'] == 19
 
 
 def test_leap_month_rules():

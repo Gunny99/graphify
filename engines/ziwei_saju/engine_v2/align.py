@@ -294,13 +294,14 @@ def _seg_value(seg):
 
 
 def combine_segments(results):
-    """구간 결과를 한 줄로. 구간이 둘 이상이고 상충이 하나라도 있으면 '구간 갈림', 그렇지 않으면 혼재, 합치, 무대응 차례."""
+    """구간 결과를 한 줄로. 구간 결과가 모두 같으면 그 값. 서로 다르고 상충이 하나라도 있으면 '구간 갈림'.
+    그 밖에는 혼재, 합치, 무대응 차례."""
     rs = list(results)
-    if len(rs) >= 2 and '상충' in rs:
-        return '구간 갈림'
-    if len(rs) == 1:
+    if len(set(rs)) == 1:
         return rs[0]
-    for x in ('상충', '혼재', '합치'):
+    if '상충' in rs:
+        return '구간 갈림'
+    for x in ('혼재', '합치'):
         if x in rs:
             return x
     return '무대응'
