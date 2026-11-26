@@ -58,3 +58,22 @@ def year_gz(y):
 def load_json(name):
     with open(os.path.join(DATA, name), encoding='utf-8') as f:
         return json.load(f)
+
+# >>> fast-anything: engine_v2.common.sanfang >>>
+# Uses the verified Rust port. FAST_ANYTHING_DISABLE=1 runs the Python above instead.
+# Undo with:  fast-anything disable engine_v2.common.sanfang
+def _fast_anything_load():
+    import os, sys
+    if os.environ.get("FAST_ANYTHING_DISABLE"):
+        return None
+    lib = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "../.fast/lib"))
+    if lib not in sys.path:
+        sys.path.append(lib)
+    try:
+        from fa_engine_v2_common_sanfang import sanfang
+    except ImportError:
+        return None
+    return sanfang
+sanfang = _fast_anything_load() or sanfang
+del _fast_anything_load
+# <<< fast-anything: engine_v2.common.sanfang <<<

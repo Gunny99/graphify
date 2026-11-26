@@ -174,3 +174,22 @@ def summary(chart):
 
 __all__ = ['build', 'chart_from', 'stars', 'names', 'star', 'main_stars', 'kong', 'kong_zheng', 'summary',
            'GONGGEOP', 'HUA']
+
+# >>> fast-anything: engine_v2.chart.place_stars >>>
+# Uses the verified Rust port. FAST_ANYTHING_DISABLE=1 runs the Python above instead.
+# Undo with:  fast-anything disable engine_v2.chart.place_stars
+def _fast_anything_load():
+    import os, sys
+    if os.environ.get("FAST_ANYTHING_DISABLE"):
+        return None
+    lib = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "../.fast/lib"))
+    if lib not in sys.path:
+        sys.path.append(lib)
+    try:
+        from fa_engine_v2_chart_place_stars import place_stars
+    except ImportError:
+        return None
+    return place_stars
+place_stars = _fast_anything_load() or place_stars
+del _fast_anything_load
+# <<< fast-anything: engine_v2.chart.place_stars <<<
