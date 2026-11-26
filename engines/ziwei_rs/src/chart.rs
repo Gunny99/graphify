@@ -14,6 +14,37 @@ pub struct Input {
     /// 윤달 표시. 기록만 하고 계산에는 쓰지 않는다(month 그대로).
     #[serde(default)]
     pub leap: bool,
+    /// 윤달 규칙: same | next | split15. 고객이 명시했을 때만 쓴다(없으면 same, choices에 선택 요청이 생김).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub leap_rule: Option<String>,
+}
+
+pub fn chart_month(m: i64, d: i64, rule: &str) -> i64 {
+    if rule == "next" || (rule == "split15" && d > 15) {
+        m % 12 + 1
+    } else {
+        m
+    }
+}
+
+/// 윤달 출생이면 고객 선택 항목. leap=false면 빈 목록.
+pub fn choices(inp: &Input) -> Result<Vec<Value>, String> {
+    if !inp.leap {
+        return Ok(vec![]);
+    }
+    let g: Vec<char> = inp.year_gz.chars().collect();
+    let h = bi(inp.hour.chars().next().ok_or("hour")?);
+    let mut opts = vec![];
+    let mut keys = vec![];
+    for r in ["same", "next", "split15"] {
+        let cm = chart_month(inp.month, inp.day, r);
+        let pl = place_stars(g[0], g[1], cm, inp.day, h)?;
+        opts.push(json!({"rule": r, "chart_month": cm, "ming": pl.ming.to_string(), "shen": pl.shen.to_string(), "ju": pl.ju, "ju_name": ju_name(pl.ju)}));
+        keys.push(format!("{:?}{}{}{}", pl.pos, pl.ming, pl.shen, pl.ju));
+    }
+    keys.sort();
+    keys.dedup();
+    Ok(vec![json!({"kind": "leap", "default": "same", "chosen": inp.leap_rule, "options": opts, "same_result": keys.len() == 1})])
 }
 
 pub const NAYIN: &str = "金金火火木木土土金金火火水水土土金金木木水水土土火火木木水水金金火火木木土土金金火火水水土土金金木木水水土土火火木木水水";
@@ -255,7 +286,12 @@ pub fn parse_input(inp: &Input) -> Result<(char, char, i64, i64, i64), String> {
     if hc.len() != 1 || pos_in(BR, hc[0]).is_none() {
         return Err(format!("hour 지지 한 글자: {}", inp.hour));
     }
-    Ok((g[0], g[1], inp.month, inp.day, bi(hc[0])))
+    let rule = inp.leap_rule.as_deref().unwrap_or("same");
+    if !["same", "next", "split15"].contains(&rule) {
+        return Err(format!("leap_rule 오류: {rule}"));
+    }
+    let m = if inp.leap { chart_month(inp.month, inp.day, rule) } else { inp.month };
+    Ok((g[0], g[1], m, inp.day, bi(hc[0])))
 }
 
 pub fn build_chart(inp: &Input) -> Result<Value, String> {
@@ -309,7 +345,8 @@ pub fn build_chart(inp: &Input) -> Result<Value, String> {
         cs_by.insert(bz(cs0 + if fwd { k } else { -k }).to_string(), Value::from(CHANGSHENG[k as usize]));
     }
     let dir = if fwd { "순행" } else { "역행" };
-    Ok(json!({
+    let ch = choices(inp)?;
+    let mut out = json!({
         "input": inp,
         "year_gz": inp.year_gz, "year_stem": ys.to_string(), "male": inp.male, "direction": dir,
         "ming": pl.ming.to_string(), "shen": pl.shen.to_string(), "shen_role": role_of(pl.ming, pl.shen),
@@ -318,5 +355,9 @@ pub fn build_chart(inp: &Input) -> Result<Value, String> {
         "palaces": palaces, "pos": pos, "birth_hua": bh, "kong": pl.kong,
         "changsheng": {"start": CS_START.iter().find(|(j, _)| *j == n).unwrap().1.to_string(), "direction": dir, "by_palace": cs_by},
         "sihua_variant": "default",
-    }))
+    });
+    if !ch.is_empty() {
+        out["choices"] = Value::Array(ch);
+    }
+    Ok(out)
 }

@@ -115,7 +115,8 @@ pub fn build_timeline(inp: &Input, opts: TimelineOpts) -> Result<Value, String> 
             "dayun": dayun, "dayun_hua": dayun_hua,
         }));
     }
-    Ok(json!({
+    let ch = crate::chart::choices(inp)?;
+    let mut out = json!({
         "input": inp,
         "year_gz": inp.year_gz, "ming": ming.to_string(), "ju": ju, "ju_name": format!("{}", ["水二局", "木三局", "金四局", "土五局", "火六局"][(ju - 2) as usize]),
         "direction": if fwd { "순행" } else { "역행" },
@@ -124,5 +125,9 @@ pub fn build_timeline(inp: &Input, opts: TimelineOpts) -> Result<Value, String> 
         "xiaoxian_start": bz(xx0).to_string(),
         "dayun": {"month_pillar": month_pillar, "direction": if fwd { "순행" } else { "역행" }, "periods": dayun_list},
         "years": years,
-    }))
+    });
+    if !ch.is_empty() {
+        out["choices"] = Value::Array(ch);
+    }
+    Ok(out)
 }

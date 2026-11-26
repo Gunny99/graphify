@@ -160,3 +160,28 @@ fn dayun_last_period_and_hua() {
     assert_eq!(hua.len(), 4);
     assert_eq!(hua[0]["hua"], "록");
 }
+
+#[test]
+fn leap_choices() {
+    let mk = |rule: Option<&str>, day: i64| -> Input {
+        serde_json::from_value(serde_json::json!({"year_gz": "癸卯", "month": 2, "day": day, "hour": "午", "male": true, "leap": true, "leap_rule": rule})).unwrap()
+    };
+    // 2023 윤2월 10일
+    let c = build_chart(&mk(None, 10)).unwrap();
+    let ch = &c["choices"][0];
+    assert_eq!(ch["kind"], "leap");
+    let months: Vec<i64> = ch["options"].as_array().unwrap().iter().map(|o| o["chart_month"].as_i64().unwrap()).collect();
+    assert_eq!(months, [2, 3, 2]);
+    assert!(ch["chosen"].is_null());
+    assert_eq!(ch["same_result"], false);
+    assert!(c["input"].get("leap_rule").is_none());
+    // 규칙 명시: chosen 기록, 명반은 그 규칙의 월로
+    let n = build_chart(&mk(Some("next"), 10)).unwrap();
+    assert_eq!(n["choices"][0]["chosen"], "next");
+    assert_eq!(n["ming"], ch["options"][1]["ming"]);
+    assert_eq!(build_chart(&mk(Some("split15"), 20)).unwrap()["ming"], n["ming"]);
+    assert!(build_timeline(&mk(Some("next"), 10), TimelineOpts::default()).unwrap()["choices"].is_array());
+    // 윤달이 아니면 choices 키가 없다
+    assert!(build_chart(&inp("己丑", true)).unwrap().get("choices").is_none());
+    assert!(build_chart(&mk(Some("bad"), 10)).is_err());
+}

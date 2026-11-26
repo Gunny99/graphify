@@ -1,7 +1,7 @@
 use ziwei_rs::solar::{solar_hour, SolarInput};
 
 fn si(date: &str, time: &str, lon: f64) -> SolarInput {
-    SolarInput { date: date.into(), time: time.into(), lon, meridian: None, utc_offset: None }
+    SolarInput { date: date.into(), time: time.into(), lon, meridian: None, utc_offset: None, zi_rule: None }
 }
 fn f(v: &serde_json::Value, k: &str) -> f64 {
     v[k].as_f64().unwrap()
@@ -63,4 +63,35 @@ fn zi_boundary_and_date_shift() {
     let v = solar_hour(&si("2000-03-01", "09:00", 135.0), false).unwrap();
     assert_eq!(v["hour_branch"], "巳");
     assert_eq!(f(&v, "min_to_boundary"), 120.0);
+}
+
+fn date_for(date: &str, time: &str, lon: f64, rule: &str) -> (String, String, String) {
+    let mut s = si(date, time, lon);
+    s.zi_rule = Some(rule.into());
+    let v = solar_hour(&s, false).unwrap();
+    (v["date_for_lunar"].as_str().unwrap().into(), v["solar_date"].as_str().unwrap().into(), v["hour_branch"].as_str().unwrap().into())
+}
+
+#[test]
+fn zi_is_not_a_choice_and_prev_day_rule() {
+    assert!(solar_hour(&si("2000-03-01", "23:30", 135.0), false).unwrap().get("choices").is_none());
+    assert_eq!(solar_hour(&si("2000-03-01", "23:30", 135.0), false).unwrap()["zi_rule"], "next_day"); // 기본값 그대로
+    // 23:30: prev_day와 same_day는 그날, next_day는 다음 날
+    assert_eq!(date_for("2000-03-01", "23:30", 135.0, "prev_day").0, "2000-03-01");
+    assert_eq!(date_for("2000-03-01", "23:30", 135.0, "same_day").0, "2000-03-01");
+    assert_eq!(date_for("2000-03-01", "23:30", 135.0, "next_day").0, "2000-03-02");
+    // 00:30: prev_day만 전날
+    assert_eq!(date_for("2000-03-02", "00:30", 135.0, "prev_day").0, "2000-03-01");
+    assert_eq!(date_for("2000-03-02", "00:30", 135.0, "next_day").0, "2000-03-02");
+    assert_eq!(date_for("2000-03-02", "00:30", 135.0, "same_day").0, "2000-03-02");
+    // 시계 00:20이 경도 보정으로 진태양시 전날 23:40
+    let (d, sd, b) = date_for("1999-08-05", "00:20", 126.7, "prev_day");
+    assert_eq!((d.as_str(), sd.as_str(), b.as_str()), ("1999-08-04", "1999-08-04", "子"));
+    assert_eq!(date_for("1999-08-05", "00:20", 126.7, "next_day").0, "1999-08-05");
+    // 시계 23:10이라도 보정으로 22:30이면 亥, 날짜를 넘기지 않는다(진태양시 기준)
+    let (d, _, b) = date_for("1999-08-04", "23:10", 126.7, "next_day");
+    assert_eq!((d.as_str(), b.as_str()), ("1999-08-04", "亥"));
+    let mut s = si("2000-03-01", "12:00", 135.0);
+    s.zi_rule = Some("bogus".into());
+    assert!(solar_hour(&s, false).is_err());
 }

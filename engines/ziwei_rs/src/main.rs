@@ -6,6 +6,16 @@ fn die(msg: &str) -> ! {
     exit(2)
 }
 
+/// 규칙이 명시되지 않은 선택 항목이 있으면(결과가 갈리는 것만) 표준오류에 경고와 choices를 낸다.
+fn warn_choices(v: &serde_json::Value) {
+    let Some(cs) = v["choices"].as_array() else { return };
+    let pending: Vec<&serde_json::Value> = cs.iter().filter(|c| c["chosen"].is_null() && c["same_result"] != true).collect();
+    if !pending.is_empty() {
+        let kinds: Vec<&str> = pending.iter().filter_map(|c| c["kind"].as_str()).collect();
+        eprintln!("경고: 고객 선택 필요({}). 기본값으로 계산했다. choices: {}", kinds.join(", "), serde_json::to_string(cs).unwrap());
+    }
+}
+
 fn main() {
     let a: Vec<String> = std::env::args().skip(1).collect();
     if a.len() < 2 {
@@ -15,7 +25,10 @@ fn main() {
         let si: ziwei_rs::solar::SolarInput = serde_json::from_str(&a[1]).unwrap_or_else(|e| die(&format!("입력 JSON 오류: {e}")));
         let eot = !a[2..].iter().any(|x| x == "--no-eot");
         match ziwei_rs::solar::solar_hour(&si, eot) {
-            Ok(v) => println!("{}", serde_json::to_string_pretty(&v).unwrap()),
+            Ok(v) => {
+                warn_choices(&v);
+                println!("{}", serde_json::to_string_pretty(&v).unwrap())
+            }
             Err(e) => die(&e),
         }
         return;
@@ -46,7 +59,10 @@ fn main() {
         _ => die("명령은 chart | timeline"),
     };
     match out {
-        Ok(v) => println!("{}", serde_json::to_string_pretty(&v).unwrap()),
+        Ok(v) => {
+            warn_choices(&v);
+            println!("{}", serde_json::to_string_pretty(&v).unwrap())
+        }
         Err(e) => die(&e),
     }
 }
