@@ -88,3 +88,13 @@ L3이 내는 것은 다음과 같다.
 - 시간대는 하나의 고정 오프셋이다. 한국의 1950~60년대 UTC+8:30과 1987~88년 서머타임은 호출자가 맞춘다.
 - 화성·영성 자리는 성별에 따라 순역을 바꾸지 않는다. 蜚廉 표의 출처는 확인하지 못했다.
 - 기본격은 살파랑만 본다.
+
+## Rust 가속(선택)
+
+`popcore.count_batch`(259,200 명반 전수 열거)는 fast-anything으로 Rust에 이식되어 있고, 녹화 호출 310건이 Python과 일치한다. 컴파일된 모듈은 기계마다 새로 만들며 저장소에 넣지 않는다. 없으면 같은 Python 코드가 돈다(`FAST_ANYTHING_DISABLE=1`로 강제 가능).
+
+```sh
+cd engines/ziwei_saju/.fast/ports/engine_v2.popcore.count_batch
+cargo build --release
+mkdir -p ../../lib && cp target/release/libfa_engine_v2_popcore_count_batch.so ../../lib/fa_engine_v2_popcore_count_batch.so   # macOS: .dylib → .so
+```
