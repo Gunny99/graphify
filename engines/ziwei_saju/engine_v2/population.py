@@ -19,8 +19,10 @@ import sys
 import time
 from collections import Counter
 
-from .chart import place_stars
-from .common import BR, MAIN14, STEM, gz60, sanfang
+from itertools import islice
+
+from .popcore import count_batch, count_chart
+from .common import BR, MAIN14, STEM, gz60
 from .tables import Brightness, Sihua
 
 BRANCH_OF_NAME = {}
@@ -28,18 +30,19 @@ THREADS = ('이해', '추리', '학습·기억', '언어', '처리 속도', '발
 HUA_NAME = {'록': '화록', '권': '화권', '과': '화과', '기': '화기'}
 DEFAULT_DICT = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data', '지적능력_표지사전_20261113.tsv')
 GENDER = '男'          # 모집단은 남명반으로 센다(별 배치는 성별과 무관)
+CHUNK = 1024          # population이 popcore.count_batch에 한 번에 넘기는 명반 수
 HOURS = '子丑寅卯辰巳午未申酉戌亥'
 
 
 # ── 사전 ──────────────────────────────────────────────
 class Rule:
-    __slots__ = ('idx', 'thread', 'star', 'cond_text', 'kind', 'piece', 'src', 'tokens', 'bright', 'female_only')
+    __slots__ = ('idx', 'thread', 'star', 'cond_text', 'kind', 'piece', 'src', 'tokens', 'spec_tokens', 'bright', 'female_only')
 
     def __init__(self, idx, row):
         self.idx = idx
         self.thread, self.star, self.cond_text, self.kind = row['갈래'], row['별'], row['조건'], row['길흉']
         self.piece, self.src = row['원문 조각'], row['출전']
-        self.tokens, self.bright, self.female_only = [], None, False
+        self.tokens, self.spec_tokens, self.bright, self.female_only = [], [], None, False
         for tok in filter(None, (t.strip() for t in self.cond_text.split(';'))):
             if tok.startswith('#'):
                 continue
@@ -50,6 +53,20 @@ class Rule:
                     self.female_only = True
             else:
                 self.tokens.append(self._compile(tok))
+                self.spec_tokens.append(self._spec_token(tok))
+
+    @staticmethod
+    def _spec_token(tok):
+        """popcore.count_chart가 읽는 평범한 자료 토큰 (연산, 선택지, 모두여야 하면 True)."""
+        if tok in ('身命', '命', '주성없음'):
+            return (tok, (), False)
+        key, _, val = tok.partition('=')
+        if key in ('궁', '간'):
+            return (key, tuple(val.split('|')), False)
+        if key == '화':
+            return (key, (val,), False)
+        allm = '&' in val
+        return (key, tuple(val.split('&' if allm else '|')), allm)
 
     @staticmethod
     def _compile(tok):
@@ -117,57 +134,27 @@ class Ctx:
                 if tok.startswith(('동궁=', '회=')):
                     names |= set(v.replace('&', '|').split('|'))
         self.names = names
+        self.spec = self._spec()
 
-    def count(self, ys, yb, m, d, h):
-        """{갈래: (동궁 수, 삼방 수, 흉 수, 밝기 값 없음 수)}, 밝기 값 없음 행 목록."""
-        pos, ming, shen, _n, _stems, _kg = place_stars(ys, yb, m, d, h, True)
-        pos['박사'] = pos['녹존']
-        hua = {}
-        for hh, star in self.sh.of(ys).items():
-            pos[HUA_NAME[hh]] = pos[star]
-            hua[star] = hh
-        at = {z: set() for z in BR}
-        for n in self.names:
-            if n in pos:
-                at[pos[n]].add(n)
-        sf = {z: sanfang(z) for z in BR}
-        c = dict(ming=ming, shen=shen, stem=ys, at=at, hua=hua, sf=sf)
-        zone = {ming: 1, shen: 1}
-        for z in sf[ming]:
-            zone.setdefault(z, 2)
-        out, missed = {}, []
+    def _spec(self):
+        hua_table = {s: tuple((hh, HUA_NAME[hh], star) for hh, star in self.sh.of(s).items()) for s in STEM}
+        bright = tuple((st, b, self.br.cls[cell['grade']]) for (st, b), cell in self.br.cells.items() if cell['grade'] is not None)
+        threads = []
         for t in THREADS:
-            dong = sam = hung = miss = 0
+            rows = []
             for r in self.by_thread[t]:
                 if r.female_only:
                     continue
-                z = pos.get(r.star)
-                zn = zone.get(z)
-                if zn is None:
-                    continue
-                if not all(f(c, z, r.star) for f in r.tokens):
-                    continue
-                if r.bright is not None:
-                    g = self.br.grade(r.star, z)
-                    if g is None:
-                        miss += 1
-                        missed.append(r)
-                        continue
-                    k = self.br.klass(g)
-                    ok = {'묘왕': k == '묘왕', '함': k == '함', '평': k == '평', '비묘왕': k != '묘왕'}[r.bright]
-                    if not ok:
-                        continue
-                if r.kind == '흉' and t != '끈기':
-                    hung += 1
-                    continue
-                if zn == 1:
-                    dong += 1
-                else:
-                    sam += 1
-                if r.kind == '흉':
-                    hung += 1
-            out[t] = (dong, sam, hung, miss)
-        return out, missed
+                hung = r.kind == '흉'
+                rows.append((r.idx, r.star, r.bright or '', hung, hung and t != '끈기', tuple(r.spec_tokens)))
+            threads.append(tuple(rows))
+        return (tuple(sorted(self.names)), hua_table, bright, tuple(threads))
+
+    def count(self, ys, yb, m, d, h):
+        """{갈래: (동궁 수, 삼방 수, 흉 수, 밝기 값 없음 수)}, 밝기 값 없음 행 목록."""
+        res, missed = count_chart(self.spec, ys, yb, m, d, h)
+        by_idx = {r.idx: r for r in self.rules}
+        return dict(zip(THREADS, res)), [by_idx[i] for i in missed]
 
 
 def iter_charts():
@@ -184,17 +171,20 @@ def population(ctx, limit=None, every=1):
     """갈래별 (동궁, 삼방) 분포, 명반 수, 밝기 값 없음 경우의 수. limit·every는 시험용 표본."""
     dist = {t: Counter() for t in THREADS}
     miss_by_rule, nchart = Counter(), 0
-    for i, ch in enumerate(iter_charts()):
-        if i % every:
-            continue
-        if limit is not None and nchart >= limit:
+    sel = (ch for i, ch in enumerate(iter_charts()) if i % every == 0)
+    if limit is not None:
+        sel = islice(sel, limit)
+    while True:
+        chunk = tuple(islice(sel, CHUNK))
+        if not chunk:
             break
-        res, missed = ctx.count(*ch)
-        for t, (dg, sm, _hg, _ms) in res.items():
-            dist[t][(dg, sm)] += 1
-        for r in missed:
-            miss_by_rule[r.idx] += 1
-        nchart += 1
+        n, dd, mm = count_batch(ctx.spec, chunk)
+        for t, rows in zip(THREADS, dd):
+            for a, b, v in rows:
+                dist[t][(a, b)] += v
+        for i, v in mm:
+            miss_by_rule[i] += v
+        nchart += n
     return dict(dist=dist, n=nchart, miss_by_rule=miss_by_rule)
 
 
