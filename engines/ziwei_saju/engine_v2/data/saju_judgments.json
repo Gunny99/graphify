@@ -6,7 +6,7 @@
   "사주": "己卯 辛未 戊子 丁巳",
   "비고": "시계 10:14 KST, 진태양시 보정 -38분"
  },
- "출전_표기": "파일은 /mnt/project-files/ZWDS_LIBRARY/01_raw/ 아래, 행은 kanripo 전사(三命通會_kanripo전문/NNN.txt)의 물리적 행 번호. NNN은 권. 원문은 ¶와 쪽 표시(<pb:…>)를 지운 것",
+ "출전_표기": "파일은 library/ziwei_saju/01_raw/ 아래, 행은 kanripo 전사(三命通會_kanripo전문/NNN.txt)의 물리적 행 번호. NNN은 권. 원문은 ¶와 쪽 표시(<pb:…>)를 지운 것",
  "판정": [
   {
    "id": "SJ01",
