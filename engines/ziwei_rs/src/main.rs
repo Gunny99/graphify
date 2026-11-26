@@ -21,6 +21,14 @@ fn main() {
     if a.len() < 2 {
         die("사용: zw chart <json> | zw hour <json> [--no-eot] | zw timeline <json> [--daxian-start xusui|manage] [--dayun-start N]");
     }
+    if a[0] == "validate-cases" {
+        let out = a.get(2).unwrap_or_else(|| die("사용: zw validate-cases <cases.json> <out_dir>"));
+        match ziwei_rs::validate::run(&a[1], out) {
+            Ok(m) => println!("{m}"),
+            Err(e) => die(&e),
+        }
+        return;
+    }
     if a[0] == "hour" {
         let si: ziwei_rs::solar::SolarInput = serde_json::from_str(&a[1]).unwrap_or_else(|e| die(&format!("입력 JSON 오류: {e}")));
         let eot = !a[2..].iter().any(|x| x == "--no-eot");

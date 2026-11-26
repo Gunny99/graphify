@@ -4,6 +4,7 @@ pub mod chart;
 pub mod common;
 pub mod solar;
 pub mod timeline;
+pub mod validate;
 
 pub use chart::{build_chart, Input};
 pub use timeline::{build_timeline, DaxianStart, TimelineOpts};
