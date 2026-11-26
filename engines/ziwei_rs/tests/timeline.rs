@@ -1,0 +1,162 @@
+use serde_json::Value;
+use ziwei_rs::common::*;
+use ziwei_rs::{build_chart, build_timeline, DaxianStart, Input, TimelineOpts};
+
+fn inp(gz: &str, male: bool) -> Input {
+    serde_json::from_value(serde_json::json!({"year_gz": gz, "month": 3, "day": 15, "hour": "戌", "male": male, "leap": false})).unwrap()
+}
+fn tl(gz: &str, male: bool, ds: DaxianStart, dy: Option<i64>) -> Value {
+    build_timeline(&inp(gz, male), TimelineOpts { daxian_start: ds, dayun_start: dy }).unwrap()
+}
+fn yr(t: &Value, age: usize) -> &Value {
+    &t["years"][age - 1]
+}
+fn br(v: &Value) -> &str {
+    v["branch"].as_str().unwrap()
+}
+
+#[test]
+fn xiaoxian_examples() {
+    // 寅午戌人 起辰, 男順 女逆
+    for gz in ["甲午", "丙寅", "甲戌"] {
+        let m = tl(gz, true, DaxianStart::Xusui, None);
+        assert_eq!(br(&yr(&m, 1)["xiaoxian"]), "辰", "{gz}");
+        assert_eq!(br(&yr(&m, 2)["xiaoxian"]), "巳", "{gz}");
+        let f = tl(gz, false, DaxianStart::Xusui, None);
+        assert_eq!(br(&yr(&f, 1)["xiaoxian"]), "辰", "{gz}");
+        assert_eq!(br(&yr(&f, 2)["xiaoxian"]), "卯", "{gz}");
+    }
+    // 起宮: 申子辰 戌, 巳酉丑 未, 亥卯未 丑
+    for (gz, z) in [("壬子", "戌"), ("己丑", "未"), ("乙亥", "丑"), ("丁酉", "未"), ("丙辰", "戌"), ("辛卯", "丑")] {
+        assert_eq!(br(&yr(&tl(gz, true, DaxianStart::Xusui, None), 1)["xiaoxian"]), z, "{gz}");
+    }
+    // 열두 해마다 한 바퀴
+    let m = tl("甲午", true, DaxianStart::Xusui, None);
+    assert_eq!(yr(&m, 13)["xiaoxian"], yr(&m, 1)["xiaoxian"]);
+}
+
+#[test]
+fn daxian_direction_and_start() {
+    // 己丑 남: 陰男 → 역행, 명궁 午, 土五局
+    let c = build_chart(&inp("己丑", true)).unwrap();
+    assert_eq!((c["ming"].as_str().unwrap(), c["ju"].as_i64().unwrap()), ("午", 5));
+    let x = tl("己丑", true, DaxianStart::Xusui, None);
+    assert_eq!(x["direction"], "역행");
+    assert!(yr(&x, 4)["daxian"].is_null());
+    assert_eq!(br(&yr(&x, 5)["daxian"]["palace"]), "午");
+    assert_eq!(br(&yr(&x, 14)["daxian"]["palace"]), "午");
+    assert_eq!(br(&yr(&x, 15)["daxian"]["palace"]), "巳");
+    assert_eq!(yr(&x, 5)["daxian"]["age_from"], 5);
+    assert_eq!(yr(&x, 5)["daxian"]["age_to"], 14);
+    assert_eq!(br(&yr(&x, 25)["daxian"]["palace"]), "辰");
+    // 만 나이 규약: 虛歲 局數+1부터
+    let m = tl("己丑", true, DaxianStart::Manage, None);
+    assert!(yr(&m, 5)["daxian"].is_null());
+    assert_eq!(yr(&m, 5)["pre_daxian"], true);
+    assert_eq!(br(&yr(&m, 6)["daxian"]["palace"]), "午");
+    assert_eq!(br(&yr(&m, 15)["daxian"]["palace"]), "午");
+    assert_eq!(br(&yr(&m, 16)["daxian"]["palace"]), "巳");
+    // 己丑 여: 陰女 → 순행
+    let f = tl("己丑", false, DaxianStart::Xusui, None);
+    assert_eq!(f["direction"], "순행");
+    let cf = build_chart(&inp("己丑", false)).unwrap();
+    let ming = cf["ming"].as_str().unwrap().chars().next().unwrap();
+    let ju = cf["ju"].as_i64().unwrap() as usize;
+    assert_eq!(br(&yr(&f, ju)["daxian"]["palace"]), ming.to_string());
+    assert_eq!(br(&yr(&f, ju + 10)["daxian"]["palace"]), bz(bi(ming) + 1).to_string());
+    // 陽男(甲子 남) 순행, 陽女 역행
+    let a = tl("甲子", true, DaxianStart::Xusui, None);
+    let ca = build_chart(&inp("甲子", true)).unwrap();
+    let (m0, j0) = (ca["ming"].as_str().unwrap().chars().next().unwrap(), ca["ju"].as_i64().unwrap() as usize);
+    assert_eq!(a["direction"], "순행");
+    assert_eq!(br(&yr(&a, j0 + 10)["daxian"]["palace"]), bz(bi(m0) + 1).to_string());
+    let b = tl("甲子", false, DaxianStart::Xusui, None);
+    assert_eq!(b["direction"], "역행");
+    let cb = build_chart(&inp("甲子", false)).unwrap();
+    let (m1, j1) = (cb["ming"].as_str().unwrap().chars().next().unwrap(), cb["ju"].as_i64().unwrap() as usize);
+    assert_eq!(br(&yr(&b, j1 + 10)["daxian"]["palace"]), bz(bi(m1) - 1).to_string());
+}
+
+#[test]
+fn tongxian_is_separate_field() {
+    let x = tl("己丑", true, DaxianStart::Xusui, None);
+    let c = build_chart(&inp("己丑", true)).unwrap();
+    let roles = ["명", "재백", "질액", "부처", "복덕", "관록"];
+    for (i, r) in roles.iter().enumerate() {
+        let t = &yr(&x, i + 1)["tongxian"]["palace"];
+        assert_eq!(t["role"], *r);
+        assert_eq!(c["palaces"][br(t)]["role"], *r);
+    }
+    assert!(yr(&x, 7)["tongxian"].is_null());
+    // 局數(5) 이후엔 大限이 따로 있고 童限(5, 6세)을 덮어쓰지 않는다
+    assert!(!yr(&x, 5)["daxian"].is_null() && !yr(&x, 5)["tongxian"].is_null());
+    assert_eq!(yr(&x, 1)["tongxian"]["palace"]["branch"], c["ming"]);
+}
+
+#[test]
+fn liu_yang_is_lu_plus_one() {
+    for gz in ["甲子", "乙丑", "丙寅", "丁卯", "戊辰", "己巳", "庚午", "辛未", "壬申", "癸酉"] {
+        let t = tl(gz, true, DaxianStart::Xusui, None);
+        for age in 1..=100 {
+            let y = yr(&t, age);
+            let lu = bi(y["liu_lu"]["palace"]["branch"].as_str().unwrap().chars().next().unwrap());
+            let ya = bi(y["liu_yang"]["palace"]["branch"].as_str().unwrap().chars().next().unwrap());
+            let tu = bi(y["liu_tuo"]["palace"]["branch"].as_str().unwrap().chars().next().unwrap());
+            assert_eq!(ya, (lu + 1).rem_euclid(12));
+            assert_eq!(tu, (lu - 1).rem_euclid(12));
+            let stem = y["taisui"]["stem"].as_str().unwrap().chars().next().unwrap();
+            assert_eq!(lu, bi("寅卯巳午巳午申酉亥子".chars().nth(si(stem)).unwrap()));
+        }
+    }
+}
+
+#[test]
+fn taisui_and_hua() {
+    let t = tl("己丑", true, DaxianStart::Xusui, None);
+    assert_eq!(yr(&t, 1)["taisui"]["gz"], "己丑");
+    assert_eq!(yr(&t, 2)["taisui"]["gz"], "庚寅");
+    assert_eq!(yr(&t, 61)["taisui"]["gz"], "己丑");
+    let c = build_chart(&inp("己丑", true)).unwrap();
+    let y = yr(&t, 2);
+    let hua = y["taisui_hua"].as_array().unwrap();
+    assert_eq!(hua.len(), 4);
+    let sihua: Value = serde_json::from_str(include_str!("../data/sihua.json")).unwrap();
+    for (i, h) in ["록", "권", "과", "기"].iter().enumerate() {
+        assert_eq!(hua[i]["hua"], *h);
+        assert_eq!(hua[i]["star"], sihua["default"]["庚"][*h]["star"]);
+        assert_eq!(hua[i]["palace"]["branch"], c["pos"][hua[i]["star"].as_str().unwrap()]);
+    }
+    assert_eq!(y["taisui"]["palace"]["branch"], "寅");
+}
+
+#[test]
+fn dayun() {
+    // 己丑 3월: 월지 辰, 월간 五虎遁 己→丙(寅) +2 = 戊 → 戊辰. 陰男 → 역행
+    let t = tl("己丑", true, DaxianStart::Xusui, None);
+    assert_eq!(t["dayun"]["month_pillar"], "戊辰");
+    let p: Vec<&str> = t["dayun"]["periods"].as_array().unwrap().iter().map(|x| x["gz"].as_str().unwrap()).collect();
+    assert_eq!(p, ["丁卯", "丙寅", "乙丑", "甲子", "癸亥", "壬戌", "辛酉", "庚申", "己未", "戊午"]);
+    assert!(yr(&t, 30)["dayun"].is_null() && yr(&t, 30)["dayun_hua"].is_null());
+    // 陰女 → 순행
+    let f = tl("己丑", false, DaxianStart::Xusui, None);
+    assert_eq!(f["dayun"]["periods"][0]["gz"], "己巳");
+    // dayun_start
+    let s = tl("己丑", true, DaxianStart::Xusui, Some(8));
+    assert!(yr(&s, 7)["dayun"].is_null());
+    assert_eq!(yr(&s, 8)["dayun"]["gz"], "丁卯");
+    assert_eq!(yr(&s, 17)["dayun"]["gz"], "丁卯");
+    assert_eq!(yr(&s, 18)["dayun"]["gz"], "丙寅");
+    assert_eq!(yr(&s, 18)["dayun"]["stem"], "丙");
+    assert_eq!(yr(&s, 100)["dayun"]["gz"], "戊午"); // (100-8)/10 = 9번째
+    let late = tl("己丑", true, DaxianStart::Xusui, Some(20));
+    assert_eq!(yr(&late, 100)["dayun"]["n"], 9);
+}
+
+#[test]
+fn dayun_last_period_and_hua() {
+    let s = tl("己丑", true, DaxianStart::Xusui, Some(1));
+    assert_eq!(yr(&s, 100)["dayun"]["gz"], "戊午");
+    let hua = yr(&s, 100)["dayun_hua"].as_array().unwrap();
+    assert_eq!(hua.len(), 4);
+    assert_eq!(hua[0]["hua"], "록");
+}

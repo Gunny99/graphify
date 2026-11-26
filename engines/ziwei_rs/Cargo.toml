@@ -1,0 +1,17 @@
+[package]
+name = "ziwei_rs"
+version = "0.1.0"
+edition = "2021"
+description = "자미두수 명반·해마다 운 표지 계산 (Python engine_v2 chart.py와 글자까지 같게)"
+
+[lib]
+name = "ziwei_rs"
+path = "src/lib.rs"
+
+[[bin]]
+name = "zw"
+path = "src/main.rs"
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = { version = "1", features = ["preserve_order"] }
