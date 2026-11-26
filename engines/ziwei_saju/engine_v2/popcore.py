@@ -100,3 +100,22 @@ def count_batch(spec, charts):
             miss[i] = miss.get(i, 0) + 1
         n += 1
     return n, [[(a, b, v) for (a, b), v in dct.items()] for dct in dist], [(i, v) for i, v in miss.items()]
+
+# >>> fast-anything: engine_v2.popcore.count_batch >>>
+# Uses the verified Rust port. FAST_ANYTHING_DISABLE=1 runs the Python above instead.
+# Undo with:  fast-anything disable engine_v2.popcore.count_batch
+def _fast_anything_load():
+    import os, sys
+    if os.environ.get("FAST_ANYTHING_DISABLE"):
+        return None
+    lib = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "../.fast/lib"))
+    if lib not in sys.path:
+        sys.path.append(lib)
+    try:
+        from fa_engine_v2_popcore_count_batch import count_batch
+    except ImportError:
+        return None
+    return count_batch
+count_batch = _fast_anything_load() or count_batch
+del _fast_anything_load
+# <<< fast-anything: engine_v2.popcore.count_batch <<<
