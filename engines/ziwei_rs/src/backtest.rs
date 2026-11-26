@@ -1,7 +1,7 @@
 //! 백테스트 틀(백테스트_명세.md): 사망 해 순위 백분위, 사망 대한 1위 비율, 나이만 모형, 부호 검정.
 //! 규칙이 동결되기 전에는 명례로 돌리지 않는다(이 파일은 틀만 만든다).
 use crate::chart::{build_chart, Input};
-use crate::rules::{standing, ChartCtx, Rules, TwoLimit, YearCtx};
+use crate::rules::{standing, ChartCtx, Rules, YearCtx};
 use crate::timeline::{build_timeline, DaxianStart, TimelineOpts};
 use serde_json::Value;
 use std::collections::BTreeMap;
@@ -76,7 +76,7 @@ pub fn median(v: &mut Vec<f64>) -> f64 {
 }
 
 /// 해마다 점수. frame A: 大限 manage·기본 사화·火鈴, 대운 시작 나이 dayun_start. frame B: variant quanshu 전부.
-pub fn year_scores(inp: &Input, rules: &Rules, frame: Frame, dayun_start: i64, include_partial: bool, two: TwoLimit) -> Result<YearScores, String> {
+pub fn year_scores(inp: &Input, rules: &Rules, frame: Frame, dayun_start: i64, include_partial: bool) -> Result<YearScores, String> {
     let mut inp = inp.clone();
     let (ds, hua_key, start) = match frame {
         Frame::A => (DaxianStart::Manage, "dayun_hua", Some(dayun_start)),
@@ -90,7 +90,7 @@ pub fn year_scores(inp: &Input, rules: &Rules, frame: Frame, dayun_start: i64, i
     let mut out = YearScores { score: vec![], daxian: vec![], ids: vec![] };
     for y in tl["years"].as_array().ok_or("years")? {
         let yc = YearCtx::from_timeline(y, hua_key)?;
-        let ids = standing(rules, &ch, &yc, two, include_partial)?;
+        let ids = standing(rules, &ch, &yc, include_partial)?;
         out.score.push(ids.len());
         out.daxian.push(y["daxian"]["index"].as_u64().unwrap_or(0) as usize);
         out.ids.push(ids);
@@ -136,24 +136,25 @@ struct Res {
     pct: f64,        // 설정 평균 백분위
     pct_each: Vec<f64>,
     top: Option<f64>, // 설정 평균 대한 1위 몫
+    rand_top: Option<f64>, // 무작위 기준 1/대한 수(설정 평균)
     rank: f64,
     ids: Vec<String>,
 }
 
-fn run_set(cases: &[&Case], rules: &Rules, frame: Frame, partial: bool, two: TwoLimit) -> Result<Vec<Res>, String> {
+fn run_set(cases: &[&Case], rules: &Rules, frame: Frame, partial: bool) -> Result<Vec<Res>, String> {
     let starts: Vec<i64> = if frame == Frame::A { (1..=10).collect() } else { vec![0] };
     let mut out = vec![];
     for c in cases {
-        let (mut pcts, mut tops, mut ids, mut rk) = (vec![], vec![], vec![], vec![]);
+        let (mut pcts, mut tops, mut rands, mut ids, mut rk) = (vec![], vec![], vec![], vec![], vec![]);
         for s in &starts {
-            let ys = year_scores(&c.inp, rules, frame, *s, partial, two)?;
+            let ys = year_scores(&c.inp, rules, frame, *s, partial)?;
             let sc: Vec<f64> = ys.score.iter().map(|x| *x as f64).collect();
             let (r, p) = percentile(&sc, c.age - 1);
             pcts.push(p);
             rk.push(r);
             if let Some((t, gg)) = daxian_top(&sc, &ys.daxian, c.age - 1) {
                 tops.push(t);
-                let _ = gg;
+                rands.push(1.0 / gg as f64);
             }
             if frame == Frame::A {
                 ids.push(format!("s{}:{}", s, ys.ids[c.age - 1].join(",")));
@@ -162,7 +163,7 @@ fn run_set(cases: &[&Case], rules: &Rules, frame: Frame, partial: bool, two: Two
             }
         }
         let mean = |v: &Vec<f64>| v.iter().sum::<f64>() / v.len() as f64;
-        out.push(Res { pct: mean(&pcts), pct_each: pcts, top: if tops.is_empty() { None } else { Some(mean(&tops)) }, rank: mean(&rk), ids: ids.join(" | ") .split(" | ").map(String::from).collect() });
+        out.push(Res { pct: mean(&pcts), pct_each: pcts, top: if tops.is_empty() { None } else { Some(mean(&tops)) }, rand_top: if rands.is_empty() { None } else { Some(mean(&rands)) }, rank: mean(&rk), ids: ids.join(" | ") .split(" | ").map(String::from).collect() });
     }
     Ok(out)
 }
@@ -194,14 +195,14 @@ fn daxian_index(c: &Case, frame: Frame) -> Result<Vec<usize>, String> {
     Ok(tl["years"].as_array().unwrap().iter().map(|y| y["daxian"]["index"].as_u64().unwrap_or(0) as usize).collect())
 }
 
-pub fn run(cases_path: &str, rules_path: &str, out_dir: &str, frame: Frame, two: TwoLimit) -> Result<String, String> {
+pub fn run(cases_path: &str, rules_path: &str, out_dir: &str, frame: Frame) -> Result<String, String> {
     let rules_json: Value = serde_json::from_str(&std::fs::read_to_string(rules_path).map_err(|e| e.to_string())?).map_err(|e| e.to_string())?;
     let rules = Rules::from_json(&rules_json)?;
     let cases = load_cases(cases_path)?;
     std::fs::create_dir_all(out_dir).map_err(|e| e.to_string())?;
     let fname = if frame == Frame::A { "A" } else { "B" };
     let mut md = format!("# 백테스트 결과 (틀 {fname})\n\n");
-    let _ = writeln!(md, "- 규칙 {}개(갈래는 기본 ID로 한 번). 二限 규약: {:?}. 틀 A는 大限 manage·기본 사화·火鈴, 대운 시작 나이 1~10 각각의 평균. 틀 B는 variant quanshu.", rules.rules.len(), two);
+    let _ = writeln!(md, "- 규칙 {}개(갈래는 기본 ID로 한 번). 틀 A는 大限 manage·기본 사화·火鈴, 대운 시작 나이 1~10 각각의 평균. 틀 B는 variant quanshu.", rules.rules.len());
     md.push_str("- 백분위는 낮을수록 사망 해가 위에 있다(좋음). 무작위 기대 50%, 대한 1위 무작위는 1/대한 수. 나이만 모형은 한 사례씩 빼고. 보조(吉凶) 점수는 이 규칙 집합이 死 범주뿐이라 없다.\n\n");
     let mut tsv = String::from("집합\t사례\t사망나이\t순위(완전)\t순위(부분포함)\t사망 해에 선 규칙 ID(완전)\t사망 해에 선 규칙 ID(부분포함)\n");
     for (label, typo) in [("primary", false), ("typo_guess", true)] {
@@ -209,18 +210,20 @@ pub fn run(cases_path: &str, rules_path: &str, out_dir: &str, frame: Frame, two:
         if cs.is_empty() {
             continue;
         }
-        let comp = run_set(&cs, &rules, frame, false, two)?;
-        let part = run_set(&cs, &rules, frame, true, two)?;
+        let comp = run_set(&cs, &rules, frame, false)?;
+        let part = run_set(&cs, &rules, frame, true)?;
         let dx: Vec<Vec<usize>> = cs.iter().map(|c| daxian_index(c, frame)).collect::<Result<_, _>>()?;
         let base = age_only(&cs, &dx);
         let _ = writeln!(md, "## {label} ({}건)\n", cs.len());
-        md.push_str("| 규칙 집합 | 사례 | 백분위 평균 | 중앙값 | 대한 1위 비율(사례 수) | 나이만 백분위 평균 | 나이만 대한 1위 | 모형이 나음/나쁨/같음 | 부호 검정 p |\n|---|---|---|---|---|---|---|---|---|\n");
+        md.push_str("| 규칙 집합 | 사례 | 백분위 평균 | 중앙값 | 대한 1위 비율(사례 수) | 무작위 대한 1위(1/대한 수 평균) | 나이만 백분위 평균 | 나이만 대한 1위 | 모형이 나음/나쁨/같음 | 부호 검정 p |\n|---|---|---|---|---|---|---|---|---|---|\n");
         for (name, res) in [("완전 규칙만", &comp), ("부분 규칙 포함", &part)] {
             let mut p: Vec<f64> = res.iter().map(|r| r.pct).collect();
             let mean = p.iter().sum::<f64>() / p.len() as f64;
             let med = median(&mut p);
             let tops: Vec<f64> = res.iter().filter_map(|r| r.top).collect();
             let top = tops.iter().sum::<f64>() / tops.len().max(1) as f64;
+            let rr: Vec<f64> = res.iter().filter_map(|r| r.rand_top).collect();
+            let rnd = rr.iter().sum::<f64>() / rr.len().max(1) as f64;
             let bp: f64 = base.iter().map(|b| b.0).sum::<f64>() / base.len() as f64;
             let bt: Vec<f64> = base.iter().filter_map(|b| b.1).collect();
             let btm = bt.iter().sum::<f64>() / bt.len().max(1) as f64;
@@ -228,7 +231,7 @@ pub fn run(cases_path: &str, rules_path: &str, out_dir: &str, frame: Frame, two:
             for (r, b) in res.iter().zip(&base) {
                 if r.pct < b.0 - 1e-12 { w += 1 } else if r.pct > b.0 + 1e-12 { l += 1 } else { t += 1 }
             }
-            let _ = writeln!(md, "| {name} | {} | {mean:.1}% | {med:.1}% | {:.1}% ({}) | {bp:.1}% | {:.1}% | {w}/{l}/{t} | {:.4} |", res.len(), top * 100.0, tops.len(), btm * 100.0, sign_test_p(w, l));
+            let _ = writeln!(md, "| {name} | {} | {mean:.1}% | {med:.1}% | {:.1}% ({}) | {:.1}% | {bp:.1}% | {:.1}% | {w}/{l}/{t} | {:.4} |", res.len(), top * 100.0, tops.len(), rnd * 100.0, btm * 100.0, sign_test_p(w, l));
         }
         if frame == Frame::A {
             md.push_str("\n대운 시작 나이별 백분위 평균(완전 규칙만): ");

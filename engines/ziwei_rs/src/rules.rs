@@ -5,7 +5,7 @@
 //! 읽기로 정한 것(rules JSON semantics에 낱말 뜻만 있어 구현에서 고정):
 //! - at의 scope(기본 同宮; 三方 = 본궁·+4·+6·+8; 對宮 = +6만). scope_any/scope_none/scope_any2는 그 목록만 따로 scope. all·grade·main_grade·no_main·cs_in은 scope를 따른다.
 //! - 化祿·化權·化科·化忌 낱말은 그 별이 앉은 궁에 있으면 선다(생년 사화 + 그 틀의 운 사화). natal 조건은 생년 사화만.
-//! - 二限: 기본은 rules JSON 풀이대로 大限 궁 = 小限 궁인 해(TwoLimit::SamePalace). 백테스트 명세 3절의 「둘 다 서야」는 TwoLimit::Both.
+//! - 二限: 大限 궁과 小限 궁이 각각 조건을 충족(서로 다른 궁이어도 됨). 二限相遇: 두 궁이 같고 그 궁이 조건 충족.
 //! - 限: 大限 궁과 小限 궁 각각 검사(어느 하나). 歲限: 小限·太歲. 三限: 大限·小限·太歲 어느 하나. 三限全: 셋 모두 at_each.
 //! - 流年星: 궁 틀 없이 flow_star가 on_star 자리에 앉음(+star_grade), 또는 natal 궁에 flow_on_natal의 유년 별이 듦.
 //! - 旬空·截空은 엔진 공망의 正 자리, 天空은 지공.
@@ -17,12 +17,6 @@ const MAIN14_HANJA: [&str; 14] = ["紫微", "天機", "太陽", "武曲", "天�
 const ROLES: [(&str, &str); 12] = [("명", "命"), ("형제", "兄弟"), ("부처", "夫妻"), ("자녀", "子女"), ("재백", "財帛"), ("질액", "疾厄"),
     ("천이", "遷移"), ("노복", "奴僕"), ("관록", "官祿"), ("전택", "田宅"), ("복덕", "福德"), ("부모", "父母")];
 const HUA_TOK: [(&str, &str); 4] = [("록", "化祿"), ("권", "化權"), ("과", "化科"), ("기", "化忌")];
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum TwoLimit {
-    SamePalace,
-    Both,
-}
 
 /// 출생 명반(해와 무관한 값)
 #[derive(Debug, Clone)]
@@ -161,7 +155,7 @@ pub struct Rules {
 const RULE_KEYS: [&str; 25] = ["id", "cite", "frame", "at", "age", "natal", "force", "note", "partial", "also_tonghan", "flow_star", "on_star", "star_grade",
     "flow_on_natal", "year_taisui_on", "taisui_opp_xian", "any_pair_opposed", "xiaoxian_at", "birth_stem_in", "opp", "opp_or_taisui", "at_each", "branch", "sex", "taisui_same_palace"];
 const AT_KEYS: [&str; 15] = ["all", "all2", "scope_all", "any", "any2", "none", "grade", "main_grade", "no_main", "cs_in", "branch_in", "scope", "scope_any", "scope_none", "scope_any2"];
-const FRAMES: [&str; 10] = ["大限", "小限", "太歲", "限", "二限", "歲限", "三限", "三限全", "流年星", "童限"];
+const FRAMES: [&str; 11] = ["大限", "小限", "太歲", "限", "二限", "二限相遇", "歲限", "三限", "三限全", "流年星", "童限"];
 
 impl Rules {
     pub fn from_json(v: &Value) -> Result<Rules, String> {
@@ -482,7 +476,7 @@ fn natal_branches(rules: &Rules, ch: &ChartCtx, n: &Value) -> Result<Vec<usize>,
 }
 
 /// 규칙 하나가 그해에 서는지.
-pub fn stands(rules: &Rules, r: &Value, ch: &ChartCtx, y: &YearCtx, two: TwoLimit) -> Result<bool, String> {
+pub fn stands(rules: &Rules, r: &Value, ch: &ChartCtx, y: &YearCtx) -> Result<bool, String> {
     rules.check(r)?;
     let cx = Cx { ch, y: Some(y) };
     if !r["sex"].is_null() {
@@ -609,10 +603,13 @@ pub fn stands(rules: &Rules, r: &Value, ch: &ChartCtx, y: &YearCtx, two: TwoLimi
         "歲限" => any_of(vec![y.xiaoxian, y.taisui]),
         "三限" => any_of(y.daxian.into_iter().chain([y.xiaoxian, y.taisui]).collect()),
         "童限" => any_of(y.tong.into_iter().collect()),
-        "二限" => match (y.daxian, two) {
-            (Some(d), TwoLimit::SamePalace) => if d == y.xiaoxian { per(d) } else { Ok(false) },
-            (Some(d), TwoLimit::Both) => Ok(per(d)? && per(y.xiaoxian)?),
-            (None, _) => Ok(false),
+        "二限" => match y.daxian {
+            Some(d) => Ok(per(d)? && per(y.xiaoxian)?),
+            None => Ok(false),
+        },
+        "二限相遇" => match y.daxian {
+            Some(d) if d == y.xiaoxian => per(d),
+            _ => Ok(false),
         },
         "三限全" => {
             let Some(d) = y.daxian else { return Ok(false) };
@@ -636,13 +633,13 @@ pub fn base_id(id: &str) -> &str {
 }
 
 /// 그해에 선 규칙 ID 목록(갈래는 기본 ID로 한 번). include_partial=false면 partial 규칙을 뺀다.
-pub fn standing(rules: &Rules, ch: &ChartCtx, y: &YearCtx, two: TwoLimit, include_partial: bool) -> Result<Vec<String>, String> {
+pub fn standing(rules: &Rules, ch: &ChartCtx, y: &YearCtx, include_partial: bool) -> Result<Vec<String>, String> {
     let mut out: Vec<String> = vec![];
     for r in &rules.rules {
         if !include_partial && r["partial"].as_bool() == Some(true) {
             continue;
         }
-        if stands(rules, r, ch, y, two)? {
+        if stands(rules, r, ch, y)? {
             let b = base_id(r["id"].as_str().unwrap_or("?")).to_string();
             if !out.contains(&b) {
                 out.push(b);

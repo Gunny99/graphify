@@ -22,9 +22,9 @@ fn main() {
         die("사용: zw chart <json> | zw hour <json> [--no-eot] | zw timeline <json> [--daxian-start xusui|manage] [--dayun-start N]");
     }
     if a[0] == "backtest" {
-        // zw backtest <cases.json> <rules.json> <out_dir> --frame A|B [--two-limit same|both]
+        // zw backtest <cases.json> <rules.json> <out_dir> --frame A|B
         if a.len() < 4 {
-            die("사용: zw backtest <cases.json> <rules.json> <out_dir> --frame A|B [--two-limit same|both]");
+            die("사용: zw backtest <cases.json> <rules.json> <out_dir> --frame A|B");
         }
         let opt = |k: &str| a.iter().position(|x| x == k).and_then(|i| a.get(i + 1)).cloned();
         let frame = match opt("--frame").as_deref() {
@@ -32,12 +32,7 @@ fn main() {
             Some("B") => ziwei_rs::backtest::Frame::B,
             _ => die("--frame A|B 가 필요하다"),
         };
-        let two = match opt("--two-limit").as_deref() {
-            None | Some("same") => ziwei_rs::rules::TwoLimit::SamePalace,
-            Some("both") => ziwei_rs::rules::TwoLimit::Both,
-            _ => die("--two-limit 는 same|both"),
-        };
-        match ziwei_rs::backtest::run(&a[1], &a[2], &a[3], frame, two) {
+        match ziwei_rs::backtest::run(&a[1], &a[2], &a[3], frame) {
             Ok(m) => println!("{m}"),
             Err(e) => die(&e),
         }

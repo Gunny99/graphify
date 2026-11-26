@@ -1,7 +1,7 @@
 //! 규칙 평가기: 키마다 합성 명반에서 서는 경우·안 서는 경우.
 use serde_json::{json, Value};
 use ziwei_rs::backtest::{daxian_top, percentile, sign_test_p};
-use ziwei_rs::rules::{base_id, standing, stands, ChartCtx, Rules, TwoLimit, YearCtx};
+use ziwei_rs::rules::{base_id, standing, stands, ChartCtx, Rules, YearCtx};
 
 fn groups() -> Value {
     json!({"@凶星": ["擎羊", "陀羅", "火星", "鈴星", "地劫", "天空"], "@吉星": ["左輔", "右弼", "文昌", "文曲", "天魁", "天鉞", "祿存", "化祿", "化權", "化科"],
@@ -22,7 +22,7 @@ fn ok(rule: Value, c: &ChartCtx, y: &YearCtx) -> bool {
     let mut r = rule;
     r["id"] = "T".into();
     let rs = rules_of(vec![r.clone()]);
-    stands(&rs, &r, c, y, TwoLimit::SamePalace).unwrap()
+    stands(&rs, &r, c, y).unwrap()
 }
 fn br(c: char) -> usize {
     "子丑寅卯辰巳午未申酉戌亥".chars().position(|x| x == c).unwrap()
@@ -67,15 +67,17 @@ fn frames() {
 fn two_limit_modes_and_also_tonghan() {
     let c = ch(&[("擎羊", '午'), ("陀羅", '辰')]);
     let same = YearCtx { daxian: Some(6), xiaoxian: 6, ..yr() };
-    let rule = json!({"id": "T", "frame": "二限", "at": {"all": ["擎羊"]}});
-    let rs = rules_of(vec![rule.clone()]);
-    assert!(stands(&rs, &rule, &c, &same, TwoLimit::SamePalace).unwrap());
-    assert!(!stands(&rs, &rule, &c, &yr(), TwoLimit::SamePalace).unwrap()); // 午·辰 다른 궁
-    // Both: 두 궁 모두에서 조건이 서야
-    let rule2 = json!({"id": "T", "frame": "二限", "at": {"any": ["擎羊", "陀羅"]}});
-    let rs2 = rules_of(vec![rule2.clone()]);
-    assert!(stands(&rs2, &rule2, &c, &yr(), TwoLimit::Both).unwrap());
-    assert!(!stands(&rs, &rule, &c, &yr(), TwoLimit::Both).unwrap());
+    let mk = |frame: &str, at: Value| json!({"id": "T", "frame": frame, "at": at});
+    let run = |r: &Value, y: &YearCtx| stands(&rules_of(vec![r.clone()]), r, &c, y).unwrap();
+    // 二限: 大限 궁(午)과 小限 궁(辰)에서 각각 조건이 서야 한다(다른 궁이어도 됨)
+    assert!(run(&mk("二限", json!({"any": ["擎羊", "陀羅"]})), &yr()));
+    assert!(!run(&mk("二限", json!({"all": ["擎羊"]})), &yr())); // 辰에는 擎羊 없음
+    assert!(run(&mk("二限", json!({"all": ["擎羊"]})), &same)); // 같은 궁이면 그 궁 하나
+    assert!(!run(&mk("二限", json!({"any": ["擎羊"]})), &YearCtx { daxian: None, ..yr() }));
+    // 二限相遇: 두 궁이 같고 그 궁이 조건 충족
+    assert!(run(&mk("二限相遇", json!({"all": ["擎羊"]})), &same));
+    assert!(!run(&mk("二限相遇", json!({"any": ["擎羊", "陀羅"]})), &yr())); // 午·辰 다른 궁
+    assert!(!run(&mk("二限相遇", json!({"all": ["陀羅"]})), &same));
     // also_tonghan: 限 + 童限 궁
     let y = YearCtx { age: 6, tong: Some(0), ..yr() };
     let c2 = ch(&[("擎羊", '子')]);
@@ -171,9 +173,9 @@ fn natal_and_flow_keys() {
     let u = json!({"frame": "二限", "natal": {"palace_union": ["命", "身"], "at": {"all": ["七殺", "擎羊"]}}, "at": {}});
     let same = YearCtx { xiaoxian: 6, ..yr() };
     let rs = rules_of(vec![u.clone()]);
-    assert!(stands(&rs, &u, &c, &same, TwoLimit::SamePalace).unwrap());
+    assert!(stands(&rs, &u, &c, &same).unwrap());
     let u2 = json!({"frame": "二限", "natal": {"palace_union": ["命", "官祿"], "at": {"all": ["七殺", "擎羊"]}}, "at": {}});
-    assert!(!stands(&rs, &u2, &c, &same, TwoLimit::SamePalace).unwrap());
+    assert!(!stands(&rs, &u2, &c, &same).unwrap());
     // flow_star·on_star·star_grade: 流羊이 七殺 자리에 앉고 七殺이 陷
     let c2 = ch(&[("七殺", '寅')]).with_grade("七殺", '寅', "陷");
     let q02 = json!({"frame": "流年星", "flow_star": "流羊", "on_star": "七殺", "star_grade": "陷"});
@@ -236,7 +238,7 @@ fn unknown_keys_stop_with_error() {
     // 평가 시 sex 값 오류
     let r = json!({"id": "X", "frame": "限", "sex": "?"});
     let rs = rules_of(vec![r.clone()]);
-    assert!(stands(&rs, &r, &ch(&[]), &yr(), TwoLimit::SamePalace).is_err());
+    assert!(stands(&rs, &r, &ch(&[]), &yr()).is_err());
 }
 
 #[test]
@@ -248,8 +250,8 @@ fn standing_ids_partial_and_branches() {
         json!({"id": "Q02", "frame": "大限", "at": {"all": ["擎羊"]}, "partial": true}),
         json!({"id": "Q03", "frame": "大限", "at": {"all": ["火星"]}}),
     ]);
-    assert_eq!(standing(&rs, &c, &yr(), TwoLimit::SamePalace, false).unwrap(), ["Q01"]); // 갈래는 한 번, partial 제외
-    assert_eq!(standing(&rs, &c, &yr(), TwoLimit::SamePalace, true).unwrap(), ["Q01", "Q02"]);
+    assert_eq!(standing(&rs, &c, &yr(), false).unwrap(), ["Q01"]); // 갈래는 한 번, partial 제외
+    assert_eq!(standing(&rs, &c, &yr(), true).unwrap(), ["Q01", "Q02"]);
     assert_eq!(base_id("Q07a"), "Q07");
     assert_eq!(base_id("Q07"), "Q07");
     assert_eq!(br('午'), 6);
@@ -274,7 +276,7 @@ fn engine_chart_adapter_and_real_rules_file() {
         assert_eq!(rs.rules.len(), 41);
         for yy in tl["years"].as_array().unwrap() {
             let y = YearCtx::from_timeline(yy, "dayun_hua").unwrap();
-            standing(&rs, &ch, &y, TwoLimit::SamePalace, true).unwrap(); // 오류 없이 평가된다
+            standing(&rs, &ch, &y, true).unwrap(); // 오류 없이 평가된다
         }
     }
 }
@@ -316,7 +318,7 @@ fn backtest_pipeline_on_synthetic_cases() {
     std::fs::write(dir.join("rules.json"), rules.to_string()).unwrap();
     for f in [ziwei_rs::backtest::Frame::A, ziwei_rs::backtest::Frame::B] {
         let out = dir.join("out");
-        ziwei_rs::backtest::run(dir.join("cases.json").to_str().unwrap(), dir.join("rules.json").to_str().unwrap(), out.to_str().unwrap(), f, TwoLimit::SamePalace).unwrap();
+        ziwei_rs::backtest::run(dir.join("cases.json").to_str().unwrap(), dir.join("rules.json").to_str().unwrap(), out.to_str().unwrap(), f).unwrap();
         let name = if f == ziwei_rs::backtest::Frame::A { "A" } else { "B" };
         let md = std::fs::read_to_string(out.join(format!("결과_{name}.md"))).unwrap();
         assert!(md.contains("부호 검정 p") && md.contains("완전 규칙만") && md.contains("부분 규칙 포함"));
@@ -326,5 +328,5 @@ fn backtest_pipeline_on_synthetic_cases() {
     // 모르는 키가 있는 규칙 파일은 오류로 멈춘다
     let bad = json!({"semantics": {"groups": groups()}, "rules": [{"id": "Q", "frame": "限", "zzz": 1}]});
     std::fs::write(dir.join("bad.json"), bad.to_string()).unwrap();
-    assert!(ziwei_rs::backtest::run(dir.join("cases.json").to_str().unwrap(), dir.join("bad.json").to_str().unwrap(), dir.join("o2").to_str().unwrap(), ziwei_rs::backtest::Frame::B, TwoLimit::SamePalace).is_err());
+    assert!(ziwei_rs::backtest::run(dir.join("cases.json").to_str().unwrap(), dir.join("bad.json").to_str().unwrap(), dir.join("o2").to_str().unwrap(), ziwei_rs::backtest::Frame::B).is_err());
 }
