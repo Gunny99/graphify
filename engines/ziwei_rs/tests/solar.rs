@@ -50,7 +50,7 @@ fn no_eot_and_offset() {
 #[test]
 fn zi_boundary_and_date_shift() {
     let mut s = si("2000-03-01", "23:30", 135.0);
-    s.meridian = Some(135.0);
+    s.zi_rule = Some("next_day".into()); // 기본값은 prev_day(Gunny 11-26 확정), next_day는 옵션
     let v = solar_hour(&s, false).unwrap();
     assert_eq!(v["hour_branch"], "子");
     assert_eq!(v["zi_next_day"], true);
@@ -75,7 +75,11 @@ fn date_for(date: &str, time: &str, lon: f64, rule: &str) -> (String, String, St
 #[test]
 fn zi_is_not_a_choice_and_prev_day_rule() {
     assert!(solar_hour(&si("2000-03-01", "23:30", 135.0), false).unwrap().get("choices").is_none());
-    assert_eq!(solar_hour(&si("2000-03-01", "23:30", 135.0), false).unwrap()["zi_rule"], "next_day"); // 기본값 그대로
+    assert_eq!(solar_hour(&si("2000-03-01", "23:30", 135.0), false).unwrap()["zi_rule"], "prev_day"); // 기본값(Gunny 11-26 확정)
+    let d = solar_hour(&si("2000-03-02", "00:30", 135.0), false).unwrap();
+    assert_eq!(d["date_for_lunar"], "2000-03-01"); // 기본값은 00시대도 전날
+    let t = solar_hour(&si("1999-08-04", "10:10", 126.7), true).unwrap(); // 巳時 대상 명식은 규칙과 무관
+    assert_eq!((t["hour_branch"].as_str(), t["date_for_lunar"].as_str()), (Some("巳"), Some("1999-08-04")));
     // 23:30: prev_day와 same_day는 그날, next_day는 다음 날
     assert_eq!(date_for("2000-03-01", "23:30", 135.0, "prev_day").0, "2000-03-01");
     assert_eq!(date_for("2000-03-01", "23:30", 135.0, "same_day").0, "2000-03-01");

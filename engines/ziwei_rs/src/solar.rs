@@ -17,7 +17,7 @@ pub struct SolarInput {
     pub meridian: Option<f64>,
     /// 표준시 UTC 오프셋 시간(자오선 = 15 × 오프셋). meridian과 함께 주면 meridian 우선.
     pub utc_offset: Option<f64>,
-    /// 子時 규칙 next_day(기본) | same_day | prev_day(23:00~00:59 전체를 23:00이 시작된 날로)
+    /// 子時 규칙 prev_day(기본, 23:00~00:59 전체를 23:00이 시작된 날로) | next_day | same_day
     #[serde(default)]
     pub zi_rule: Option<String>,
 }
@@ -91,8 +91,8 @@ pub fn solar_hour(inp: &SolarInput, use_eot: bool) -> Result<Value, String> {
     let to_next = 120.0 - shifted % 120.0; // 다음 시지 경계까지
     let since = shifted % 120.0; // 현재 시지 시작 후
     let solar_hour = (solar / 60.0).floor() as i64;
-    // 子時 규칙(고객 선택이 아니라 입력 규칙): next_day(기본) 23시대는 다음 날, same_day 그날, prev_day 23:00~00:59 전체를 23:00이 시작된 날로.
-    let rule = inp.zi_rule.as_deref().unwrap_or("next_day");
+    // 子時 규칙(고객 선택이 아니라 입력 규칙): prev_day(기본, Gunny 11-26 확정) 23:00~00:59 전체를 23:00이 시작된 날로, next_day 23시대는 다음 날, same_day 그날.
+    let rule = inp.zi_rule.as_deref().unwrap_or("prev_day");
     let shift = match rule {
         "next_day" => (solar_hour == 23) as i64,
         "same_day" => 0,
