@@ -1,7 +1,9 @@
 //! 자미두수 명반(chart)과 해마다 운 표지(timeline).
 //! 기준: engines/ziwei_saju/engine_v2 의 chart.py·common.py·tables.py. 판정·해석은 하지 않는다.
+pub mod backtest;
 pub mod chart;
 pub mod common;
+pub mod rules;
 pub mod solar;
 pub mod timeline;
 pub mod validate;
