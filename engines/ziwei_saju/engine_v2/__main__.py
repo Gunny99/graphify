@@ -1,4 +1,4 @@
-"""python -m engine_v2 1999-08-04 10:14 M [--solar-offset -38] [--tz 9] [--sihua nanyang|wangtingzhi] [--full]
+"""python -m engine_v2 1999-08-04 10:10 M [--solar-offset -38 | --longitude 126.7 [--meridian 135] [--no-eot]] [--tz 9] [--sihua nanyang|wangtingzhi] [--full]
 
 L0·L1·L3 요약을 JSON으로 낸다. --full이면 전체 dict를 낸다.
 """
@@ -70,6 +70,9 @@ def main(argv=None):
     ap.add_argument('time', help='시계 시각 HH:MM')
     ap.add_argument('sex', choices=['M', 'F'])
     ap.add_argument('--solar-offset', type=int, default=0, help='진태양시 보정 분(시계 + 보정 = 진태양시)')
+    ap.add_argument('--longitude', type=float, default=None, help='출생지 경도(동경 +). 주면 4×(경도−자오선)+균시차를 진태양시 보정으로 쓴다(--solar-offset과 함께 못 씀)')
+    ap.add_argument('--meridian', type=float, default=None, help='표준시 자오선 경도(기본 tz×15)')
+    ap.add_argument('--no-eot', action='store_true', help='균시차를 빼고 경도 보정만')
     ap.add_argument('--tz', type=float, default=9)
     ap.add_argument('--sihua', default=None, choices=[None, 'nanyang', 'wangtingzhi'])
     ap.add_argument('--zi-rule', default='next_day', choices=['next_day', 'same_day'])
@@ -81,7 +84,8 @@ def main(argv=None):
     ap.add_argument('--report-years', default=None, metavar='처음-끝', help='--report 5절 해마다 표의 해 범위(예 2005-2065)')
     a = ap.parse_args(argv)
     r = compute(a.date, a.time, a.sex == 'M', a.solar_offset, a.tz, sihua_variant=a.sihua,
-                zi_rule=a.zi_rule, leap_rule=a.leap_rule, seun_boundary=a.seun_boundary)
+                zi_rule=a.zi_rule, leap_rule=a.leap_rule, seun_boundary=a.seun_boundary,
+                longitude=a.longitude, meridian=a.meridian, eot=not a.no_eot)
     if a.report:
         from . import report
         tbl = report.table_from_file(a.rank_table) if a.rank_table else None

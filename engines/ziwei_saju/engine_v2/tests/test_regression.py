@@ -1,6 +1,6 @@
 """자붕이 구속 단언 회귀시험(L0·L1). 원본: 원점재검토_20261111/A_자붕이_판정목록.md 요약표 B-01~B-63.
 
-대상 명반: 양력 1999-08-04, 남, 시계 10:14(KST), 진태양시 보정 -38분(명세 판 0.4 9절 12번, guard.py BIRTH와 같음).
+대상 명반: 양력 1999-08-04, 남, 시계 10:10(KST), 인천 경도 126.7, 자오선 135 → 진태양시 09:30(명세 판 0.4 9절 12번, guard.py BIRTH는 옛 입력 10:14·-38분).
 궁과 별 이름은 여기 기대값에만 나온다. 운(대운·세운)이 필요한 단언은 test_regression_luck.py에 있다.
 """
 import pytest
@@ -10,12 +10,12 @@ from engine_v2.chart import main_stars, names, star
 from engine_v2.common import sanfang
 from engine_v2.structure import landing, receptivity
 
-DATE, TIME, MALE, OFFSET = '1999-08-04', '10:14', True, -38
+from engine_v2.tests.target import DATE, TIME, MALE, KW
 
 
 @pytest.fixture(scope='module')
 def R():
-    return compute(DATE, TIME, MALE, OFFSET, with_l3=False)
+    return compute(DATE, TIME, MALE, 0, **KW, with_l3=False)
 
 
 @pytest.fixture(scope='module')
@@ -168,7 +168,7 @@ def test_B15(C):
     assert cs['start'] == '寅' and cs['by_palace']['戌'] == '제왕'
     from engine_v2.__main__ import brief
     from engine_v2 import compute as _c
-    assert brief(_c(DATE, TIME, MALE, OFFSET))['L0']['changsheng']['by_palace']['寅'] == '장생'
+    assert brief(_c(DATE, TIME, MALE, 0, **KW))['L0']['changsheng']['by_palace']['寅'] == '장생'
 
 
 def test_B16(C):
@@ -286,7 +286,7 @@ def test_B49(R):
 
 def test_B49_variant_breaks():
     """B-49 대조: 壬 화과를 천부로 두는 표(남양당본·왕정지)에서는 천부 수용이 0이 아니게 된다(명세 6절)."""
-    r = compute(DATE, TIME, MALE, OFFSET, sihua_variant='nanyang', with_l3=False)
+    r = compute(DATE, TIME, MALE, 0, **KW, sihua_variant='nanyang', with_l3=False)
     rc = receptivity(r['chart'], r['sihua'], r['l1']['borrow'], sanfang('子'))
     assert '천부' not in [s for s, _ in rc['main_receives_none']]
 

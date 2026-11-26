@@ -7,8 +7,8 @@
 ```
 pip install sxtwl pytest
 cd 계산코드
-python -m engine_v2 1999-08-04 10:14 M --solar-offset -38      # L0·L1·L3 요약 JSON
-python -m engine_v2 1999-08-04 10:14 M --solar-offset -38 --full   # l3.exposure 포함
+python -m engine_v2 1999-08-04 10:10 M --longitude 126.7      # L0·L1·L3 요약 JSON
+python -m engine_v2 1999-08-04 10:10 M --longitude 126.7 --full   # l3.exposure 포함
 python -m pytest engine_v2/tests -q
 ```
 
@@ -76,7 +76,7 @@ L3이 내는 것은 다음과 같다.
 - `tests/test_regression_luck.py`: 운 단언, 갈림 시험(戊 천기 화기, 2018 화록과 쌍 화기, 己의 酉 중첩), 노출도 검산값을 본다.
 - `tests/test_generality.py`: 다른 생년월일 여덟 건(재현 A, B, C 포함)의 불변식과 노출도 범위, 세운 경계 설정, 명반 상수 정적 검사를 본다.
 
-시험마다 docstring에 B 번호가 있다. 대상 명반은 양력 1999-08-04, 남, 시계 10:14, 진태양시 보정 -38분이다(guard.py BIRTH와 같다).
+시험마다 docstring에 B 번호가 있다. 대상 명반은 양력 1999-08-04, 남, 시계 10:10, 출생지 인천 경도 126.7(자오선 135, 균시차 포함)이다. 진태양시 09:30, 巳時. 옛 입력 10:14·-38분(09:36)은 같은 명반·사주라서 회귀 시험으로 남겼다(guard.py BIRTH는 옛 입력).
 
 명반 상수 검사(`test_no_chart_constants_in_conditions`)는 엔진 파일의 조건문을 AST로 훑는다. if, while, 조건식, 비교, 컴프리헨션 조건에 지지 한 글자나 주성·보좌·살 이름 문자열이 있으면 실패한다.
 

@@ -6,6 +6,7 @@
 - sxtwl의 절기 JD는 UTC+8 기준이므로 출생 순간을 UTC+8로 옮겨 비교한다.
 """
 import datetime as _dt
+import math
 
 import sxtwl
 
@@ -41,17 +42,42 @@ def month_stem(year_stem, month_branch):
     return STEM[(STEM.index(TIGER[year_stem]) + (BR.index(month_branch) - BR.index('寅'))) % 10]
 
 
-def resolve(date, time='12:00', male=True, solar_offset_min=0, tz=9, zi_rule='next_day', leap_rule='same'):
+def equation_of_time(y, m, d):
+    """균시차(분, 진태양시 − 평균태양시). NOAA 일반식(Spencer 1971 푸리에식), 그날 정오 기준. Rust solar.rs와 같은 식."""
+    doy = (_dt.date(y, m, d) - _dt.date(y, 1, 1)).days + 1
+    n = 366.0 if _dt.date(y, 12, 31).timetuple().tm_yday == 366 else 365.0
+    g = 2.0 * math.pi / n * (doy - 1.0)
+    return 229.18 * (0.000075 + 0.001868 * math.cos(g) - 0.032077 * math.sin(g)
+                     - 0.014615 * math.cos(2 * g) - 0.040849 * math.sin(2 * g))
+
+
+def resolve(date, time='12:00', male=True, solar_offset_min=0, tz=9, zi_rule='next_day', leap_rule='same',
+            longitude=None, meridian=None, eot=True):
     """생년월일시 해석.
 
     date 'YYYY-MM-DD', time 'HH:MM'(시계 시각), male bool, solar_offset_min 진태양시 보정 분(시계 + 보정 = 진태양시),
     tz 시계의 UTC 오프셋 시간, zi_rule 'next_day'(23시 이후 子時는 다음 날로 셈) 또는 'same_day',
     leap_rule 윤달 처리: 'same'(윤달을 그 달로), 'next'(다음 달로), 'split15'(15일까지 그 달, 16일부터 다음 달).
+    longitude 출생지 경도(동경 +): 주면 solar_offset_min = 4×(longitude − meridian) + 균시차(eot=False면 0)로 계산한다.
+    meridian 표준시 자오선 경도(기본 tz×15). longitude와 0이 아닌 solar_offset_min을 함께 주면 오류.
+    서머타임·역사적 표준시는 자동 판단하지 않는다(tz·meridian 입력으로만 반영).
     """
     if male not in (True, False):
         raise ValueError('성별(male)은 True/False여야 한다')
     clock = _dt.datetime.strptime(f'{date} {time}', '%Y-%m-%d %H:%M')
-    solar = clock + _dt.timedelta(minutes=solar_offset_min)
+    solar_basis = None
+    if longitude is not None:
+        if solar_offset_min:
+            raise ValueError('longitude와 solar_offset_min을 함께 줄 수 없다')
+        mer = tz * 15.0 if meridian is None else meridian
+        lon_corr = 4.0 * (longitude - mer)
+        eot_min = equation_of_time(clock.year, clock.month, clock.day) if eot else 0.0
+        solar_offset_min = lon_corr + eot_min
+        solar_basis = dict(longitude=longitude, meridian=mer, lon_correction_min=lon_corr, eot_min=eot_min,
+                           solar_offset_min=solar_offset_min)
+    elif meridian is not None:
+        raise ValueError('meridian은 longitude와 함께만 쓴다')
+    solar =clock + _dt.timedelta(minutes=solar_offset_min)
     h = ((solar.hour + 1) // 2) % 12                       # 子=0 … 亥=11
     day = solar.date()
     if zi_rule == 'next_day' and solar.hour == 23:
@@ -83,7 +109,9 @@ def resolve(date, time='12:00', male=True, solar_offset_min=0, tz=9, zi_rule='ne
     hgz = STEM[(STEM.index(RAT[dgz[0]]) + h) % 10] + BR[h]
 
     return dict(
-        input=dict(date=date, time=time, male=male, solar_offset_min=solar_offset_min, tz=tz, zi_rule=zi_rule, leap_rule=leap_rule),
+        input=dict(date=date, time=time, male=male, solar_offset_min=solar_offset_min, tz=tz, zi_rule=zi_rule, leap_rule=leap_rule,
+                   longitude=longitude, meridian=None if solar_basis is None else solar_basis['meridian'], eot=eot),
+        solar_basis=solar_basis,
         clock=clock, solar=solar, hour_index=h, hour_branch=BR[h],
         lunar=dict(year=ly, month=lm, day=ld, leap=leap, chart_month=chart_month, year_gz=lunar_year_gz),
         saju=dict(year=ygz, month=mgz, day=dgz, hour=hgz),

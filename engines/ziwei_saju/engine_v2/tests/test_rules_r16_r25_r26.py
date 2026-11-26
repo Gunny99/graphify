@@ -5,12 +5,12 @@ import pytest
 from engine_v2 import compute
 from engine_v2.tests.test_generality import CASES
 
-DATE, TIME, MALE, OFFSET = '1999-08-04', '10:14', True, -38
+from engine_v2.tests.target import DATE, TIME, MALE, KW
 
 
 @pytest.fixture(scope='module')
 def R():
-    return compute(DATE, TIME, MALE, OFFSET)
+    return compute(DATE, TIME, MALE, 0, **KW)
 
 
 @pytest.fixture(scope='module', params=CASES, ids=[c[0] for c in CASES])

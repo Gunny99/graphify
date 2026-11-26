@@ -4,19 +4,19 @@ import pytest
 from engine_v2 import compute, report
 from engine_v2.tests.test_generality import CASES
 
-TARGET = ('1999-08-04', '10:14', True, -38)
+from engine_v2.tests.target import TARGET, kw_for
 TABLE = '| 갈래 | 동궁 |\n|---|---|\n| 이해 | 2 |'
 TITLES = ('## 1. 명반', '## 2. 구조 판독(L1)', '## 3. 궁별 글귀 판정(L2)', '## 4. 등급', '## 5. 운(L3)', '## 6. 능력 차례')
 
 
 @pytest.fixture(scope='module')
 def target_doc():
-    return report.build(compute(*TARGET), rank_table=TABLE)
+    return report.build(compute(*TARGET, **kw_for(TARGET)), rank_table=TABLE)
 
 
 @pytest.mark.parametrize('case', [TARGET] + CASES, ids=lambda c: c[0] + ('*' if c == TARGET else ''))
 def test_doc_builds_with_six_sections(case):
-    md = report.build(compute(*case), rank_table=TABLE)
+    md = report.build(compute(*case, **kw_for(case)), rank_table=TABLE)
     heads = [ln for ln in md.splitlines() if ln.startswith('## ')]
     for t in TITLES:
         assert any(h.startswith(t) for h in heads), t
@@ -24,7 +24,7 @@ def test_doc_builds_with_six_sections(case):
 
 
 def test_no_rank_table_drops_section_6():
-    md = report.build(compute(*TARGET))
+    md = report.build(compute(*TARGET, **kw_for(TARGET)))
     assert '## 6.' not in md and '## 5.' in md
 
 
@@ -37,7 +37,7 @@ def test_chou_daehan_sanfang_ji(target_doc):
 
 
 def test_year_range_trims():
-    md = report.build(compute(*TARGET), years=(2005, 2065))
+    md = report.build(compute(*TARGET, **kw_for(TARGET)), years=(2005, 2065))
     assert '| 2066' not in md and '| 2065' in md
 
 
@@ -69,7 +69,7 @@ def test_section2_gyeok_extras_and_section5_daehyung_table(target_doc):
 def test_unconfirmed_condition_is_not_asserted():
     from engine_v2 import compute
     from engine_v2.report import _sec7
-    R = compute('1999-08-04', '10:14', True, -38)
+    R = compute('1999-08-04', '10:10', True, 0, longitude=126.7)
     row = [l for l in '\n'.join(_sec7(R)).splitlines() if l.startswith('| SJ29 ') and '지능' in l][0]
     assert '단정하지 않는다' in row
 

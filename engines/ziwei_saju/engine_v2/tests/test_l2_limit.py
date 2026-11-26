@@ -14,7 +14,7 @@ REPRO = CASES[-3:]          # 재현 A(子時 경계), B(윤4월 芒種 뒤), C(
 
 @pytest.fixture(scope='module')
 def R():
-    return compute('1999-08-04', '10:14', True, -38)
+    return compute('1999-08-04', '10:10', True, 0, longitude=126.7)
 
 
 def _main_star(R, z):
