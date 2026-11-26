@@ -1,6 +1,6 @@
 //! 명례(명반 칸) ↔ 엔진 계산 대조. 해석하지 않고 일치·불일치를 센다.
 //! 사용: zw validate-cases <cases.json> <out_dir>  →  명반대조.tsv, 명반대조.md
-use crate::chart::{build_chart, Input};
+use crate::chart::{build_chart, place_stars_with, FireBell, Input, QUANSHU_FIREBELL};
 use crate::common::*;
 use crate::timeline::{build_timeline, DaxianStart, TimelineOpts};
 use serde_json::Value;
@@ -56,22 +56,36 @@ fn hua_han(h: &Value) -> String {
     h.as_str().and_then(|x| map_find(&HUA_MAP, x)).unwrap_or("-").to_string()
 }
 
-pub fn run(cases_path: &str, out_dir: &str) -> Result<String, String> {
+pub fn run(cases_path: &str, out_dir: &str, quanshu: bool) -> Result<String, String> {
     let raw = std::fs::read_to_string(cases_path).map_err(|e| e.to_string())?;
     let cases: Vec<Value> = serde_json::from_str(&raw).map_err(|e| e.to_string())?;
     let mut rows: Vec<Row> = vec![];
     for c in &cases {
-        case_rows(c, &mut rows);
+        case_rows(c, &mut rows, false);
+    }
+    if quanshu {
+        let mut qrows: Vec<Row> = vec![];
+        for c in &cases {
+            case_rows(c, &mut qrows, true);
+        }
+        std::fs::create_dir_all(out_dir).map_err(|e| e.to_string())?;
+        write_tsv(&format!("{out_dir}/명반대조_quanshu.tsv"), &qrows)?;
+        let md = report_quanshu(&rows, &qrows, &cases);
+        std::fs::write(format!("{out_dir}/명반대조_quanshu.md"), md).map_err(|e| e.to_string())?;
     }
     std::fs::create_dir_all(out_dir).map_err(|e| e.to_string())?;
-    let mut tsv = String::from("variant\tcase_id\t항목군\t항목\t칸값\t계산값\t결과\t비고\n");
-    for r in &rows {
-        let _ = writeln!(tsv, "{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}", r.variant, r.id, r.group, r.item, r.case_val, r.engine_val, r.result, r.note);
-    }
-    std::fs::write(format!("{out_dir}/명반대조.tsv"), tsv).map_err(|e| e.to_string())?;
+    write_tsv(&format!("{out_dir}/명반대조.tsv"), &rows)?;
     let md = report(&rows, cases.len());
     std::fs::write(format!("{out_dir}/명반대조.md"), &md).map_err(|e| e.to_string())?;
     Ok(format!("{} rows → {out_dir}", rows.len()))
+}
+
+fn write_tsv(path: &str, rows: &[Row]) -> Result<(), String> {
+    let mut tsv = String::from("variant\tcase_id\t항목군\t항목\t칸값\t계산값\t결과\t비고\n");
+    for r in rows {
+        let _ = writeln!(tsv, "{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}", r.variant, r.id, r.group, r.item, r.case_val, r.engine_val, r.result, r.note);
+    }
+    std::fs::write(path, tsv).map_err(|e| e.to_string())
 }
 
 fn guess_year(c: &Value) -> Option<(String, String)> {
@@ -99,7 +113,7 @@ fn guess_year(c: &Value) -> Option<(String, String)> {
     }
 }
 
-fn case_rows(c: &Value, out: &mut Vec<Row>) {
+fn case_rows(c: &Value, out: &mut Vec<Row>, q: bool) {
     let id = s(&c["id"]).unwrap_or("?").to_string();
     let b = &c["birth"];
     let (variant, ygz, vnote): (&'static str, String, String) = match s(&b["year_gz"]) {
@@ -122,7 +136,7 @@ fn case_rows(c: &Value, out: &mut Vec<Row>) {
         _ => None,
     };
     let leap = b["leap"].as_bool().unwrap_or(false);
-    let inp = Input { year_gz: ygz.clone(), month, day, hour: hb.to_string(), male: male_opt.unwrap_or(true), leap, leap_rule: None };
+    let inp = Input { year_gz: ygz.clone(), month, day, hour: hb.to_string(), male: male_opt.unwrap_or(true), leap, leap_rule: None, variant: if q { Some("quanshu".into()) } else { None } };
     let ch = match build_chart(&inp) {
         Ok(v) => v,
         Err(e) => {
@@ -233,6 +247,12 @@ fn case_rows(c: &Value, out: &mut Vec<Row>) {
         let d = if ev.is_empty() { None } else { delta(&f[0], &ev) };
         out.push(Row { variant, id: id.clone(), group: group.into(), item: format!("虛歲{age}"), case_val: cv, engine_val: if ev.is_empty() { "없음".into() } else { ev }, result: if ok { "일치" } else { "불일치" }, note: format!("{vnote} {unc}").trim().into(), delta: d });
     };
+    if q && male_opt.is_some() && !leap {
+        if let Some(tq) = tl(DaxianStart::Quanshu) {
+            let yq = &tq["years"][(age - 1) as usize];
+            cmp("大限(quanshu)", "大限", if yq["daxian"].is_null() { String::new() } else { pb(&yq["daxian"]["palace"]) }, out);
+        }
+    }
     if male_opt.is_some() && !leap {
         cmp("大限(xusui)", "大限", if yx["daxian"].is_null() { String::new() } else { pb(&yx["daxian"]["palace"]) }, out);
         cmp("大限(manage)", "大限", if ym["daxian"].is_null() { String::new() } else { pb(&ym["daxian"]["palace"]) }, out);
@@ -323,6 +343,128 @@ fn report(rows: &[Row], n_cases: usize) -> String {
             }
         }
         md.push('\n');
+    }
+    md
+}
+
+/// 火星·鈴星 후보: (이름, 방향 규칙 mode, 시 기점 off). 칸의 火星·鈴星 자리와 맞댄다.
+const FB_CANDIDATES: [(&str, u8, i64); 9] = [
+    ("둘 다 순행, 子時=기점(기본)", 0, 0), ("둘 다 순행, 子時=기점+1", 0, 1),
+    ("火 순·鈴 역, 子時=기점", 1, 0), ("火 순·鈴 역, 子時=기점+1", 1, 1),
+    ("陽男陰女 순·반대 역(둘 다), 子時=기점", 2, 0), ("陽男陰女 순·반대 역(둘 다), 子時=기점+1", 2, 1),
+    ("火는 陽男陰女 순·반대 역, 鈴은 그 반대, 子時=기점", 3, 0), ("火는 陽男陰女 순·반대 역, 鈴은 그 반대, 子時=기점+1", 3, 1),
+    ("시를 세지 않음(기점 고정, 시 가산 0)", 4, 0),
+];
+
+fn firebell_table(cases: &[Value]) -> String {
+    let mut out = String::from("| 후보 | 火星 | 鈴星 | 합계 |\n|---|---|---|---|\n");
+    for (name, mode, off) in FB_CANDIDATES {
+        let (mut fm, mut fnn, mut bm, mut bn) = (0, 0, 0, 0);
+        for c in cases {
+            let b = &c["birth"];
+            let ygz = match s(&b["year_gz"]) {
+                Some(g) => g.to_string(),
+                None => match guess_year(c) {
+                    Some((g, _)) => g,
+                    None => continue,
+                },
+            };
+            let g: Vec<char> = ygz.chars().collect();
+            let (Some(m), Some(d), Some(hb), Some(sex)) = (b["month"].as_i64(), b["day"].as_i64(), s(&b["hour_branch"]), s(&b["sex"])) else { continue };
+            if b["leap"].as_bool() == Some(true) {
+                continue; // 월이 걸린 별은 아니지만 사례 단위로 윤달은 제외해 위 표와 같은 사례 집합을 쓴다
+            }
+            let Ok(pl) = place_stars_with(g[0], g[1], m, d, bi(hb.chars().next().unwrap()), sex == "男", FireBell { mode, off }) else { continue };
+            for p in c["palaces"].as_array().into_iter().flatten() {
+                if !p["parsed"].as_bool().unwrap_or(false) {
+                    continue;
+                }
+                let br = s(&p["branch"]).unwrap_or("?");
+                for st in p["stars"].as_array().into_iter().flatten() {
+                    let (nm, en) = match s(&st["name"]) {
+                        Some("火星") => ("火", "화성"),
+                        Some("鈴星") => ("鈴", "영성"),
+                        _ => continue,
+                    };
+                    let e = pl.pos.iter().find(|(n, _)| *n == en).map(|(_, z)| z.to_string()).unwrap_or_default();
+                    let ok = e == br;
+                    if nm == "火" {
+                        fnn += 1;
+                        fm += ok as usize;
+                    } else {
+                        bn += 1;
+                        bm += ok as usize;
+                    }
+                }
+            }
+        }
+        let _ = writeln!(out, "| {name} | {fm}/{fnn} ({:.1}%) | {bm}/{bn} ({:.1}%) | {:.1}% |", 100.0 * fm as f64 / fnn.max(1) as f64, 100.0 * bm as f64 / bn.max(1) as f64, 100.0 * (fm + bm) as f64 / (fnn + bn).max(1) as f64);
+    }
+    out
+}
+
+fn rates(rows: &[Row]) -> BTreeMap<String, (usize, usize)> {
+    let mut g: BTreeMap<String, (usize, usize)> = BTreeMap::new();
+    for r in rows.iter().filter(|r| r.variant == "primary") {
+        let e = g.entry(r.group.clone()).or_default();
+        match r.result {
+            "일치" => e.0 += 1,
+            "불일치" => e.1 += 1,
+            _ => {}
+        }
+    }
+    g
+}
+
+fn report_quanshu(base: &[Row], q: &[Row], cases: &[Value]) -> String {
+    let mut md = String::from("# 전서 계열 변형(quanshu) 대조\n\n");
+    md.push_str("- 변형: 사화표 전서남양당-3-권본문-0031, 大限 규약 -0079(陽男陰女 父母궁=명궁+1, 陰男陽女 兄弟궁=명궁-1에서 시작), 火鈴은 아래 후보표의 최고 후보. 기본값은 바꾸지 않았다. 천간이 읽힌 사례(primary)만 센다.\n");
+    let best = QUANSHU_FIREBELL;
+    let _ = writeln!(md, "- 변형에 쓴 火鈴: mode {}, off {}.\n", best.mode, best.off);
+    md.push_str("## 火星·鈴星 후보별 일치(천간 읽힌 비윤달 사례의 칸 별)\n\n");
+    md.push_str(&firebell_table(cases));
+    md.push_str("\n## 항목군별 일치율: 기본 ↔ quanshu\n\n| 항목군 | 기본 대조 | 기본 일치율 | quanshu 대조 | quanshu 일치율 |\n|---|---|---|---|---|\n");
+    let (rb, rq) = (rates(base), rates(q));
+    let mut keys: Vec<&String> = rb.keys().chain(rq.keys()).collect();
+    keys.sort();
+    keys.dedup();
+    let fmt = |v: Option<&(usize, usize)>| match v {
+        Some((m, x)) if m + x > 0 => (format!("{}", m + x), format!("{:.1}%", 100.0 * *m as f64 / (m + x) as f64)),
+        _ => ("-".into(), "-".into()),
+    };
+    let (mut tb, mut tq) = ((0, 0), (0, 0));
+    for k in keys {
+        let (a, b) = (fmt(rb.get(k)), fmt(rq.get(k)));
+        if a.0 == "-" && b.0 == "-" {
+            continue;
+        }
+        let _ = writeln!(md, "| {k} | {} | {} | {} | {} |", a.0, a.1, b.0, b.1);
+        if let Some(v) = rb.get(k) { if !k.starts_with("大限(q") { tb.0 += v.0; tb.1 += v.1; } }
+        if let Some(v) = rq.get(k) { if !k.starts_with("大限(x") && !k.starts_with("大限(m") { tq.0 += v.0; tq.1 += v.1; } }
+    }
+    let _ = writeln!(md, "| 전체(大限은 각 변형의 규약 하나만 넣음 — 기본: xusui·manage 둘 다, quanshu: quanshu) | {} | {:.1}% | {} | {:.1}% |", tb.0 + tb.1, 100.0 * tb.0 as f64 / (tb.0 + tb.1).max(1) as f64, tq.0 + tq.1, 100.0 * tq.0 as f64 / (tq.0 + tq.1).max(1) as f64);
+    md.push_str("\n## quanshu에 남은 불일치 유형\n\n| 유형 | 건수 |\n|---|---|\n");
+    let mut ty: BTreeMap<String, usize> = BTreeMap::new();
+    for r in q.iter().filter(|r| r.variant == "primary" && r.result == "불일치" && !r.group.starts_with("大限(x") && !r.group.starts_with("大限(m")) {
+        let key = if r.group == "별자리" || r.group == "사화" { format!("{}:{}", r.group, r.item) } else { r.group.clone() };
+        *ty.entry(key).or_default() += 1;
+    }
+    let mut tv: Vec<_> = ty.into_iter().collect();
+    tv.sort_by(|a, b| b.1.cmp(&a.1).then(a.0.cmp(&b.0)));
+    for (k, n) in tv.iter().take(20) {
+        let _ = writeln!(md, "| {k} | {n} |");
+    }
+    md.push_str("\n### 자리 불일치의 지지 차(칸 − 엔진), quanshu\n\n| 항목군 | 차: 건수 |\n|---|---|\n");
+    let mut dd: BTreeMap<String, BTreeMap<i64, usize>> = BTreeMap::new();
+    for r in q.iter().filter(|r| r.variant == "primary" && r.result == "불일치") {
+        if let Some(d) = r.delta {
+            *dd.entry(r.group.clone()).or_default().entry(d).or_default() += 1;
+        }
+    }
+    for (k, m) in &dd {
+        let mut v: Vec<_> = m.iter().collect();
+        v.sort_by(|a, b| b.1.cmp(a.1));
+        let _ = writeln!(md, "| {k} | {} |", v.iter().take(6).map(|(d, n)| format!("{d}: {n}")).collect::<Vec<_>>().join(", "));
     }
     md
 }

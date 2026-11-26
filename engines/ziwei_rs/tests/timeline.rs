@@ -207,3 +207,45 @@ fn four_flying_stars() {
         assert_eq!(b("guanfu"), (b("diaoke") + 6).rem_euclid(12));
     }
 }
+
+#[test]
+fn quanshu_variant() {
+    // 大限 규약 quanshu: 陽男陰女 첫 大限 = 父母궁(명궁+1), 陰男陽女 = 兄弟궁(명궁−1), 같은 방향
+    let mk = |gz: &str, male: bool| -> Input {
+        serde_json::from_value(serde_json::json!({"year_gz": gz, "month": 3, "day": 15, "hour": "戌", "male": male, "variant": "quanshu"})).unwrap()
+    };
+    let q = |gz: &str, male: bool| build_timeline(&mk(gz, male), TimelineOpts { daxian_start: DaxianStart::Quanshu, dayun_start: None }).unwrap();
+    // 己丑 남(陰男 역행): 명궁 午 → 兄弟 巳에서 시작, 다음 辰
+    let t = q("己丑", true);
+    assert!(yr(&t, 4)["daxian"].is_null());
+    let ju = t["ju"].as_i64().unwrap() as usize;
+    assert_eq!(br(&yr(&t, ju)["daxian"]["palace"]), "巳");
+    assert_eq!(yr(&t, ju)["daxian"]["palace"]["role"], "형제");
+    assert_eq!(br(&yr(&t, ju + 10)["daxian"]["palace"]), "辰");
+    // 己丑 여(陰女 순행): 명궁 午(月·時는 같으나 성별만 다름 → 명궁은 같다) → 父母 未에서 시작
+    let f = q("己丑", false);
+    let jf = f["ju"].as_i64().unwrap() as usize;
+    assert_eq!(yr(&f, jf)["daxian"]["palace"]["role"], "부모");
+    // 사화표 전서: 庚 록 태양 권 무곡 과 태음→(전서) 천동... 표 그대로
+    let c = build_chart(&mk("庚午", true)).unwrap();
+    assert_eq!(c["sihua_variant"], "quanshu");
+    assert_eq!(c["birth_hua"]["과"]["star"], "천동");
+    assert_eq!(c["birth_hua"]["기"]["star"], "천상");
+    // 기본값은 그대로(Python 대조 golden이 따로 보장): 庚 과 = 태음, 기 = 천동
+    let d = build_chart(&inp("庚午", true)).unwrap();
+    assert_eq!(d["birth_hua"]["과"]["star"], "태음");
+    assert_eq!(d["sihua_variant"], "default");
+}
+
+#[test]
+fn quanshu_firebell_fixed_at_base() {
+    // 寅午戌년: 火 起宮 丑, 鈴 起宮 卯. 전서 변형은 시를 세지 않는다(명례 칸 100% 일치), 기본은 시를 센다
+    let mk = |v: Option<&str>| -> Input {
+        serde_json::from_value(serde_json::json!({"year_gz": "甲午", "month": 3, "day": 15, "hour": "戌", "male": true, "variant": v})).unwrap()
+    };
+    let q = build_chart(&mk(Some("quanshu"))).unwrap();
+    assert_eq!(q["pos"]["화성"], "丑");
+    assert_eq!(q["pos"]["영성"], "卯");
+    let d = build_chart(&mk(None)).unwrap();
+    assert_eq!(d["pos"]["화성"], "亥"); // 丑 + 戌(10) = 亥
+}

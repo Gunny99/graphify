@@ -1,5 +1,5 @@
 //! 해마다 표(虛歲 1~100): 太歲·大限·小限·童限·流祿羊陀·사화·대운.
-use crate::chart::{lu_of, parse_input, place_stars, san, sihua_of, Input};
+use crate::chart::{is_quanshu, lu_of, parse_input, place_stars_with, san, sihua_of_v, Input, DEFAULT_FIREBELL, QUANSHU_FIREBELL};
 use crate::common::*;
 use serde_json::{json, Value};
 
@@ -9,6 +9,8 @@ pub enum DaxianStart {
     Xusui,
     /// 만 나이 局數부터 = 虛歲 局數+1부터
     Manage,
+    /// 전서(전서남양당-3-권본문-0079): 虛歲 局數부터, 첫 大限이 陽男陰女는 父母궁(명궁+1), 陰男陽女는 兄弟궁(명궁−1)에서 시작해 같은 방향으로
+    Quanshu,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -31,8 +33,8 @@ fn palace(ming: char, z: char) -> Value {
     json!({"branch": z.to_string(), "role": role_of(ming, z)})
 }
 
-fn hua_list(stem: char, pos: &[(&'static str, char)], ming: char) -> Vec<Value> {
-    sihua_of(stem)
+fn hua_list(stem: char, pos: &[(&'static str, char)], ming: char, q: bool) -> Vec<Value> {
+    sihua_of_v(stem, q)
         .into_iter()
         .map(|(h, star)| {
             let z = pos.iter().find(|(n, _)| *n == star).map(|(_, z)| *z).expect("사화성 자리");
@@ -43,13 +45,14 @@ fn hua_list(stem: char, pos: &[(&'static str, char)], ming: char) -> Vec<Value> 
 
 pub fn build_timeline(inp: &Input, opts: TimelineOpts) -> Result<Value, String> {
     let (ys, yb, m, d, h) = parse_input(inp)?;
-    let pl = place_stars(ys, yb, m, d, h)?;
+    let q = is_quanshu(inp);
+    let pl = place_stars_with(ys, yb, m, d, h, inp.male, if q { QUANSHU_FIREBELL } else { DEFAULT_FIREBELL })?;
     let ming = pl.ming;
     let mi = bi(ming);
     let ju = pl.ju;
     let fwd = yang_stem(ys) == inp.male; // 陽男陰女 순행
     let dx_start = match opts.daxian_start {
-        DaxianStart::Xusui => ju,
+        DaxianStart::Xusui | DaxianStart::Quanshu => ju,
         DaxianStart::Manage => ju + 1,
     };
     // 小限: 寅午戌→辰 申子辰→戌 巳酉丑→未 亥卯未→丑 (虛歲 1세), 남 순행 여 역행
@@ -75,7 +78,7 @@ pub fn build_timeline(inp: &Input, opts: TimelineOpts) -> Result<Value, String> 
         // 大限
         let daxian = if age >= dx_start {
             let k = (age - dx_start) / 10;
-            let z = bz(mi + if fwd { k } else { -k });
+            let z = bz(if opts.daxian_start == DaxianStart::Quanshu { mi + if fwd { 1 + k } else { -1 - k } } else { mi + if fwd { k } else { -k } });
             json!({"index": k + 1, "palace": palace(ming, z), "age_from": dx_start + 10 * k, "age_to": dx_start + 10 * k + 9})
         } else {
             Value::Null
@@ -98,7 +101,7 @@ pub fn build_timeline(inp: &Input, opts: TimelineOpts) -> Result<Value, String> 
                 let (gz, st) = &dy[i];
                 (
                     json!({"n": i + 1, "gz": gz, "stem": st.to_string(), "age_from": n0 + 10 * i as i64, "age_to": n0 + 10 * i as i64 + 9}),
-                    Value::Array(hua_list(*st, &pl.pos, ming)),
+                    Value::Array(hua_list(*st, &pl.pos, ming, q)),
                 )
             }
             _ => (Value::Null, Value::Null),
@@ -117,7 +120,7 @@ pub fn build_timeline(inp: &Input, opts: TimelineOpts) -> Result<Value, String> 
             "diaoke": palace(ming, bz(bi(tb) - 2)),
             "baihu": palace(ming, bz(bi(tb) + 2 + 6)),
             "guanfu": palace(ming, bz(bi(tb) - 2 + 6)),
-            "taisui_hua": hua_list(ts, &pl.pos, ming),
+            "taisui_hua": hua_list(ts, &pl.pos, ming, q),
             "dayun": dayun, "dayun_hua": dayun_hua,
         }));
     }
@@ -126,7 +129,7 @@ pub fn build_timeline(inp: &Input, opts: TimelineOpts) -> Result<Value, String> 
         "input": inp,
         "year_gz": inp.year_gz, "ming": ming.to_string(), "ju": ju, "ju_name": format!("{}", ["水二局", "木三局", "金四局", "土五局", "火六局"][(ju - 2) as usize]),
         "direction": if fwd { "순행" } else { "역행" },
-        "options": {"daxian_start": match opts.daxian_start { DaxianStart::Xusui => "xusui", DaxianStart::Manage => "manage" }, "dayun_start": opts.dayun_start},
+        "options": {"daxian_start": match opts.daxian_start { DaxianStart::Xusui => "xusui", DaxianStart::Manage => "manage", DaxianStart::Quanshu => "quanshu" }, "dayun_start": opts.dayun_start},
         "daxian_first_age": dx_start,
         "xiaoxian_start": bz(xx0).to_string(),
         "dayun": {"month_pillar": month_pillar, "direction": if fwd { "순행" } else { "역행" }, "periods": dayun_list},

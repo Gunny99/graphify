@@ -23,7 +23,7 @@ fn main() {
     }
     if a[0] == "validate-cases" {
         let out = a.get(2).unwrap_or_else(|| die("사용: zw validate-cases <cases.json> <out_dir>"));
-        match ziwei_rs::validate::run(&a[1], out) {
+        match ziwei_rs::validate::run(&a[1], out, a.iter().any(|x| x == "--variant") && a.iter().any(|x| x == "quanshu")) {
             Ok(m) => println!("{m}"),
             Err(e) => die(&e),
         }
@@ -41,7 +41,7 @@ fn main() {
         }
         return;
     }
-    let inp: Input = serde_json::from_str(&a[1]).unwrap_or_else(|e| die(&format!("입력 JSON 오류: {e}")));
+    let mut inp: Input = serde_json::from_str(&a[1]).unwrap_or_else(|e| die(&format!("입력 JSON 오류: {e}")));
     let out = match a[0].as_str() {
         "chart" => build_chart(&inp),
         "timeline" => {
@@ -54,7 +54,14 @@ fn main() {
                         o.daxian_start = match v.as_str() {
                             "xusui" => DaxianStart::Xusui,
                             "manage" => DaxianStart::Manage,
-                            _ => die("--daxian-start 는 xusui|manage"),
+                            "quanshu" => DaxianStart::Quanshu,
+                            _ => die("--daxian-start 는 xusui|manage|quanshu"),
+                        }
+                    }
+                    "--variant" => {
+                        inp.variant = Some(v.clone());
+                        if !a.iter().any(|x| x == "--daxian-start") && v == "quanshu" {
+                            o.daxian_start = DaxianStart::Quanshu;
                         }
                     }
                     "--dayun-start" => o.dayun_start = Some(v.parse().unwrap_or_else(|_| die("--dayun-start 는 정수"))),

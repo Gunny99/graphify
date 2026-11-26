@@ -17,7 +17,25 @@ pub struct Input {
     /// 윤달 규칙: same | next | split15. 고객이 명시했을 때만 쓴다(없으면 same, choices에 선택 요청이 생김).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub leap_rule: Option<String>,
+    /// 변형: 없으면 기본(Python engine_v2와 같음). "quanshu"는 전서 계열(사화표 0031, 火鈴 방향 QUANSHU_FIREBELL).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub variant: Option<String>,
 }
+
+pub fn is_quanshu(inp: &Input) -> bool {
+    inp.variant.as_deref() == Some("quanshu")
+}
+
+/// 火星·鈴星 시 세는 방법 후보: mode 0 둘 다 순행, 1 火 순·鈴 역, 2 陽男陰女 순·반대 역(둘 다), 3 陽男陰女 순·반대 역은 火만(鈴은 반대)
+/// off: 子時가 기점(0)인지 기점+1(1)인지. 기본(Python)은 (0, 0).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct FireBell {
+    pub mode: u8,
+    pub off: i64,
+}
+pub const DEFAULT_FIREBELL: FireBell = FireBell { mode: 0, off: 0 };
+/// 전서 계열 변형의 火鈴. 명례 칸과 맞댄 후보 표(명반대조_quanshu.md)에서 가장 높은 후보를 쓴다.
+pub const QUANSHU_FIREBELL: FireBell = FireBell { mode: 4, off: 0 };
 
 pub fn chart_month(m: i64, d: i64, rule: &str) -> i64 {
     if rule == "next" || (rule == "split15" && d > 15) {
@@ -184,6 +202,10 @@ pub struct Placed {
 }
 
 pub fn place_stars(ys: char, yb: char, m: i64, d: i64, h: i64) -> Result<Placed, String> {
+    place_stars_with(ys, yb, m, d, h, true, DEFAULT_FIREBELL)
+}
+
+pub fn place_stars_with(ys: char, yb: char, m: i64, d: i64, h: i64, male: bool, fb: FireBell) -> Result<Placed, String> {
     let ming = (bi('寅') + m - 1 - h).rem_euclid(12);
     let shen = (bi('寅') + m - 1 + h).rem_euclid(12);
     let mut stems = ['甲'; 12];
@@ -206,12 +228,20 @@ pub fn place_stars(ys: char, yb: char, m: i64, d: i64, h: i64) -> Result<Placed,
     let kui: Vec<char> = KUI[s].chars().collect();
     let hlv: Vec<char> = hl(yb).chars().collect();
     let sn = san(yb);
+    let fwd_sex = if yang_stem(ys) == male { 1 } else { -1 };
+    let (fire_dir, bell_dir) = match fb.mode {
+        0 => (1, 1),
+        1 => (1, -1),
+        2 => (fwd_sex, fwd_sex),
+        3 => (fwd_sex, -fwd_sex),
+        _ => (0, 0), // 4: 시를 세지 않음(기점 고정)
+    };
     let mut p: Vec<(&'static str, i64)> = vec![
         ("자미", zw), ("천기", zw - 1), ("태양", zw - 3), ("무곡", zw - 4), ("천동", zw - 5), ("염정", zw - 8),
         ("천부", tf), ("태음", tf + 1), ("탐랑", tf + 2), ("거문", tf + 3), ("천상", tf + 4), ("천량", tf + 5), ("칠살", tf + 6), ("파군", tf + 10),
         ("좌보", bi('辰') + m - 1), ("우필", bi('戌') - (m - 1)), ("문창", bi('戌') - h), ("문곡", bi('辰') + h),
         ("천괴", bi(kui[0])), ("천월", bi(kui[1])), ("녹존", lu), ("경양", lu + 1), ("타라", lu - 1),
-        ("천마", bi(ma(yb))), ("화성", bi(hlv[0]) + h), ("영성", bi(hlv[1]) + h), ("지겁", bi('亥') + h), ("지공", bi('亥') - h),
+        ("천마", bi(ma(yb))), ("화성", bi(hlv[0]) + fire_dir * (h + fb.off)), ("영성", bi(hlv[1]) + bell_dir * (h + fb.off)), ("지겁", bi('亥') + h), ("지공", bi('亥') - h),
         ("천형", bi('酉') + m - 1), ("천요", bi('丑') + m - 1),
         ("삼태", bi('辰') + m - 1 + d - 1), ("팔좌", bi('戌') - (m - 1) - (d - 1)),
     ];
@@ -266,6 +296,21 @@ fn tables() -> Tables {
 }
 
 /// 십간사화(기본 변형): [(화, 별)] 록권과기 순
+/// 전서 사화표(전서남양당-3-권본문-0031 「甲廉破武陽…」): 록·권·과·기 순
+const QUANSHU_SIHUA: [[&str; 4]; 10] = [
+    ["염정", "파군", "무곡", "태양"], ["천기", "천량", "자미", "태음"], ["천동", "천기", "문창", "염정"], ["태음", "천동", "천기", "거문"],
+    ["탐랑", "태음", "우필", "천기"], ["무곡", "탐랑", "천량", "문곡"], ["태양", "무곡", "천동", "천상"], ["거문", "태양", "문곡", "문창"],
+    ["천량", "자미", "천부", "무곡"], ["파군", "거문", "태음", "탐랑"],
+];
+
+pub fn sihua_of_v(stem: char, quanshu: bool) -> Vec<(&'static str, String)> {
+    if quanshu {
+        let row = QUANSHU_SIHUA[si(stem)];
+        return HUA.iter().zip(row.iter()).map(|(h, s)| (*h, s.to_string())).collect();
+    }
+    sihua_of(stem)
+}
+
 pub fn sihua_of(stem: char) -> Vec<(&'static str, String)> {
     let t = tables();
     HUA.iter().map(|h| (*h, t.sihua["default"][stem.to_string()][*h]["star"].as_str().unwrap().to_string())).collect()
@@ -296,9 +341,10 @@ pub fn parse_input(inp: &Input) -> Result<(char, char, i64, i64, i64), String> {
 
 pub fn build_chart(inp: &Input) -> Result<Value, String> {
     let (ys, yb, m, d, h) = parse_input(inp)?;
-    let pl = place_stars(ys, yb, m, d, h)?;
+    let q = is_quanshu(inp);
+    let pl = place_stars_with(ys, yb, m, d, h, inp.male, if q { QUANSHU_FIREBELL } else { DEFAULT_FIREBELL })?;
     let t = tables();
-    let sh = sihua_of(ys);
+    let sh = sihua_of_v(ys, q);
     let fwd = yang_stem(ys) == inp.male;
     let n = pl.ju;
     let cs0 = bi(CS_START.iter().find(|(j, _)| *j == n).unwrap().1);
@@ -354,7 +400,7 @@ pub fn build_chart(inp: &Input) -> Result<Value, String> {
         "mingzhu": mingzhu(pl.ming), "shenzhu": shenzhu(yb),
         "palaces": palaces, "pos": pos, "birth_hua": bh, "kong": pl.kong,
         "changsheng": {"start": CS_START.iter().find(|(j, _)| *j == n).unwrap().1.to_string(), "direction": dir, "by_palace": cs_by},
-        "sihua_variant": "default",
+        "sihua_variant": if q { "quanshu" } else { "default" },
     });
     if !ch.is_empty() {
         out["choices"] = Value::Array(ch);
