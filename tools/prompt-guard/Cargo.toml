@@ -1,0 +1,9 @@
+[package]
+name = "graphify-prompt-guard"
+version = "0.1.0"
+edition = "2021"
+publish = false
+description = "Deterministic validation for Graphify semantic extraction outputs and prompt safety invariants"
+
+[dependencies]
+serde_json = "1"
