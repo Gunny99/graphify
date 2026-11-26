@@ -38,7 +38,9 @@ pytest tests/test_skillgen.py tests/test_skillgen_input_path_injection.py -q
 
 ## Current test status
 
-The authoring environment used for this handoff has no `rustc` or `cargo` executable. Rust tests have therefore **not** been run locally. The Rust CI job must be added and its result inspected before claiming the implementation is compiled or tested. Existing Python tests were not run as part of this change.
+The authoring environment used for this handoff has no `rustc` or `cargo` executable. Rust tests have therefore **not** been run locally. The PR currently has no GitHub Actions workflow run or status check visible, so compilation and tests remain **unverified**. Do not describe the Rust code as passing until a real toolchain run completes. Existing Python tests were not run as part of this change.
+
+The crate currently has no committed `Cargo.lock`. Once a Rust toolchain is available, generate and commit the lockfile, then change CI to `cargo test --locked` for reproducible dependency resolution.
 
 ## Review focus for Claude
 
