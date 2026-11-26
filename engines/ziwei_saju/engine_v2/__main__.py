@@ -75,8 +75,8 @@ def main(argv=None):
     ap.add_argument('--no-eot', action='store_true', help='균시차를 빼고 경도 보정만')
     ap.add_argument('--tz', type=float, default=9)
     ap.add_argument('--sihua', default=None, choices=[None, 'nanyang', 'wangtingzhi'])
-    ap.add_argument('--zi-rule', default='next_day', choices=['next_day', 'same_day'])
-    ap.add_argument('--leap-rule', default='same', choices=['same', 'next', 'split15'])
+    ap.add_argument('--zi-rule', default=None, help='기본 prev_day(Gunny 11-26 확정)', choices=['next_day', 'same_day', 'prev_day'])
+    ap.add_argument('--leap-rule', default=None, choices=['same', 'next', 'split15'])
     ap.add_argument('--seun-boundary', default='lichun', choices=['lichun', 'seol', 'jan1'])
     ap.add_argument('--full', action='store_true')
     ap.add_argument('--report', default=None, metavar='경로', help='판정표 마크다운을 이 경로에 쓴다(JSON은 내지 않는다)')
@@ -86,6 +86,11 @@ def main(argv=None):
     r = compute(a.date, a.time, a.sex == 'M', a.solar_offset, a.tz, sihua_variant=a.sihua,
                 zi_rule=a.zi_rule, leap_rule=a.leap_rule, seun_boundary=a.seun_boundary,
                 longitude=a.longitude, meridian=a.meridian, eot=not a.no_eot)
+    pending = [c for c in r['chart']['birth']['choices'] if c['chosen'] is None and not c['same_result']]
+    if pending:
+        sys.stderr.write('경고: 고객 선택 필요(%s). 기본값(%s)으로 계산했다. choices: %s\n' % (
+            ', '.join(c['kind'] for c in pending), ', '.join(c['default'] for c in pending),
+            json.dumps(_plain(r['chart']['birth']['choices']), ensure_ascii=False)))
     if a.report:
         from . import report
         tbl = report.table_from_file(a.rank_table) if a.rank_table else None

@@ -70,6 +70,18 @@ def _star(s):
 
 
 # ---- 1절 ----
+def _choice_rows(b):
+    rows = []
+    for c in b.get('choices') or []:
+        if c['chosen'] is None and not c['same_result']:
+            rows.append(('고객 선택 필요', '%s: %s (기본 %s, 지금 기본값으로 계산)' % (
+                '윤달' if c['kind'] == 'leap' else '子時', ' / '.join(
+                    '%s 명궁 %s' % (o['rule'], o['ming']) + (' 일주 %s' % o['day_gz'] if 'day_gz' in o else '') for o in c['options']),
+                c['default'])))
+    return rows
+
+
+
 def _sec1(R):
     ch = R['chart']
     b = ch['birth']
@@ -85,7 +97,7 @@ def _sec1(R):
         ('음력', '%s년 %s월 %s일%s (명반 월 %s)' % (lu['year'], lu['month'], lu['day'], ' 윤달' if lu['leap'] else '', lu['chart_month'])),
         ('시지', b['hour_branch']),
         ('가정(미확인)', b.get('assumptions')),
-    ])
+    ] + _choice_rows(b))
     o += ['', '### 사주 네 기둥']
     o += _table(['년', '월', '일', '시'], [(sj['year'], sj['month'], sj['day'], sj['hour'])])
     o += ['', '앞 節 %s %s, 뒤 節 %s %s.' % (b['jie_prev']['name'], _t(b['jie_prev']['at']), b['jie_next']['name'], _t(b['jie_next']['at']))]
@@ -366,7 +378,7 @@ def _sec7(R):
     rows = align.align(R)
     tl = align.tally(rows)
     o = ['## 7. 사주 층', '',
-         '사주 판정(data/saju_judgments.json)과 자미두수 값(2·3·5절)을 같은 영역, 같은 시기, 같은 방향으로 견준 대조표다(명세 10절 6번, 11-1절). 사주는 %s. 자미두수 값은 이 문서 2·3·5절의 값과 같다. 길흉은 선 구절(선다)에 길과 흉이 있는지만 보고 수를 견주지 않는다. 성질은 선 구절과 성질 서술의 결과 낱말을 data/trait_lexicon.json의 (범주, 극)으로 맞춘다. 자붕이의 명시 판정은 명세 5절 11번의 넷(%s)에 한해 그 값을 쓴다. 대운은 대한 구간마다 보고 구간이 둘 이상이면서 상충이 하나라도 있으면 구간 갈림이다.' % (
+         '사주 판정(data/saju_judgments.json)과 자미두수 값(2·3·5절)을 같은 영역, 같은 시기, 같은 방향으로 견준 대조표다(명세 10절 6번, 11-1절). 사주는 %s. 자미두수 값은 이 문서 2·3·5절의 값과 같다. 길흉은 선 구절(선다)에 길과 흉이 있는지만 보고 수를 견주지 않는다. 성질은 선 구절과 성질 서술의 결과 낱말을 data/trait_lexicon.json의 (범주, 극)으로 맞춘다. 자붕이의 명시 판정은 명세 5절 11번의 넷(%s)에 한해 그 값을 쓴다. 대운은 대한 구간마다 보고 구간 결과가 모두 같으면 그 값이고, 서로 다르면서 상충이 하나라도 있으면 구간 갈림이다.' % (
              data['명식']['사주'], ', '.join(sorted(align.zabungi_explicit(R))) or '이 명반에서는 조건이 서지 않음'), '',
          '결과 수: ' + ', '.join('%s %d' % (k, tl[k]) for k in ('합치', '상충', '혼재', '무대응', '구간 갈림', '제외') if tl.get(k)) + '. 줄은 판정 하나가 범주나 시기마다 갈라진 것이다.', '']
     body = []
@@ -399,7 +411,7 @@ def default_cmd(result):
     else:
         cmd += ' --solar-offset %s' % inp['solar_offset_min']
     for flag, val, default in (('--tz', inp.get('tz', 9), 9), ('--sihua', opt.get('sihua'), None),
-                               ('--zi-rule', inp.get('zi_rule', 'next_day'), 'next_day'), ('--leap-rule', inp.get('leap_rule', 'same'), 'same'),
+                               ('--zi-rule', inp.get('zi_rule', 'prev_day'), 'prev_day'), ('--leap-rule', inp.get('leap_rule', 'same'), 'same'),
                                ('--seun-boundary', opt.get('seun_boundary', 'lichun'), 'lichun')):
         if val != default:
             cmd += ' %s %s' % (flag, val)

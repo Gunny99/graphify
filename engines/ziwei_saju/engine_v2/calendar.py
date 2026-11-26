@@ -51,19 +51,71 @@ def equation_of_time(y, m, d):
                      - 0.014615 * math.cos(2 * g) - 0.040849 * math.sin(2 * g))
 
 
-def resolve(date, time='12:00', male=True, solar_offset_min=0, tz=9, zi_rule='next_day', leap_rule='same',
+def _lunar(day):
+    lday = sxtwl.fromSolar(day.year, day.month, day.day)
+    return lday, lday.getLunarMonth(), lday.getLunarDay(), bool(lday.isLunarLeap()), lday.getLunarYear()
+
+
+def _chart_month(lm, ld, leap, rule):
+    if leap and (rule == 'next' or (rule == 'split15' and ld > 15)):
+        return lm % 12 + 1
+    return lm
+
+
+def _option(day, h, male, leap_rule):
+    """그날(양력 date)을 명식 날로 쓸 때의 음력·일주·시주·명반 값과 비교 키."""
+    from .chart import JU_NAME, place_stars
+    lday, lm, ld, leap, ly = _lunar(day)
+    cm = _chart_month(lm, ld, leap, leap_rule)
+    gz = gz60(ly - 4)
+    pos, ming, shen, n, _, _ = place_stars(gz[0], gz[1], cm, ld, h, male)
+    dg = lday.getDayGZ()
+    dgz = STEM[dg.tg] + BR[dg.dz]
+    hgz = STEM[(STEM.index(RAT[dgz[0]]) + h) % 10] + BR[h]
+    out = dict(date=day.isoformat(), lunar=dict(year=ly, month=lm, day=ld, leap=leap), chart_month=cm, day_gz=dgz, hour_gz=hgz,
+               ming=ming, shen=shen, ju=n, ju_name=JU_NAME[n])
+    return out, (tuple(sorted(pos.items())), ming, shen, n, dgz, hgz)
+
+
+def _choices(solar, lm, leap, male, h, zi_rule, leap_rule, leap_explicit):
+    """고객이 고를 규칙(지금은 윤달만). 해당될 때만 항목이 생긴다. 子時는 선택에서 뺐고 zi_rule로 정한다
+    (prev_day 기본, next_day, same_day). same_result: 선택지마다 명반이 같으면 True(고객에게 묻지 않아도 된다)."""
+    out = []
+    day = solar.date()
+    if leap:
+        d = day + _dt.timedelta(days=1) if (zi_rule == 'next_day' and solar.hour == 23) else (
+            day - _dt.timedelta(days=1) if (zi_rule == 'prev_day' and solar.hour == 0) else day)
+        opts, keys = [], []
+        for r in ('same', 'next', 'split15'):
+            o, k = _option(d, h, male, r)
+            opts.append(dict(rule=r, chart_month=o['chart_month'], ming=o['ming'], shen=o['shen'], ju=o['ju'], ju_name=o['ju_name']))
+            keys.append(k)
+        out.append(dict(kind='leap', default='same', chosen=leap_rule if leap_explicit else None, options=opts,
+                        same_result=len(set(keys)) == 1))
+    return out
+
+
+def resolve(date, time='12:00', male=True, solar_offset_min=0, tz=9, zi_rule=None, leap_rule=None,
             longitude=None, meridian=None, eot=True):
     """생년월일시 해석.
 
     date 'YYYY-MM-DD', time 'HH:MM'(시계 시각), male bool, solar_offset_min 진태양시 보정 분(시계 + 보정 = 진태양시),
-    tz 시계의 UTC 오프셋 시간, zi_rule 'next_day'(23시 이후 子時는 다음 날로 셈) 또는 'same_day',
+    tz 시계의 UTC 오프셋 시간, zi_rule 'prev_day'(기본, Gunny 11-26 확정: 진태양시 23:00~00:59 전체를 23:00이 시작된 날로 셈), 'next_day'(23시대 子時는 다음 날로 셈), 'same_day',
     leap_rule 윤달 처리: 'same'(윤달을 그 달로), 'next'(다음 달로), 'split15'(15일까지 그 달, 16일부터 다음 달).
+    진태양시 = 시계 + 4×(경도 − 자오선) + EoT (분). 경도는 동경 +, 서머타임은 없다(tz·meridian 입력으로만 반영).
     longitude 출생지 경도(동경 +): 주면 solar_offset_min = 4×(longitude − meridian) + 균시차(eot=False면 0)로 계산한다.
     meridian 표준시 자오선 경도(기본 tz×15). longitude와 0이 아닌 solar_offset_min을 함께 주면 오류.
     서머타임·역사적 표준시는 자동 판단하지 않는다(tz·meridian 입력으로만 반영).
     """
     if male not in (True, False):
         raise ValueError('성별(male)은 True/False여야 한다')
+    if zi_rule is not None and zi_rule not in ('next_day', 'same_day', 'prev_day'):
+        raise ValueError(zi_rule)
+    if leap_rule is not None and leap_rule not in ('same', 'next', 'split15'):
+        raise ValueError(leap_rule)
+    leap_explicit = leap_rule is not None                                       # 고객이 고른 규칙인지(choices의 chosen)
+    zi_rule = zi_rule or 'prev_day'                                              # Gunny 11-26 확정 기본값
+    leap_rule = leap_rule or 'same'
     clock = _dt.datetime.strptime(f'{date} {time}', '%Y-%m-%d %H:%M')
     solar_basis = None
     if longitude is not None:
@@ -82,7 +134,9 @@ def resolve(date, time='12:00', male=True, solar_offset_min=0, tz=9, zi_rule='ne
     day = solar.date()
     if zi_rule == 'next_day' and solar.hour == 23:
         day = day + _dt.timedelta(days=1)
-    elif zi_rule not in ('next_day', 'same_day'):
+    elif zi_rule == 'prev_day' and solar.hour == 0:         # 23:00~00:59 전체를 23:00이 시작된 날로 본다
+        day = day - _dt.timedelta(days=1)
+    elif zi_rule not in ('next_day', 'same_day', 'prev_day'):
         raise ValueError(zi_rule)
     lday = sxtwl.fromSolar(day.year, day.month, day.day)
     lm, ld, leap, ly = lday.getLunarMonth(), lday.getLunarDay(), bool(lday.isLunarLeap()), lday.getLunarYear()
@@ -90,8 +144,6 @@ def resolve(date, time='12:00', male=True, solar_offset_min=0, tz=9, zi_rule='ne
     if leap:
         if leap_rule == 'next' or (leap_rule == 'split15' and ld > 15):
             chart_month = lm % 12 + 1
-        elif leap_rule not in ('same', 'next', 'split15'):
-            raise ValueError(leap_rule)
     lunar_year_gz = gz60(ly - 4)
 
     # 사주: 년주는 立春 순간, 월주는 節 순간으로 가른다
@@ -108,15 +160,16 @@ def resolve(date, time='12:00', male=True, solar_offset_min=0, tz=9, zi_rule='ne
     dgz = STEM[dg.tg] + BR[dg.dz]
     hgz = STEM[(STEM.index(RAT[dgz[0]]) + h) % 10] + BR[h]
 
+    choices = _choices(solar, lday.getLunarMonth(), leap, male, h, zi_rule, leap_rule, leap_explicit)
     return dict(
         input=dict(date=date, time=time, male=male, solar_offset_min=solar_offset_min, tz=tz, zi_rule=zi_rule, leap_rule=leap_rule,
                    longitude=longitude, meridian=None if solar_basis is None else solar_basis['meridian'], eot=eot),
-        solar_basis=solar_basis,
+        solar_basis=solar_basis, choices=choices,
         clock=clock, solar=solar, hour_index=h, hour_branch=BR[h],
         lunar=dict(year=ly, month=lm, day=ld, leap=leap, chart_month=chart_month, year_gz=lunar_year_gz),
         saju=dict(year=ygz, month=mgz, day=dgz, hour=hgz),
         jie_prev=dict(name=JIE_NAME[prev[1]], at=_dt_from_jd(prev[0], tz)),
         jie_next=dict(name=JIE_NAME[nxt[1]], at=_dt_from_jd(nxt[0], tz)),
         birth_jd_utc8=bjd, prev_jd=prev[0], next_jd=nxt[0],
-        assumptions=dict(zi_rule=f'{zi_rule}: 가정(미확인)', leap_rule=f'{leap_rule}: 가정(미확인)'),
+        assumptions=dict(zi_rule=(f'{zi_rule}: Gunny 11-26 확정' if zi_rule == 'prev_day' else f'{zi_rule}: 선택 옵션(기본 prev_day 아님)'), leap_rule=f'{leap_rule}: 가정(미확인)'),
     )
