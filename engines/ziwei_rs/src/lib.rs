@@ -2,6 +2,7 @@
 //! 기준: engines/ziwei_saju/engine_v2 의 chart.py·common.py·tables.py. 판정·해석은 하지 않는다.
 pub mod chart;
 pub mod common;
+pub mod solar;
 pub mod timeline;
 
 pub use chart::{build_chart, Input};

@@ -9,7 +9,16 @@ fn die(msg: &str) -> ! {
 fn main() {
     let a: Vec<String> = std::env::args().skip(1).collect();
     if a.len() < 2 {
-        die("사용: zw chart <json> | zw timeline <json> [--daxian-start xusui|manage] [--dayun-start N]");
+        die("사용: zw chart <json> | zw hour <json> [--no-eot] | zw timeline <json> [--daxian-start xusui|manage] [--dayun-start N]");
+    }
+    if a[0] == "hour" {
+        let si: ziwei_rs::solar::SolarInput = serde_json::from_str(&a[1]).unwrap_or_else(|e| die(&format!("입력 JSON 오류: {e}")));
+        let eot = !a[2..].iter().any(|x| x == "--no-eot");
+        match ziwei_rs::solar::solar_hour(&si, eot) {
+            Ok(v) => println!("{}", serde_json::to_string_pretty(&v).unwrap()),
+            Err(e) => die(&e),
+        }
+        return;
     }
     let inp: Input = serde_json::from_str(&a[1]).unwrap_or_else(|e| die(&format!("입력 JSON 오류: {e}")));
     let out = match a[0].as_str() {
