@@ -111,6 +111,12 @@ pub fn build_timeline(inp: &Input, opts: TimelineOpts) -> Result<Value, String> 
             "tongxian": tong,
             "xiaoxian": palace(ming, xz),
             "liu_lu": liu("녹존", lu), "liu_yang": liu("경양", lu + 1), "liu_tuo": liu("타라", lu - 1),
+            // 流年 四飛星. 原文 卷3 安喪門白虎吊客官府四飛星訣(전서남양당-3-권본문-0060):
+            // 「流年太歲前二位是喪門 後二位是吊客 喪門對照安白虎 吊客對照安官府」 (대궁 = +6)
+            "sangmen": palace(ming, bz(bi(tb) + 2)),
+            "diaoke": palace(ming, bz(bi(tb) - 2)),
+            "baihu": palace(ming, bz(bi(tb) + 2 + 6)),
+            "guanfu": palace(ming, bz(bi(tb) - 2 + 6)),
             "taisui_hua": hua_list(ts, &pl.pos, ming),
             "dayun": dayun, "dayun_hua": dayun_hua,
         }));

@@ -185,3 +185,25 @@ fn leap_choices() {
     assert!(build_chart(&inp("己丑", true)).unwrap().get("choices").is_none());
     assert!(build_chart(&mk(Some("bad"), 10)).is_err());
 }
+
+#[test]
+fn four_flying_stars() {
+    // 子년(甲子 1세): 太歲 子 → 喪門 寅, 吊客 戌, 白虎 申(喪門 대궁), 官府 辰(吊客 대궁)
+    let t = tl("甲子", true, DaxianStart::Xusui, None);
+    let y = yr(&t, 1);
+    assert_eq!(y["taisui"]["branch"], "子");
+    assert_eq!(br(&y["sangmen"]), "寅");
+    assert_eq!(br(&y["diaoke"]), "戌");
+    assert_eq!(br(&y["baihu"]), "申");
+    assert_eq!(br(&y["guanfu"]), "辰");
+    assert!(y["sangmen"]["role"].is_string());
+    for age in 1..=100 {
+        let y = yr(&t, age);
+        let tb = bi(br(&y["taisui"]["palace"]).chars().next().unwrap());
+        let b = |k: &str| bi(br(&y[k]).chars().next().unwrap());
+        assert_eq!(b("sangmen"), (tb + 2).rem_euclid(12));
+        assert_eq!(b("diaoke"), (tb - 2).rem_euclid(12));
+        assert_eq!(b("baihu"), (b("sangmen") + 6).rem_euclid(12));
+        assert_eq!(b("guanfu"), (b("diaoke") + 6).rem_euclid(12));
+    }
+}
