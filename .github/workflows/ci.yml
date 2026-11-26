@@ -8,6 +8,15 @@ on:
   workflow_dispatch:
 
 jobs:
+  rust-prompt-guard:
+    # Independent deterministic validation layer for semantic extraction output.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install stable Rust
+        uses: dtolnay/rust-toolchain@stable
+      - name: Test Rust prompt guard
+        run: cargo test --manifest-path tools/prompt-guard/Cargo.toml
   skillgen-check:
     # Fast lint-style guard: the skill files under graphify/ are generated from
     # the fragments in tools/skillgen/. This fails if someone hand-edited a
