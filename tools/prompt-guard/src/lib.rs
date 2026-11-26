@@ -130,7 +130,7 @@ fn validate_value(value: &Value, allowed_files: &[String]) -> Result<(), Vec<Str
                     }
                 }
             }
-            _ => errors.push(format!("{label}.nodes must contain at least two node ids")),
+            _ => errors.push(format!("{label}.nodes must contain at least three node ids")),
         }
         match nonempty_string(object.get("confidence")) {
             Some(level) if HYPEREDGE_CONFIDENCE.contains(&level) => {}
