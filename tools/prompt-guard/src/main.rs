@@ -17,10 +17,11 @@ fn fail(errors: Vec<String>) -> ! {
 
 fn main() {
     let args: Vec<String> = env::args().collect();
-    if args.len() != 3 { usage(); }
+    if args.len() < 2 { usage(); }
 
     match args[1].as_str() {
         "validate" => {
+            if args.len() != 4 { usage(); }
             let file_list = fs::read_to_string(&args[2]).unwrap_or_else(|error| {
                 eprintln!("ERROR: cannot read file list: {error}");
                 process::exit(2);
@@ -42,6 +43,7 @@ fn main() {
             }
         }
         "check-prompt" => {
+            if args.len() != 3 { usage(); }
             let prompt = fs::read_to_string(&args[2]).unwrap_or_else(|error| {
                 eprintln!("ERROR: cannot read prompt: {error}");
                 process::exit(2);
