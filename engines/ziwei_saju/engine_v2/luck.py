@@ -2,6 +2,7 @@
 
 고친 것: yun.birth/dayun의 1999년 고정과 1999~2000 절기 표, guard의 BIRTH·寅·국수·월 창 상수.
 """
+from functools import lru_cache as _lru_cache
 import datetime as _dt
 
 import sxtwl
@@ -85,6 +86,7 @@ def daewoon_in_year(dw, year, boundary='lichun', tz=9):
 SEUN_BOUNDARY_NOTE = '세운 해 경계는 가정(미확인). 기본 입춘: 사화의 천간이 사주의 세운이므로(명세 9절 11번)'
 
 
+@_lru_cache(maxsize=None)
 def seun_period(year, boundary='lichun', tz=9):
     """세운 year의 기간 [start, end). boundary: 'lichun'(입춘 순간, 기본), 'seol'(음력 1월 1일), 'jan1'(양력 1월 1일)."""
     def start(y):
