@@ -121,7 +121,7 @@ fn validate_value(value: &Value, allowed_files: &[String]) -> Result<(), Vec<Str
             continue;
         };
         match object.get("nodes").and_then(Value::as_array) {
-            Some(ids) if ids.len() >= 2 => {
+            Some(ids) if ids.len() >= 3 => {
                 for id in ids {
                     match id.as_str() {
                         Some(id) if node_ids.contains(id) => {}
@@ -291,6 +291,13 @@ mod tests {
         let input = valid().replace(r#""id":"beta""#, r#""id":"alpha""#);
         let errors = validate_extraction(&input, &allowed()).unwrap_err();
         assert!(errors.iter().any(|e| e.contains("duplicates node id")));
+    }
+
+    #[test]
+    fn rejects_hyperedges_with_fewer_than_three_nodes() {
+        let input = valid().replace(r#"\"hyperedges\":[]"#, r#"\"hyperedges\":[{\"id\":\"pair\",\"label\":\"Pair\",\"nodes\":[\"alpha\",\"beta\"],\"relation\":\"form\",\"confidence\":\"INFERRED\",\"confidence_score\":0.75,\"source_file\":\"/workspace/docs/a.md\"}]"#);
+        let errors = validate_extraction(&input, &allowed()).unwrap_err();
+        assert!(errors.iter().any(|e| e.contains("at least three node ids")));
     }
 
     #[test]
