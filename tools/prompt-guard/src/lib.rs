@@ -295,7 +295,7 @@ mod tests {
 
     #[test]
     fn rejects_hyperedges_with_fewer_than_three_nodes() {
-        let input = valid().replace(r#"\"hyperedges\":[]"#, r#"\"hyperedges\":[{\"id\":\"pair\",\"label\":\"Pair\",\"nodes\":[\"alpha\",\"beta\"],\"relation\":\"form\",\"confidence\":\"INFERRED\",\"confidence_score\":0.75,\"source_file\":\"/workspace/docs/a.md\"}]"#);
+        let input = valid().replace("\"hyperedges\":[]", "\"hyperedges\":[{\"id\":\"pair\",\"label\":\"Pair\",\"nodes\":[\"alpha\",\"beta\"],\"relation\":\"form\",\"confidence\":\"INFERRED\",\"confidence_score\":0.75,\"source_file\":\"/workspace/docs/a.md\"}]");
         let errors = validate_extraction(&input, &allowed()).unwrap_err();
         assert!(errors.iter().any(|e| e.contains("at least three node ids")));
     }
