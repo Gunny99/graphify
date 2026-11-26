@@ -7,13 +7,13 @@ from engine_v2 import compute
 from engine_v2.grades import evaluate, load_grades, unparsed
 from engine_v2.tests.test_generality import CASES
 
-TARGET = ('1999-08-04', '10:14', True, -38)
+from engine_v2.tests.target import TARGET, kw_for
 ALL = list(CASES) + [TARGET]
 
 
 @pytest.mark.parametrize('case', ALL, ids=[c[0] for c in ALL])
 def test_evaluate_runs(case):
-    out = evaluate(compute(*case))
+    out = evaluate(compute(*case, **kw_for(case)))
     assert out
     for it in out:
         assert it['verdict'] in ('선다', '반만', '서지 않는다')
@@ -30,7 +30,7 @@ def test_table_shape():
     for e in g:
         assert e['parse'] in ('auto', 'manual', 'unparsed') and e['polarity'] in ('길', '흉', '중')
         assert e['text'] and (e['conds'] or e['parse'] == 'unparsed')
-    assert len(evaluate(compute(*TARGET))) + len(unparsed()) == len(g)
+    assert len(evaluate(compute(*TARGET, **kw_for(TARGET)))) + len(unparsed()) == len(g)
 
 
 def test_any_of_marked():
@@ -41,7 +41,7 @@ def test_any_of_marked():
 
 
 def test_print_target(capsys):
-    out = evaluate(compute(*TARGET))
+    out = evaluate(compute(*TARGET, **kw_for(TARGET)))
     with capsys.disabled():
         for v in ('선다', '반만'):
             print('\n[%s]' % v)

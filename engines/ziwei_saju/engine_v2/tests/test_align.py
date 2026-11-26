@@ -6,7 +6,7 @@ import pytest
 from engine_v2 import align, compute, l2
 from engine_v2.tests.test_generality import CASES
 
-TARGET = ('1999-08-04', '10:14', True, -38)
+from engine_v2.tests.target import TARGET, kw_for
 KEYS = ('판정_id', '영역', '시기', '방향', '결과', '견준_궁', '근거_구절_id', '맞은_낱말', '신빙성')
 ALLOWED = ('합치', '상충', '혼재', '무대응', '구간 갈림', '제외')
 
@@ -171,7 +171,7 @@ def test_judgment_file_integrity():
 # ── 대상 명반과 재현 명반 ───────────────────────────────
 @pytest.fixture(scope='module')
 def target():
-    R = compute(*TARGET)
+    R = compute(*TARGET, **kw_for(TARGET))
     return R, align.align(R)
 
 
@@ -200,7 +200,7 @@ def test_target_zabungi_four(target):
 
 @pytest.mark.parametrize('case', CASES[-3:], ids=lambda c: c[0])
 def test_reproduction_charts_run(case):
-    R = compute(*case)
+    R = compute(*case, **kw_for(case))
     rows = align.align(R)
     assert rows and all(r['결과'] in ALLOWED for r in rows)
     for r in rows:

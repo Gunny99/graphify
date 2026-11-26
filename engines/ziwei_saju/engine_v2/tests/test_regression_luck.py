@@ -1,7 +1,7 @@
 """자붕이 구속 단언 회귀시험(운: 대운·대한·세운, L0 운 기간표와 L3). 원본: A_자붕이_판정목록.md 요약표.
 명세 판 0.4 4절의 틀(대한명궁, 대한 삼방사정 네 궁, 본명 삼방사정), 중첩(R22), 두 판독 틀과 갈림을 따른다.
 
-대상 명반은 test_regression.py와 같다(시계 10:14, 보정 -38분). 궁·별 이름은 기대값에만 나온다.
+대상 명반은 test_regression.py와 같다(시계 10:10, 경도 126.7). 궁·별 이름은 기대값에만 나온다.
 """
 import datetime as dt
 
@@ -9,12 +9,12 @@ import pytest
 
 from engine_v2 import compute, luck
 
-DATE, TIME, MALE, OFFSET = '1999-08-04', '10:14', True, -38
+from engine_v2.tests.target import DATE, TIME, MALE, KW
 
 
 @pytest.fixture(scope='module')
 def R():
-    return compute(DATE, TIME, MALE, OFFSET)
+    return compute(DATE, TIME, MALE, 0, **KW)
 
 
 def dw(R, stem):

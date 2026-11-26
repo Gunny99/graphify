@@ -33,7 +33,7 @@ EXP = [('福:3', S), ('福:4', S), ('福:6', S), ('福:45', S), ('福:46', S), (
 
 @pytest.fixture(scope='module')
 def ev():
-    r = compute('1999-08-04', '10:14', True, -38)
+    r = compute('1999-08-04', '10:10', True, 0, longitude=126.7)
     out = l2.evaluate(r)
     return {it['id']: it for v in out.values() for it in v['passages']}, out
 
@@ -102,7 +102,7 @@ J3 = {
 
 @pytest.fixture(scope='module')
 def j3():
-    return l2.evaluate_j3(compute('1999-08-04', '10:14', True, -38))
+    return l2.evaluate_j3(compute('1999-08-04', '10:10', True, 0, longitude=126.7))
 
 
 @pytest.mark.parametrize('key,want', list(J3.items()), ids=lambda k: str(k))
@@ -139,7 +139,7 @@ def test_j3_runs_on_cases():
 
 
 def test_j4_unchanged():
-    r = compute('1999-08-04', '10:14', True, -38)
+    r = compute('1999-08-04', '10:10', True, 0, longitude=126.7)
     full = l2.evaluate(r)
     only4 = l2.evaluate(r, l2.load_passages())
     for role in l2.ROLES:
@@ -147,8 +147,8 @@ def test_j4_unchanged():
 
 
 # ---- O22: 열거 조건의 셈(명세 5절 12번) ----
-def _j3_items(name='명궁', chart=('1999-08-04', '10:14', True, -38)):
-    return {it['id']: it for it in l2.evaluate_j3(compute(*chart))[name]['passages']}
+def _j3_items(name='명궁', chart=('1999-08-04', '10:10', True, 0), kw=dict(longitude=126.7)):
+    return {it['id']: it for it in l2.evaluate_j3(compute(*chart, **kw))[name]['passages']}
 
 
 def test_bundle_all_required_391():
@@ -169,7 +169,7 @@ def test_enum_counts_and_subject_excluded():
     assert [(e['k'], e['n']) for e in it['enum']] == [(1, 2), (2, 4)]
     ps = {p['id']: p for p in l2.load_passages(l2.DATA3)}
     gil = [c for c in ps['入限:1048']['conds'] if c['kind'] == '길' and not c.get('role')][0]
-    r = compute('1999-08-04', '10:14', True, -38)
+    r = compute('1999-08-04', '10:10', True, 0, longitude=126.7)
     e = l2.evaluate_j3(r)['명궁']['passages']
     mine = [i for i in e if i['id'] == '入限:1048']
     assert mine and all('화권' not in x['present'] and x['n'] == len(gil['values']) - 1 for x in mine[0]['enum'])
@@ -177,7 +177,7 @@ def test_enum_counts_and_subject_excluded():
 
 def test_nature_not_counted_as_stand():
     for name in ('명궁', '신궁'):
-        v = l2.evaluate_j3(compute('1999-08-04', '10:14', True, -38))[name]
+        v = l2.evaluate_j3(compute('1999-08-04', '10:10', True, 0, longitude=126.7))[name]
         nat = [it for it in v['passages'] if it['verdict'] == '성질']
         assert nat and all(it['total'] == 0 for it in nat)
         assert v['summary']['성질서술'] == len(nat)
@@ -418,7 +418,7 @@ def _p3(pid, cp, pol='길'):
 
 def test_j3_placement_only_counts_and_nature_does_not():
     """PR #14 리뷰: 자리만 조건인 명·명신 구절은 길흉 집계에 남고, cond_palace 성질만 성질 서술이 된다(명세 5절 12번 라·카)."""
-    r = compute('1999-08-04', '10:14', True, -38)       # 명궁 寅에 화성
+    r = compute('1999-08-04', '10:10', True, 0, longitude=126.7)       # 명궁 寅에 화성
     out = l2.evaluate_j3(r, [_p3('T:1', '명'), _p3('T:2', '명신', '흉'), _p3('T:3', '성질')])
     v = {it['id']: it['verdict'] for it in out['명궁']['passages']}
     assert v == {'T:1': '선다', 'T:2': '선다', 'T:3': '성질'}
@@ -437,8 +437,8 @@ def test_j3_result_rows_and_untranslated_conditions():
 
 def test_pair_subject_needs_one_star_here():
     """PR #14 리뷰: 짝별 주체(福:70 魁鉞)는 본궁에 둘 중 하나도 없으면 구절이 걸리지 않는다."""
-    for date, time, off in (('1969-11-05', '16:30', 0), ('1953-12-21', '06:30', 0), ('1999-08-04', '10:14', -38)):
-        out = l2.evaluate(compute(date, time, True, off))   # 대상 명반도 복덕 辰에 괴월이 없다(子 천괴, 申 천월)
+    for date, time, off in (('1969-11-05', '16:30', 0), ('1953-12-21', '06:30', 0), ('1999-08-04', '10:14', -38), ('1999-08-04', '10:10', 'lon')):
+        out = l2.evaluate(compute(date, time, True, 0, longitude=126.7) if off == 'lon' else compute(date, time, True, off))   # 대상 명반도 복덕 辰에 괴월이 없다(子 천괴, 申 천월)
         assert '福:70' not in {it['id'] for it in out['복덕']['passages']}
 
 

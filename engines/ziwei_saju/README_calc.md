@@ -9,9 +9,9 @@
 ```
 pip install sxtwl pytest
 cd engines/ziwei_saju
-python -m engine_v2 1999-08-04 10:14 M --solar-offset -38                  # 요약 JSON
-python -m engine_v2 1999-08-04 10:14 M --solar-offset -38 --full           # 전체 JSON
-python -m engine_v2 1999-08-04 10:14 M --solar-offset -38 \
+python -m engine_v2 1999-08-04 10:10 M --longitude 126.7                  # 요약 JSON
+python -m engine_v2 1999-08-04 10:10 M --longitude 126.7 --full           # 전체 JSON
+python -m engine_v2 1999-08-04 10:10 M --longitude 126.7 \
   --report ../02_판정표_engine_v2.md \
   --rank-table ../원점재검토_20261111/60_지적능력_모집단차례.md              # 판정표 문서
 python -m pytest engine_v2/tests -q                                        # 시험
