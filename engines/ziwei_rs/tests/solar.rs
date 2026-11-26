@@ -8,7 +8,20 @@ fn f(v: &serde_json::Value, k: &str) -> f64 {
 }
 
 #[test]
+fn incheon_1999_current_input() {
+    // 대상 명식(정정): 시계 10:10, 인천 126.7, 자오선 135 → 진태양시 09:31 전후, 巳時
+    let v = solar_hour(&si("1999-08-04", "10:10", 126.7), true).unwrap();
+    println!("{v}");
+    assert!((f(&v, "lon_correction_min") + 33.2).abs() <= 1.0);
+    let t = v["solar_time"].as_str().unwrap();
+    let m: i64 = t[..2].parse::<i64>().unwrap() * 60 + t[3..5].parse::<i64>().unwrap();
+    assert!((m - (9 * 60 + 31)).abs() <= 1, "{t}");
+    assert_eq!(v["hour_branch"], "巳");
+}
+
+#[test]
 fn seoul_1999() {
+    // 옛 입력(10:14, 같은 巳時) 회귀
     let v = solar_hour(&si("1999-08-04", "10:14", 126.7), true).unwrap();
     println!("{v}");
     assert!((f(&v, "lon_correction_min") + 33.2).abs() <= 1.0);
